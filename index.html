@@ -1,392 +1,230 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planejador de Rotas - com Cubagem</title>
-    <!-- Google Maps API -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds=geometry,places"></script>
-    <!-- PapaParse para CSV -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            max-width: 1200px;
-            margin: auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1, h2, h3 {
-            color: #333;
-        }
-        .section {
-            margin-bottom: 30px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 20px;
-        }
-        input[type="file"] {
-            margin: 10px 0;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        .map {
-            height: 400px;
-            margin-top: 20px;
-        }
-        .error {
-            color: red;
-        }
-        .success {
-            color: green;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roteirizador Logístico</title>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=SUA_CHAVE_AQUI&libraries=geometry,places&callback=initMap" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<style>
+body { font-family: Arial; background:#f5f5f5; margin:20px;}
+.container { max-width:1200px; margin:auto; background:white; padding:20px; border-radius:8px;}
+.section { margin-bottom:25px; }
+button { padding:8px 15px; background:#4CAF50; color:white; border:none; cursor:pointer;}
+table { width:100%; border-collapse:collapse; margin-top:10px;}
+th,td { border:1px solid #ddd; padding:8px;}
+.map { height:500px; margin-top:20px;}
+</style>
 </head>
+
 <body>
 <div class="container">
-    <h1>Planejador de Rotas com Cubagem</h1>
-    <p>Carregue as planilhas em formato <strong>CSV</strong>. Agora com colunas de volume (m³).</p>
 
-    <div class="section">
-        <h2>1. Planilha de Pedidos</h2>
-        <p>Colunas esperadas: <strong>pedido_id,cliente,endereco,peso_kg,volume_m3,num_notas,data_entrega,hora_entrega_inicio,hora_entrega_fim</strong></p>
-        <input type="file" id="ordersFile" accept=".csv">
-        <div id="ordersPreview"></div>
-    </div>
+<h1>Roteirizador Logístico</h1>
 
-    <div class="section">
-        <h2>2. Planilha de Veículos</h2>
-        <p>Colunas esperadas: <strong>veiculo_id,tipo,cap_peso_kg,cap_volume_m3,max_notas,disponivel</strong></p>
-        <input type="file" id="vehiclesFile" accept=".csv">
-        <div id="vehiclesPreview"></div>
-    </div>
+<!-- PEDIDOS -->
+<div class="section">
+<h2>Pedidos (CSV)</h2>
+<input type="file" id="ordersFile">
+<div id="ordersPreview"></div>
+</div>
 
-    <div class="section">
-        <h2>3. Configurações das Rodadas</h2>
-        <label>Horário da primeira rodada (hh:mm): <input type="time" id="startTime" value="08:00"></label><br>
-        <label>Intervalo entre rodadas (horas): <input type="number" id="intervalHours" value="3" step="1"></label><br>
-        <label>Número máximo de rodadas: <input type="number" id="maxRounds" value="3" step="1"></label><br>
-        <label>Endereço do depósito: <input type="text" id="depotAddress" size="50" value="Rua do Depósito, 100, São Paulo, SP"></label>
-        <p><button id="planBtn">Executar Planejamento</button></p>
-        <div id="status"></div>
-    </div>
+<!-- VEICULOS CSV -->
+<div class="section">
+<h2>Veículos (CSV)</h2>
+<input type="file" id="vehiclesFile">
+</div>
 
-    <div class="section">
-        <h2>4. Resultados</h2>
-        <div id="results"></div>
-        <div id="map" class="map"></div>
-    </div>
+<!-- VEICULOS MANUAL -->
+<div class="section">
+<h2>Cadastro Manual de Veículos</h2>
+
+<input id="veiculo_id" placeholder="Veículo">
+<input id="cap_peso" type="number" placeholder="Peso kg">
+<input id="cap_volume" type="number" placeholder="Volume m³">
+<input id="max_notas" type="number" placeholder="Notas">
+
+<button onclick="addVehicle()">Adicionar</button>
+
+<table id="vehiclesTable">
+<thead>
+<tr>
+<th>Veículo</th>
+<th>Peso</th>
+<th>Volume</th>
+<th>Notas</th>
+<th></th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+<!-- CONFIG -->
+<div class="section">
+<h2>Configuração</h2>
+<input id="depotAddress" value="São Paulo, SP" style="width:300px;">
+<button id="planBtn">Calcular Rotas</button>
+<div id="status"></div>
+</div>
+
+<div id="map" class="map"></div>
+<div id="results"></div>
+
 </div>
 
 <script>
-    // ==================== CONFIGURAÇÃO ====================
-    const API_KEY = "SUA_CHAVE_AQUI";
-    if (API_KEY === "SUA_CHAVE_AQUI") {
-        document.getElementById("status").innerHTML = '<span class="error">⚠️ Configure sua chave de API do Google Maps no código (linha ~90).</span>';
-    }
 
-    // ==================== VARIÁVEIS GLOBAIS ====================
-    let ordersData = [];
-    let vehiclesData = [];
-    let geocoder;
-    let map;
+let ordersData = [];
+let vehiclesData = [];
+let geocoder, map;
+let cache = {};
+let renderers = [];
 
-    function initMap() {
-        geocoder = new google.maps.Geocoder();
-        map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: -23.5505, lng: -46.6333 },
-            zoom: 10
-        });
-    }
-    window.initMap = initMap;
+function initMap(){
+    geocoder = new google.maps.Geocoder();
+    map = new google.maps.Map(document.getElementById("map"),{
+        center:{lat:-23.55,lng:-46.63},
+        zoom:10
+    });
+}
 
-    // ==================== LEITURA DE ARQUIVOS ====================
-    document.getElementById("ordersFile").addEventListener("change", function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: function(results) {
-                ordersData = results.data;
-                displayPreview("ordersPreview", ordersData, ["pedido_id","cliente","endereco","peso_kg","volume_m3","num_notas"]);
-            },
-            error: function(err) {
-                document.getElementById("ordersPreview").innerHTML = `<span class="error">Erro ao ler CSV: ${err.message}</span>`;
-            }
+// CSV pedidos
+document.getElementById("ordersFile").addEventListener("change", e=>{
+    Papa.parse(e.target.files[0], {
+        header:true,
+        complete:r=>{
+            ordersData = r.data;
+        }
+    });
+});
+
+// CSV veículos
+document.getElementById("vehiclesFile").addEventListener("change", e=>{
+    Papa.parse(e.target.files[0], {
+        header:true,
+        complete:r=>{
+            vehiclesData = r.data;
+            renderVehicles();
+        }
+    });
+});
+
+// ADD VEICULO
+function addVehicle(){
+    vehiclesData.push({
+        veiculo_id: veiculo_id.value,
+        cap_peso_kg: parseFloat(cap_peso.value),
+        cap_volume_m3: parseFloat(cap_volume.value),
+        max_notas: parseInt(max_notas.value)
+    });
+    renderVehicles();
+}
+
+// RENDER VEICULOS
+function renderVehicles(){
+    let tbody = document.querySelector("#vehiclesTable tbody");
+    tbody.innerHTML = "";
+    vehiclesData.forEach((v,i)=>{
+        tbody.innerHTML += `
+        <tr>
+            <td>${v.veiculo_id}</td>
+            <td>${v.cap_peso_kg}</td>
+            <td>${v.cap_volume_m3}</td>
+            <td>${v.max_notas}</td>
+            <td><button onclick="removeVehicle(${i})">X</button></td>
+        </tr>`;
+    });
+}
+
+function removeVehicle(i){
+    vehiclesData.splice(i,1);
+    renderVehicles();
+}
+
+// GEOCODE
+function geo(addr){
+    return new Promise((res,rej)=>{
+        if(cache[addr]) return res(cache[addr]);
+
+        geocoder.geocode({address:addr},(r,s)=>{
+            if(s==="OK"){
+                let loc = {lat:r[0].geometry.location.lat(),lng:r[0].geometry.location.lng()};
+                cache[addr]=loc;
+                res(loc);
+            } else rej(s);
         });
     });
+}
 
-    document.getElementById("vehiclesFile").addEventListener("change", function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: function(results) {
-                vehiclesData = results.data.filter(v => v.disponivel === "true" || v.disponivel === "True" || v.disponivel === "TRUE" || v.disponivel === "1");
-                displayPreview("vehiclesPreview", vehiclesData, ["veiculo_id","tipo","cap_peso_kg","cap_volume_m3","max_notas"]);
-            },
-            error: function(err) {
-                document.getElementById("vehiclesPreview").innerHTML = `<span class="error">Erro ao ler CSV: ${err.message}</span>`;
+// PLANEJAMENTO SIMPLES
+async function plan(){
+    let depot = await geo(depotAddress.value);
+
+    let routes = vehiclesData.map(v=>({
+        vehicle:v,
+        orders:[],
+        peso:0,
+        volume:0,
+        notas:0
+    }));
+
+    for(let o of ordersData){
+        for(let r of routes){
+            if(r.peso + +o.peso_kg <= r.vehicle.cap_peso_kg){
+                r.orders.push(o);
+                r.peso += +o.peso_kg;
+                break;
+            }
+        }
+    }
+
+    return {routes,depot};
+}
+
+// GOOGLE ROUTE
+async function draw(routes,depot){
+
+    renderers.forEach(r=>r.setMap(null));
+    renderers=[];
+
+    for(let r of routes){
+        if(!r.orders.length) continue;
+
+        let way = [];
+        for(let o of r.orders){
+            let c = await geo(o.endereco);
+            way.push({location:c,stopover:true});
+        }
+
+        let service = new google.maps.DirectionsService();
+
+        service.route({
+            origin:depot,
+            destination:depot,
+            waypoints:way,
+            optimizeWaypoints:true,
+            travelMode:"DRIVING"
+        },(res,status)=>{
+            if(status==="OK"){
+                let renderer = new google.maps.DirectionsRenderer({map:map});
+                renderer.setDirections(res);
+                renderers.push(renderer);
             }
         });
-    });
-
-    function displayPreview(divId, data, columns) {
-        const div = document.getElementById(divId);
-        if (!data || data.length === 0) {
-            div.innerHTML = "<p>Nenhum dado carregado.</p>";
-            return;
-        }
-        let html = "<tr><thead>起源";
-        columns.forEach(col => html += `<th>${col}</th>`);
-        html += "</thead><tbody>";
-        for (let i = 0; i < Math.min(data.length, 5); i++) {
-            html += "<tr>";
-            columns.forEach(col => html += `<td>${data[i][col] || ""}</td>`);
-            html += "</tr>";
-        }
-        if (data.length > 5) html += `<tr><td colspan="${columns.length}">... mais ${data.length-5} registros</td></tr>`;
-        html += "</tbody></table>";
-        div.innerHTML = html;
     }
+}
 
-    // ==================== GEOCÓDIGO ====================
-    function geocodeAddress(address) {
-        return new Promise((resolve, reject) => {
-            if (!geocoder) {
-                reject("Geocoder não inicializado");
-                return;
-            }
-            geocoder.geocode({ address: address }, (results, status) => {
-                if (status === "OK" && results[0]) {
-                    const loc = results[0].geometry.location;
-                    resolve({ lat: loc.lat(), lng: loc.lng() });
-                } else {
-                    reject(`Erro ao geocodificar: ${address} - ${status}`);
-                }
-            });
-        });
-    }
+// BOTAO
+planBtn.onclick = async ()=>{
+    status.innerHTML = "Calculando...";
+    let {routes,depot} = await plan();
+    await draw(routes,depot);
+    status.innerHTML = "✔️ Pronto!";
+};
 
-    // ==================== ALOCAÇÃO COM PESO, VOLUME E NOTAS ====================
-    async function planRoutes(orders, vehicles, depotCoords) {
-        // Ordena pedidos por data de entrega (quanto mais próximo, mais prioritário)
-        orders.sort((a,b) => {
-            const dateA = new Date(a.data_entrega);
-            const dateB = new Date(b.data_entrega);
-            return dateA - dateB;
-        });
-
-        // Inicializa rotas vazias
-        let routes = vehicles.map(v => ({
-            vehicle: v,
-            orders: [],
-            totalWeight: 0,
-            totalVolume: 0,
-            totalNotes: 0
-        }));
-
-        // Para cada pedido, tenta encaixar em um veículo com capacidade restante
-        for (let pedido of orders) {
-            let assigned = false;
-            for (let route of routes) {
-                const newWeight = route.totalWeight + parseFloat(pedido.peso_kg);
-                const newVolume = route.totalVolume + parseFloat(pedido.volume_m3);
-                const newNotes = route.totalNotes + parseInt(pedido.num_notas);
-                if (newWeight <= parseFloat(route.vehicle.cap_peso_kg) &&
-                    newVolume <= parseFloat(route.vehicle.cap_volume_m3) &&
-                    newNotes <= parseInt(route.vehicle.max_notas)) {
-                    route.orders.push(pedido);
-                    route.totalWeight = newWeight;
-                    route.totalVolume = newVolume;
-                    route.totalNotes = newNotes;
-                    assigned = true;
-                    break;
-                }
-            }
-            if (!assigned) {
-                console.warn(`Pedido ${pedido.pedido_id} não coube em nenhum veículo.`);
-            }
-        }
-        return routes;
-    }
-
-    // ==================== EXIBIR ROTAS NO MAPA ====================
-    async function displayRoutesOnMap(routes, depotCoords) {
-        const bounds = new google.maps.LatLngBounds();
-        new google.maps.Marker({
-            position: depotCoords,
-            map: map,
-            title: "Depósito",
-            icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
-        });
-        bounds.extend(depotCoords);
-
-        const colors = ["#FF0000", "#0000FF", "#00FF00", "#FF00FF", "#00FFFF", "#FFA500", "#800080", "#008080", "#FFC0CB", "#A52A2A"];
-
-        for (let idx = 0; idx < routes.length; idx++) {
-            const route = routes[idx];
-            if (route.orders.length === 0) continue;
-
-            // Coletar pontos: depósito + cada pedido
-            const points = [depotCoords];
-            for (let ped of route.orders) {
-                const coords = await geocodeAddress(ped.endereco);
-                points.push(coords);
-                bounds.extend(coords);
-            }
-
-            // Ordenar pontos (vizinho mais próximo)
-            const optimizedPoints = nearestNeighbor(points);
-            
-            const path = optimizedPoints.map(p => new google.maps.LatLng(p.lat, p.lng));
-            new google.maps.Polyline({
-                path: path,
-                geodesic: true,
-                strokeColor: colors[idx % colors.length],
-                strokeOpacity: 0.7,
-                strokeWeight: 4
-            }).setMap(map);
-
-            // Marcadores para pedidos (ignora o primeiro ponto que é o depósito)
-            for (let i = 1; i < optimizedPoints.length; i++) {
-                const ped = route.orders[i-1]; // assume ordem após otimização
-                new google.maps.Marker({
-                    position: optimizedPoints[i],
-                    map: map,
-                    title: `${ped.pedido_id} - ${ped.cliente}`,
-                    label: (i).toString()
-                });
-            }
-        }
-        map.fitBounds(bounds);
-    }
-
-    function nearestNeighbor(points) {
-        if (points.length <= 1) return points;
-        const start = points[0];
-        const unvisited = points.slice(1);
-        const route = [start];
-        let current = start;
-        while (unvisited.length > 0) {
-            let nearestIdx = 0;
-            let nearestDist = distance(current, unvisited[0]);
-            for (let i = 1; i < unvisited.length; i++) {
-                const d = distance(current, unvisited[i]);
-                if (d < nearestDist) {
-                    nearestDist = d;
-                    nearestIdx = i;
-                }
-            }
-            current = unvisited[nearestIdx];
-            route.push(current);
-            unvisited.splice(nearestIdx, 1);
-        }
-        return route;
-    }
-
-    function distance(p1, p2) {
-        const R = 6371; // km
-        const lat1 = p1.lat * Math.PI / 180;
-        const lat2 = p2.lat * Math.PI / 180;
-        const dlat = (p2.lat - p1.lat) * Math.PI / 180;
-        const dlon = (p2.lng - p1.lng) * Math.PI / 180;
-        const a = Math.sin(dlat/2)**2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dlon/2)**2;
-        const c = 2 * Math.asin(Math.sqrt(a));
-        return R * c;
-    }
-
-    // ==================== PLANEJAMENTO PRINCIPAL ====================
-    document.getElementById("planBtn").addEventListener("click", async () => {
-        const statusDiv = document.getElementById("status");
-        const resultsDiv = document.getElementById("results");
-        statusDiv.innerHTML = "Processando...";
-        resultsDiv.innerHTML = "";
-
-        if (!ordersData || ordersData.length === 0) {
-            statusDiv.innerHTML = '<span class="error">Carregue a planilha de pedidos primeiro.</span>';
-            return;
-        }
-        if (!vehiclesData || vehiclesData.length === 0) {
-            statusDiv.innerHTML = '<span class="error">Carregue a planilha de veículos primeiro.</span>';
-            return;
-        }
-
-        const startTimeStr = document.getElementById("startTime").value;
-        const intervalHours = parseInt(document.getElementById("intervalHours").value);
-        const maxRounds = parseInt(document.getElementById("maxRounds").value);
-        const depotAddress = document.getElementById("depotAddress").value;
-
-        let depotCoords;
-        try {
-            depotCoords = await geocodeAddress(depotAddress);
-        } catch (err) {
-            statusDiv.innerHTML = `<span class="error">Erro ao geocodificar depósito: ${err}</span>`;
-            return;
-        }
-
-        statusDiv.innerHTML = "Geocodificando pedidos... (pode demorar)";
-        const geocodePromises = ordersData.map(ped => geocodeAddress(ped.endereco).catch(err => null));
-        const coordsList = await Promise.all(geocodePromises);
-        const validOrders = ordersData.filter((_, idx) => coordsList[idx] !== null);
-        if (validOrders.length === 0) {
-            statusDiv.innerHTML = '<span class="error">Nenhum pedido com endereço válido.</span>';
-            return;
-        }
-
-        // Planejamento (uma rodada por simplicidade)
-        const routes = await planRoutes(validOrders, vehiclesData, depotCoords);
-
-        // Exibir resultados em tabela
-        let html = "<h3>Rotas Geradas</h3>";
-        for (let i = 0; i < routes.length; i++) {
-            const r = routes[i];
-            if (r.orders.length === 0) continue;
-            html += `<h4>Veículo: ${r.vehicle.veiculo_id} (${r.vehicle.tipo})</h4>`;
-            html += `<p>Peso total: ${r.totalWeight} kg / ${r.vehicle.cap_peso_kg} kg | `;
-            html += `Volume total: ${r.totalVolume} m³ / ${r.vehicle.cap_volume_m3} m³ | `;
-            html += `Notas: ${r.totalNotes} / ${r.vehicle.max_notas}</p>`;
-            html += "<table><thead><tr><th>Pedido</th><th>Cliente</th><th>Endereço</th><th>Peso (kg)</th><th>Volume (m³)</th><th>Notas</th></tr></thead><tbody>";
-            for (let ped of r.orders) {
-                html += `<tr><td>${ped.pedido_id}</td><td>${ped.cliente}</td><td>${ped.endereco}</td><td>${ped.peso_kg}</td><td>${ped.volume_m3}</td><td>${ped.num_notas}</td></tr>`;
-            }
-            html += "</tbody></table>";
-        }
-        resultsDiv.innerHTML = html;
-        statusDiv.innerHTML = '<span class="success">Planejamento concluído!</span>';
-
-        await displayRoutesOnMap(routes, depotCoords);
-    });
 </script>
 </body>
 </html>
