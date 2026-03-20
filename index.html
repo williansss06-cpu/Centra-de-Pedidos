@@ -59,6 +59,7 @@
       font-size: 16px;
       cursor: pointer;
       transition: 0.2s;
+      text-align: center;
     }
 
     .nav-btn:hover,
@@ -97,7 +98,6 @@
     .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    .grid-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 
     .field {
       display: flex;
@@ -291,7 +291,7 @@
     }
 
     @media (max-width: 1200px) {
-      .grid-4, .grid-5, .grid-6, .metrics {
+      .grid-4, .grid-5, .metrics {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
@@ -299,7 +299,7 @@
     @media (max-width: 900px) {
       .app { flex-direction: column; }
       .sidebar { width: 100%; }
-      .grid-2, .grid-3, .grid-4, .grid-5, .grid-6, .metrics {
+      .grid-2, .grid-3, .grid-4, .grid-5, .metrics {
         grid-template-columns: 1fr;
       }
     }
@@ -317,7 +317,6 @@
     </aside>
 
     <main class="content">
-      <!-- PARÂMETROS -->
       <section id="parametros" class="tab active">
         <div class="card">
           <h2>Cadastro de Veículos</h2>
@@ -423,13 +422,11 @@
           <p class="small" style="margin-top: 12px;">
             A ferramenta lê a <strong>OBS</strong> para identificar automaticamente:
             <strong>agendamento</strong>, <strong>paletização</strong> e <strong>horário previsto</strong>.
-            Além disso, ao agrupar os itens por <strong>OS</strong>, o sistema considera o
-            <strong>maior item</strong> do pedido para validar a compatibilidade dimensional com o veículo.
+            Também considera o <strong>maior item</strong> do pedido para validar a compatibilidade dimensional com o veículo.
           </p>
         </div>
       </section>
 
-      <!-- PEDIDOS -->
       <section id="pedidos" class="tab">
         <div class="card">
           <h2>Importar Pedidos por CSV</h2>
@@ -489,7 +486,6 @@
         </div>
       </section>
 
-      <!-- PLANEJAMENTO -->
       <section id="planejamento" class="tab">
         <div class="card">
           <h2>Executar Planejamento</h2>
@@ -510,7 +506,6 @@
         </div>
       </section>
 
-      <!-- RESULTADO -->
       <section id="resultado" class="tab">
         <div class="metrics">
           <div class="metric">
@@ -549,8 +544,8 @@
 
   <script>
     let vehicles = [];
-    let pedidos = []; // agrupados por OS
-    let rawItens = []; // linhas originais do CSV
+    let pedidos = [];
+    let rawItens = [];
     let map = null;
     let geocoder = null;
     let directionsRenderers = [];
@@ -627,13 +622,11 @@
 
     function extrairHorario(texto) {
       if (!texto) return null;
-
       const patterns = [
         /(\d{1,2}:\d{2})/i,
         /(\d{1,2}h\d{0,2})/i,
         /(?:às|as|ate|até)\s*(\d{1,2}(?::\d{2})?h?)/i
       ];
-
       for (const pattern of patterns) {
         const match = texto.match(pattern);
         if (match) return match[1];
@@ -643,7 +636,6 @@
 
     function analisarObs(obs) {
       const texto = normalizarTexto(obs).toLowerCase();
-
       return {
         paletizado:
           texto.includes("palet") ||
@@ -668,7 +660,7 @@
       const profundidade = parseFloat(document.getElementById("v_profundidade").value || 0);
 
       if (!nome || volume <= 0 || peso <= 0 || notas <= 0 || altura <= 0 || largura <= 0 || profundidade <= 0) {
-        alert("Preencha corretamente todos os dados do veículo, inclusive as dimensões internas.");
+        alert("Preencha corretamente todos os dados do veículo.");
         return;
       }
 
@@ -726,9 +718,9 @@
     function baixarModeloPedidos() {
       const csv = [
         "OS,COD. DEPOSITANTE,DEPOSITANTE,CNPJ,DESTINATARIO,CIDADE,UF,JOB,CODIGO PRODUTO,PRODUTO,PESO BRUTO,LARGURA,ALTURA,PROFUNDIDADE,METROCUBICO,DATAPREVISAO,MODALIDADE,OBS",
-        '1001,1,EMPRESA TESTE,00000000000191,CLIENTE A,SAO PAULO,SP,JOB01,PROD01,DISPLAY,850,2,2.5,1.5,7.5,2026-03-25,Rodoviario,"carga paletizada, entrega com agendamento às 10h"',
-        '1001,1,EMPRESA TESTE,00000000000191,CLIENTE A,SAO PAULO,SP,JOB01,PROD02,CAIXA,100,0.5,0.5,0.5,0.125,2026-03-25,Rodoviario,"carga paletizada, entrega com agendamento às 10h"',
-        '1002,2,EMPRESA B,00000000000291,CLIENTE B,GUARULHOS,SP,JOB02,PROD03,PECA,500,1.2,1.0,1.0,1.2,2026-03-26,Rodoviario,"entrega normal"'
+        '1001,1,EMPRESA TESTE,00000000000191,CLIENTE A,SAO JOSE DOS CAMPOS,SP,JOB01,PROD01,DISPLAY,850,2,2.5,1.5,7.5,2026-03-25,Rodoviario,"carga paletizada, entrega com agendamento às 10h"',
+        '1001,1,EMPRESA TESTE,00000000000191,CLIENTE A,APARECIDA,SP,JOB01,PROD02,CAIXA,100,0.5,0.5,0.5,0.125,2026-03-25,Rodoviario,"carga paletizada, entrega com agendamento às 10h"',
+        '1002,2,EMPRESA B,00000000000291,CLIENTE B,RIO DE JANEIRO,RJ,JOB02,PROD03,PECA,500,1.2,1.0,1.0,1.2,2026-03-26,Rodoviario,"entrega normal"'
       ].join("\n");
 
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -756,11 +748,11 @@
         const job = valorColuna(row, ["JOB"]);
         const codigoProduto = valorColuna(row, ["CODIGO PRODUTO"]);
         const produto = valorColuna(row, ["PRODUTO"]);
-        const pesoBruto = parseFloat(valorColuna(row, ["PESO BRUTO"]).toString().replace(",", ".") || 0);
-        const largura = parseFloat(valorColuna(row, ["LARGURA"]).toString().replace(",", ".") || 0);
-        const altura = parseFloat(valorColuna(row, ["ALTURA"]).toString().replace(",", ".") || 0);
-        const profundidade = parseFloat(valorColuna(row, ["PROFUNDIDADE"]).toString().replace(",", ".") || 0);
-        const metroCubico = parseFloat(valorColuna(row, ["METROCUBICO"]).toString().replace(",", ".") || 0);
+        const pesoBruto = parseFloat((valorColuna(row, ["PESO BRUTO"]) || "0").toString().replace(",", "."));
+        const largura = parseFloat((valorColuna(row, ["LARGURA"]) || "0").toString().replace(",", "."));
+        const altura = parseFloat((valorColuna(row, ["ALTURA"]) || "0").toString().replace(",", "."));
+        const profundidade = parseFloat((valorColuna(row, ["PROFUNDIDADE"]) || "0").toString().replace(",", "."));
+        const metroCubico = parseFloat((valorColuna(row, ["METROCUBICO"]) || "0").toString().replace(",", "."));
         const dataPrevisao = valorColuna(row, ["DATAPREVISAO"]);
         const modalidade = valorColuna(row, ["MODALIDADE"]) || "Rodoviario";
         const obs = valorColuna(row, ["OBS"]) || "";
@@ -791,7 +783,7 @@
             job,
             modalidade,
             dataPrevisao,
-            endereco: `${destinatario}, ${cidade}, ${uf}`,
+            endereco: `${cidade}, ${uf}`,
             itens: [],
             pesoTotal: 0,
             volumeTotal: 0,
@@ -1045,50 +1037,87 @@
       return grupos;
     }
 
-    function alocarPedidosEmVeiculos(pedidosParaRota, frota) {
-      const rotas = frota.map(v => ({
-        vehicle: v,
-        pedidos: [],
-        pesoAtual: 0,
-        volumeAtual: 0,
-        notasAtual: 0
-      }));
+    function gerarDescricaoRota(rota, origemTexto) {
+      const cidadesUnicas = [];
+      rota.pedidos.forEach(p => {
+        const cidadeUf = `${p.cidade}/${p.uf}`;
+        if (!cidadesUnicas.includes(cidadeUf)) cidadesUnicas.push(cidadeUf);
+      });
 
+      const destinoFinal = cidadesUnicas[cidadesUnicas.length - 1] || rota.destino;
+      const intermediarias = cidadesUnicas.slice(0, -1);
+
+      if (!intermediarias.length) {
+        return `${origemTexto} → destino final ${destinoFinal}`;
+      }
+
+      return `${origemTexto} → ${intermediarias.join(" | ")} → destino final ${destinoFinal}`;
+    }
+
+    function montarRotasPorCidade(pedidosBase, frota) {
+      const rotasMap = {};
       const naoAlocados = [];
 
-      for (const pedido of pedidosParaRota) {
-        let alocado = false;
+      pedidosBase.forEach(p => {
+        const chave = `${p.cidade}-${p.uf}`;
 
-        for (const rota of rotas) {
-          const novoPeso = rota.pesoAtual + Number(pedido.pesoTotal || 0);
-          const novoVolume = rota.volumeAtual + Number(pedido.volumeTotal || 0);
-          const novasNotas = rota.notasAtual + Number(pedido.numNotas || 1);
+        if (!rotasMap[chave]) {
+          rotasMap[chave] = {
+            destino: chave,
+            cidade: p.cidade,
+            uf: p.uf,
+            pedidos: [],
+            pesoTotal: 0,
+            volumeTotal: 0,
+            maiorAltura: 0,
+            maiorLargura: 0,
+            maiorProfundidade: 0,
+            numNotas: 0
+          };
+        }
 
+        const rota = rotasMap[chave];
+        rota.pedidos.push(p);
+        rota.pesoTotal += Number(p.pesoTotal || 0);
+        rota.volumeTotal += Number(p.volumeTotal || 0);
+        rota.numNotas += Number(p.numNotas || 1);
+        rota.maiorAltura = Math.max(rota.maiorAltura, Number(p.maiorAltura || 0));
+        rota.maiorLargura = Math.max(rota.maiorLargura, Number(p.maiorLargura || 0));
+        rota.maiorProfundidade = Math.max(rota.maiorProfundidade, Number(p.maiorProfundidade || 0));
+      });
+
+      const rotas = [];
+
+      for (const key in rotasMap) {
+        const rota = rotasMap[key];
+
+        let melhorVeiculo = null;
+
+        const frotaOrdenada = [...frota].sort((a, b) => a.volumeMax - b.volumeMax);
+
+        for (const v of frotaOrdenada) {
+          const cabePeso = rota.pesoTotal <= v.pesoMax;
+          const cabeVolume = rota.volumeTotal <= v.volumeMax;
+          const cabeNotas = rota.numNotas <= v.notasMax;
           const cabeDimensao =
-            Number(pedido.maiorAltura || 0) <= rota.vehicle.alturaMax &&
-            Number(pedido.maiorLargura || 0) <= rota.vehicle.larguraMax &&
-            Number(pedido.maiorProfundidade || 0) <= rota.vehicle.profundidadeMax;
+            rota.maiorAltura <= v.alturaMax &&
+            rota.maiorLargura <= v.larguraMax &&
+            rota.maiorProfundidade <= v.profundidadeMax;
 
-          if (
-            novoPeso <= rota.vehicle.pesoMax &&
-            novoVolume <= rota.vehicle.volumeMax &&
-            novasNotas <= rota.vehicle.notasMax &&
-            cabeDimensao
-          ) {
-            rota.pedidos.push(pedido);
-            rota.pesoAtual = novoPeso;
-            rota.volumeAtual = novoVolume;
-            rota.notasAtual = novasNotas;
-            alocado = true;
+          if (cabePeso && cabeVolume && cabeNotas && cabeDimensao) {
+            melhorVeiculo = v;
             break;
           }
         }
 
-        if (!alocado) {
+        if (!melhorVeiculo) {
           naoAlocados.push({
-            ...pedido,
-            motivoNaoAlocado: "Sem veículo compatível por peso, volume, notas ou dimensão"
+            ...rota,
+            motivoNaoAlocado: "Sem veículo compatível por cubagem, peso, notas ou dimensão"
           });
+        } else {
+          rota.veiculo = melhorVeiculo;
+          rotas.push(rota);
         }
       }
 
@@ -1147,7 +1176,9 @@
         });
       }
 
-      map.fitBounds(bounds);
+      if (rotas.length) {
+        map.fitBounds(bounds);
+      }
     }
 
     async function executarPlanejamento() {
@@ -1205,7 +1236,7 @@
         });
 
         const baseParaRota = [...aprovados, ...pedidosConsolidadosComoRota];
-        const { rotas, naoAlocados } = alocarPedidosEmVeiculos(baseParaRota, vehicles);
+        const { rotas, naoAlocados } = montarRotasPorCidade(baseParaRota, vehicles);
 
         setStatus("Desenhando rotas no mapa...", "warn");
         await desenharRotas(rotas, origem);
@@ -1248,6 +1279,7 @@
 
       const totalPeso = pedidosParaRota.reduce((s, p) => s + Number(p.pesoTotal || 0), 0);
       const totalVolume = pedidosParaRota.reduce((s, p) => s + Number(p.volumeTotal || 0), 0);
+      const origem = document.getElementById("depot").value;
 
       el.innerHTML = `
         <div class="grid grid-3">
@@ -1267,7 +1299,38 @@
 
         <div style="height:16px;"></div>
 
-        <h3>Pedidos aprovados</h3>
+        <h3>Resumo de Rotas (Torre de Controle)</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rota</th>
+                <th>Descrição</th>
+                <th>Cubagem Total</th>
+                <th>Peso Total</th>
+                <th>Veículo</th>
+                <th>Ocupação</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rotas.length ? rotas.map((r, i) => {
+                const ocupacao = r.veiculo ? ((r.volumeTotal / r.veiculo.volumeMax) * 100).toFixed(1) : "0.0";
+                return `
+                  <tr>
+                    <td>Rota ${String(i + 1).padStart(2, "0")}</td>
+                    <td>${gerarDescricaoRota(r, origem)}</td>
+                    <td>${formatNumber(r.volumeTotal)} m³</td>
+                    <td>${formatNumber(r.pesoTotal)} kg</td>
+                    <td><strong>${r.veiculo.nome}</strong></td>
+                    <td>${ocupacao}%</td>
+                  </tr>
+                `;
+              }).join("") : `<tr><td colspan="6" class="small">Nenhuma rota gerada.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+
+        <h3 style="margin-top:20px;">Pedidos aprovados</h3>
         <div class="table-wrap">
           <table>
             <thead>
@@ -1362,13 +1425,82 @@
             <tbody>
               ${rotas.length ? rotas.map(r => `
                 <tr>
-                  <td>${r.vehicle.nome}</td>
+                  <td>${r.veiculo.nome}</td>
                   <td>${r.pedidos.length}</td>
-                  <td>${formatNumber(r.pesoAtual)}</td>
-                  <td>${formatNumber(r.volumeAtual)}</td>
-                  <td>${r.notasAtual}</td>
+                  <td>${formatNumber(r.pesoTotal)}</td>
+                  <td>${formatNumber(r.volumeTotal)}</td>
+                  <td>${r.numNotas}</td>
                 </tr>
               `).join("") : `<tr><td colspan="5" class="small">Nenhuma rota gerada.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+
+        <h3 style="margin-top:20px;">Alertas operacionais</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Descrição</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                [
+                  ...rotas.flatMap(r => {
+                    const ocup = r.veiculo ? (r.volumeTotal / r.veiculo.volumeMax) : 0;
+                    const itens = [];
+                    if (ocup < 0.5) {
+                      itens.push({
+                        tipo: "⚠️ Baixa ocupação",
+                        desc: `Rota para ${r.cidade}/${r.uf} com ${r.veiculo.nome} abaixo de 50% de ocupação`
+                      });
+                    }
+                    if (ocup > 0.9) {
+                      itens.push({
+                        tipo: "🚨 Quase lotado",
+                        desc: `Rota para ${r.cidade}/${r.uf} com ${r.veiculo.nome} acima de 90% de ocupação`
+                      });
+                    }
+                    return itens;
+                  }),
+                  ...naoAlocados.map(n => ({
+                    tipo: "❌ Não alocado",
+                    desc: `${n.cidade}/${n.uf} - ${n.motivoNaoAlocado || "Sem veículo compatível"}`
+                  }))
+                ].length
+                  ? [
+                      ...rotas.flatMap(r => {
+                        const ocup = r.veiculo ? (r.volumeTotal / r.veiculo.volumeMax) : 0;
+                        const itens = [];
+                        if (ocup < 0.5) {
+                          itens.push(`
+                            <tr>
+                              <td>⚠️ Baixa ocupação</td>
+                              <td>Rota para ${r.cidade}/${r.uf} com ${r.veiculo.nome} abaixo de 50% de ocupação</td>
+                            </tr>
+                          `);
+                        }
+                        if (ocup > 0.9) {
+                          itens.push(`
+                            <tr>
+                              <td>🚨 Quase lotado</td>
+                              <td>Rota para ${r.cidade}/${r.uf} com ${r.veiculo.nome} acima de 90% de ocupação</td>
+                            </tr>
+                          `);
+                        }
+                        return itens;
+                      }),
+                      ...naoAlocados.map(n => `
+                        <tr>
+                          <td>❌ Não alocado</td>
+                          <td>${n.cidade}/${n.uf} - ${n.motivoNaoAlocado || "Sem veículo compatível"}</td>
+                        </tr>
+                      `)
+                    ].join("")
+                  : `<tr><td colspan="2" class="small">Nenhum alerta operacional.</td></tr>`
+              }
             </tbody>
           </table>
         </div>
@@ -1378,8 +1510,7 @@
           <table>
             <thead>
               <tr>
-                <th>OS</th>
-                <th>Destinatário</th>
+                <th>Destino</th>
                 <th>Peso</th>
                 <th>Volume</th>
                 <th>Altura</th>
@@ -1391,8 +1522,7 @@
             <tbody>
               ${naoAlocados.length ? naoAlocados.map(p => `
                 <tr>
-                  <td>${p.os}</td>
-                  <td>${p.destinatario}</td>
+                  <td>${p.cidade}/${p.uf}</td>
                   <td>${formatNumber(p.pesoTotal)}</td>
                   <td>${formatNumber(p.volumeTotal)}</td>
                   <td>${formatNumber(p.maiorAltura)}</td>
@@ -1400,7 +1530,7 @@
                   <td>${formatNumber(p.maiorProfundidade)}</td>
                   <td>${p.motivoNaoAlocado || "-"}</td>
                 </tr>
-              `).join("") : `<tr><td colspan="8" class="small">Todos os pedidos foram alocados.</td></tr>`}
+              `).join("") : `<tr><td colspan="7" class="small">Todos os pedidos foram alocados.</td></tr>`}
             </tbody>
           </table>
         </div>
