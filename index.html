@@ -3,44 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planejador de Rotas - Rodadas (Sem Chave)</title>
-    <!-- Leaflet CSS e JS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- PapaParse para ler CSV -->
+    <title>Planejador de Rotas - com Cubagem</title>
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=SUA_CHAVE_AQUI&libraries=geometry,places"></script>
+    <!-- PapaParse para CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1, h2 { color: #333; }
-        .section { margin-bottom: 30px; border-bottom: 1px solid #ddd; padding-bottom: 20px; }
-        input[type="file"] { margin: 10px 0; }
-        button { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        button:hover { background-color: #45a049; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .map { height: 400px; margin-top: 20px; }
-        .error { color: red; }
-        .success { color: green; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .section {
+            margin-bottom: 30px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 20px;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .map {
+            height: 400px;
+            margin-top: 20px;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>Planejador de Rotas com Rodadas (Sem Chave)</h1>
-    <p>Carregue as planilhas em formato <strong>CSV</strong> com os separadores adequados (vírgula ou ponto e vírgula).</p>
-    <p><em>Usa serviços gratuitos: Nominatim (geocodificação) e OSRM (roteamento). Respeite limites de uso.</em></p>
+    <h1>Planejador de Rotas com Cubagem</h1>
+    <p>Carregue as planilhas em formato <strong>CSV</strong>. Agora com colunas de volume (m³).</p>
 
     <div class="section">
         <h2>1. Planilha de Pedidos</h2>
-        <p>Colunas esperadas: <strong>pedido_id,cliente,endereco,peso_kg,num_notas,data_entrega,hora_entrega_inicio,hora_entrega_fim</strong></p>
+        <p>Colunas esperadas: <strong>pedido_id,cliente,endereco,peso_kg,volume_m3,num_notas,data_entrega,hora_entrega_inicio,hora_entrega_fim</strong></p>
         <input type="file" id="ordersFile" accept=".csv">
         <div id="ordersPreview"></div>
     </div>
 
     <div class="section">
         <h2>2. Planilha de Veículos</h2>
-        <p>Colunas esperadas: <strong>veiculo_id,tipo,cap_peso_kg,max_notas,disponivel</strong></p>
+        <p>Colunas esperadas: <strong>veiculo_id,tipo,cap_peso_kg,cap_volume_m3,max_notas,disponivel</strong></p>
         <input type="file" id="vehiclesFile" accept=".csv">
         <div id="vehiclesPreview"></div>
     </div>
@@ -63,37 +107,26 @@
 </div>
 
 <script>
+    // ==================== CONFIGURAÇÃO ====================
+    const API_KEY = "SUA_CHAVE_AQUI";
+    if (API_KEY === "SUA_CHAVE_AQUI") {
+        document.getElementById("status").innerHTML = '<span class="error">⚠️ Configure sua chave de API do Google Maps no código (linha ~90).</span>';
+    }
+
     // ==================== VARIÁVEIS GLOBAIS ====================
     let ordersData = [];
     let vehiclesData = [];
-    let map; // Leaflet map
+    let geocoder;
+    let map;
 
-    // Inicializa o mapa (Leaflet)
     function initMap() {
-        map = L.map('map').setView([-23.5505, -46.6333], 10);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
+        geocoder = new google.maps.Geocoder();
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: -23.5505, lng: -46.6333 },
+            zoom: 10
+        });
     }
-    initMap();
-
-    // ==================== GEOCÓDIGO VIA NOMINATIM ====================
-    async function geocodeAddress(address) {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
-        try {
-            const response = await fetch(url);
-            const data = await response.json();
-            if (data && data.length > 0) {
-                const { lat, lon } = data[0];
-                return { lat: parseFloat(lat), lng: parseFloat(lon) };
-            } else {
-                throw new Error(`Endereço não encontrado: ${address}`);
-            }
-        } catch (error) {
-            console.error(error);
-            return null;
-        }
-    }
+    window.initMap = initMap;
 
     // ==================== LEITURA DE ARQUIVOS ====================
     document.getElementById("ordersFile").addEventListener("change", function(e) {
@@ -104,7 +137,7 @@
             skipEmptyLines: true,
             complete: function(results) {
                 ordersData = results.data;
-                displayPreview("ordersPreview", ordersData, ["pedido_id","cliente","endereco","peso_kg","num_notas"]);
+                displayPreview("ordersPreview", ordersData, ["pedido_id","cliente","endereco","peso_kg","volume_m3","num_notas"]);
             },
             error: function(err) {
                 document.getElementById("ordersPreview").innerHTML = `<span class="error">Erro ao ler CSV: ${err.message}</span>`;
@@ -120,7 +153,7 @@
             skipEmptyLines: true,
             complete: function(results) {
                 vehiclesData = results.data.filter(v => v.disponivel === "true" || v.disponivel === "True" || v.disponivel === "TRUE" || v.disponivel === "1");
-                displayPreview("vehiclesPreview", vehiclesData, ["veiculo_id","tipo","cap_peso_kg","max_notas"]);
+                displayPreview("vehiclesPreview", vehiclesData, ["veiculo_id","tipo","cap_peso_kg","cap_volume_m3","max_notas"]);
             },
             error: function(err) {
                 document.getElementById("vehiclesPreview").innerHTML = `<span class="error">Erro ao ler CSV: ${err.message}</span>`;
@@ -134,9 +167,9 @@
             div.innerHTML = "<p>Nenhum dado carregado.</p>";
             return;
         }
-        let html = "<table><thead><tr>";
+        let html = "<tr><thead>起源";
         columns.forEach(col => html += `<th>${col}</th>`);
-        html += "</tr></thead><tbody>";
+        html += "</thead><tbody>";
         for (let i = 0; i < Math.min(data.length, 5); i++) {
             html += "<tr>";
             columns.forEach(col => html += `<td>${data[i][col] || ""}</td>`);
@@ -147,26 +180,55 @@
         div.innerHTML = html;
     }
 
-    // ==================== ALGORITMO DE ROTEIRIZAÇÃO SIMPLES ====================
-    // Atribuição: first-fit baseado em peso e notas, ordenado por data de entrega
-    function planRoutes(orders, vehicles) {
-        // Ordena pedidos por data de entrega (mais urgente primeiro)
-        orders.sort((a,b) => new Date(a.data_entrega) - new Date(b.data_entrega));
+    // ==================== GEOCÓDIGO ====================
+    function geocodeAddress(address) {
+        return new Promise((resolve, reject) => {
+            if (!geocoder) {
+                reject("Geocoder não inicializado");
+                return;
+            }
+            geocoder.geocode({ address: address }, (results, status) => {
+                if (status === "OK" && results[0]) {
+                    const loc = results[0].geometry.location;
+                    resolve({ lat: loc.lat(), lng: loc.lng() });
+                } else {
+                    reject(`Erro ao geocodificar: ${address} - ${status}`);
+                }
+            });
+        });
+    }
+
+    // ==================== ALOCAÇÃO COM PESO, VOLUME E NOTAS ====================
+    async function planRoutes(orders, vehicles, depotCoords) {
+        // Ordena pedidos por data de entrega (quanto mais próximo, mais prioritário)
+        orders.sort((a,b) => {
+            const dateA = new Date(a.data_entrega);
+            const dateB = new Date(b.data_entrega);
+            return dateA - dateB;
+        });
+
+        // Inicializa rotas vazias
         let routes = vehicles.map(v => ({
             vehicle: v,
             orders: [],
             totalWeight: 0,
+            totalVolume: 0,
             totalNotes: 0
         }));
+
+        // Para cada pedido, tenta encaixar em um veículo com capacidade restante
         for (let pedido of orders) {
             let assigned = false;
             for (let route of routes) {
                 const newWeight = route.totalWeight + parseFloat(pedido.peso_kg);
+                const newVolume = route.totalVolume + parseFloat(pedido.volume_m3);
                 const newNotes = route.totalNotes + parseInt(pedido.num_notas);
                 if (newWeight <= parseFloat(route.vehicle.cap_peso_kg) &&
+                    newVolume <= parseFloat(route.vehicle.cap_volume_m3) &&
                     newNotes <= parseInt(route.vehicle.max_notas)) {
                     route.orders.push(pedido);
                     route.totalWeight = newWeight;
+                    route.totalVolume = newVolume;
                     route.totalNotes = newNotes;
                     assigned = true;
                     break;
@@ -174,63 +236,97 @@
             }
             if (!assigned) {
                 console.warn(`Pedido ${pedido.pedido_id} não coube em nenhum veículo.`);
-                // Poderia ir para pendentes
             }
         }
-        return routes.filter(r => r.orders.length > 0);
+        return routes;
     }
 
-    // ==================== OSRM: OBTÉM ROTA OTIMIZADA (Vizinho mais próximo via distâncias) ====================
-    async function getRouteDistance(origin, destination) {
-        const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=false`;
-        try {
-            const resp = await fetch(url);
-            const data = await resp.json();
-            if (data.code === "Ok" && data.routes.length > 0) {
-                return data.routes[0].distance / 1000; // km
-            } else {
-                return distanceHaversine(origin, destination); // fallback
+    // ==================== EXIBIR ROTAS NO MAPA ====================
+    async function displayRoutesOnMap(routes, depotCoords) {
+        const bounds = new google.maps.LatLngBounds();
+        new google.maps.Marker({
+            position: depotCoords,
+            map: map,
+            title: "Depósito",
+            icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
+        });
+        bounds.extend(depotCoords);
+
+        const colors = ["#FF0000", "#0000FF", "#00FF00", "#FF00FF", "#00FFFF", "#FFA500", "#800080", "#008080", "#FFC0CB", "#A52A2A"];
+
+        for (let idx = 0; idx < routes.length; idx++) {
+            const route = routes[idx];
+            if (route.orders.length === 0) continue;
+
+            // Coletar pontos: depósito + cada pedido
+            const points = [depotCoords];
+            for (let ped of route.orders) {
+                const coords = await geocodeAddress(ped.endereco);
+                points.push(coords);
+                bounds.extend(coords);
             }
-        } catch (err) {
-            return distanceHaversine(origin, destination);
+
+            // Ordenar pontos (vizinho mais próximo)
+            const optimizedPoints = nearestNeighbor(points);
+            
+            const path = optimizedPoints.map(p => new google.maps.LatLng(p.lat, p.lng));
+            new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: colors[idx % colors.length],
+                strokeOpacity: 0.7,
+                strokeWeight: 4
+            }).setMap(map);
+
+            // Marcadores para pedidos (ignora o primeiro ponto que é o depósito)
+            for (let i = 1; i < optimizedPoints.length; i++) {
+                const ped = route.orders[i-1]; // assume ordem após otimização
+                new google.maps.Marker({
+                    position: optimizedPoints[i],
+                    map: map,
+                    title: `${ped.pedido_id} - ${ped.cliente}`,
+                    label: (i).toString()
+                });
+            }
         }
+        map.fitBounds(bounds);
     }
 
-    function distanceHaversine(p1, p2) {
-        const R = 6371;
-        const lat1 = p1.lat * Math.PI/180;
-        const lat2 = p2.lat * Math.PI/180;
-        const dlat = (p2.lat-p1.lat)*Math.PI/180;
-        const dlon = (p2.lng-p1.lng)*Math.PI/180;
-        const a = Math.sin(dlat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dlon/2)**2;
-        const c = 2*Math.asin(Math.sqrt(a));
-        return R*c;
-    }
-
-    // Ordena pontos usando vizinho mais próximo com distâncias reais (OSRM)
-    async function nearestNeighborWithOSRM(points) {
+    function nearestNeighbor(points) {
         if (points.length <= 1) return points;
-        const route = [points[0]];
-        const remaining = points.slice(1);
-        let current = points[0];
-        while (remaining.length > 0) {
-            let bestIdx = 0;
-            let bestDist = Infinity;
-            for (let i = 0; i < remaining.length; i++) {
-                const dist = await getRouteDistance(current, remaining[i]);
-                if (dist < bestDist) {
-                    bestDist = dist;
-                    bestIdx = i;
+        const start = points[0];
+        const unvisited = points.slice(1);
+        const route = [start];
+        let current = start;
+        while (unvisited.length > 0) {
+            let nearestIdx = 0;
+            let nearestDist = distance(current, unvisited[0]);
+            for (let i = 1; i < unvisited.length; i++) {
+                const d = distance(current, unvisited[i]);
+                if (d < nearestDist) {
+                    nearestDist = d;
+                    nearestIdx = i;
                 }
             }
-            current = remaining[bestIdx];
+            current = unvisited[nearestIdx];
             route.push(current);
-            remaining.splice(bestIdx, 1);
+            unvisited.splice(nearestIdx, 1);
         }
         return route;
     }
 
-    // ==================== FUNÇÃO PRINCIPAL (RODADAS) ====================
+    function distance(p1, p2) {
+        const R = 6371; // km
+        const lat1 = p1.lat * Math.PI / 180;
+        const lat2 = p2.lat * Math.PI / 180;
+        const dlat = (p2.lat - p1.lat) * Math.PI / 180;
+        const dlon = (p2.lng - p1.lng) * Math.PI / 180;
+        const a = Math.sin(dlat/2)**2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dlon/2)**2;
+        const c = 2 * Math.asin(Math.sqrt(a));
+        return R * c;
+    }
+
+    // ==================== PLANEJAMENTO PRINCIPAL ====================
     document.getElementById("planBtn").addEventListener("click", async () => {
         const statusDiv = document.getElementById("status");
         const resultsDiv = document.getElementById("results");
@@ -246,136 +342,50 @@
             return;
         }
 
-        const startTime = document.getElementById("startTime").value;
+        const startTimeStr = document.getElementById("startTime").value;
         const intervalHours = parseInt(document.getElementById("intervalHours").value);
         const maxRounds = parseInt(document.getElementById("maxRounds").value);
         const depotAddress = document.getElementById("depotAddress").value;
 
-        // Geocodificar depósito
-        statusDiv.innerHTML = "Geocodificando depósito...";
         let depotCoords;
         try {
             depotCoords = await geocodeAddress(depotAddress);
-            if (!depotCoords) throw new Error("Depósito não encontrado");
         } catch (err) {
-            statusDiv.innerHTML = `<span class="error">Erro ao geocodificar depósito: ${err.message}</span>`;
+            statusDiv.innerHTML = `<span class="error">Erro ao geocodificar depósito: ${err}</span>`;
             return;
         }
 
-        // Geocodificar todos os pedidos
-        statusDiv.innerHTML = "Geocodificando pedidos (pode demorar)...";
-        const geocodePromises = ordersData.map(ped => geocodeAddress(ped.endereco));
-        const coordsResults = await Promise.allSettled(geocodePromises);
-        const validOrders = ordersData.filter((_, idx) => coordsResults[idx].status === 'fulfilled' && coordsResults[idx].value !== null);
+        statusDiv.innerHTML = "Geocodificando pedidos... (pode demorar)";
+        const geocodePromises = ordersData.map(ped => geocodeAddress(ped.endereco).catch(err => null));
+        const coordsList = await Promise.all(geocodePromises);
+        const validOrders = ordersData.filter((_, idx) => coordsList[idx] !== null);
         if (validOrders.length === 0) {
             statusDiv.innerHTML = '<span class="error">Nenhum pedido com endereço válido.</span>';
             return;
         }
-        // Adiciona coordenadas aos pedidos
-        let orderIdx = 0;
-        for (let i = 0; i < ordersData.length; i++) {
-            if (coordsResults[i].status === 'fulfilled' && coordsResults[i].value) {
-                validOrders[orderIdx].coords = coordsResults[i].value;
-                orderIdx++;
+
+        // Planejamento (uma rodada por simplicidade)
+        const routes = await planRoutes(validOrders, vehiclesData, depotCoords);
+
+        // Exibir resultados em tabela
+        let html = "<h3>Rotas Geradas</h3>";
+        for (let i = 0; i < routes.length; i++) {
+            const r = routes[i];
+            if (r.orders.length === 0) continue;
+            html += `<h4>Veículo: ${r.vehicle.veiculo_id} (${r.vehicle.tipo})</h4>`;
+            html += `<p>Peso total: ${r.totalWeight} kg / ${r.vehicle.cap_peso_kg} kg | `;
+            html += `Volume total: ${r.totalVolume} m³ / ${r.vehicle.cap_volume_m3} m³ | `;
+            html += `Notas: ${r.totalNotes} / ${r.vehicle.max_notas}</p>`;
+            html += "<table><thead><tr><th>Pedido</th><th>Cliente</th><th>Endereço</th><th>Peso (kg)</th><th>Volume (m³)</th><th>Notas</th></tr></thead><tbody>";
+            for (let ped of r.orders) {
+                html += `<tr><td>${ped.pedido_id}</td><td>${ped.cliente}</td><td>${ped.endereco}</td><td>${ped.peso_kg}</td><td>${ped.volume_m3}</td><td>${ped.num_notas}</td></tr>`;
             }
-        }
-
-        // ========== SIMULAÇÃO DE RODADAS (WAVES) ==========
-        // Vamos simular múltiplas rodadas: em cada rodada, pegamos os pedidos pendentes
-        // e tentamos alocar nos veículos disponíveis (que não foram usados em rodadas anteriores? 
-        // Para simplificar, reutilizamos a mesma frota em todas rodadas, mas removendo os pedidos alocados.
-        let pendingOrders = [...validOrders];
-        const rounds = [];
-        let currentRoundTime = new Date();
-        currentRoundTime.setHours(parseInt(startTime.split(':')[0]), parseInt(startTime.split(':')[1]), 0, 0);
-
-        for (let round = 1; round <= maxRounds && pendingOrders.length > 0; round++) {
-            statusDiv.innerHTML = `Rodada ${round} - ${currentRoundTime.toLocaleTimeString()}: otimizando...`;
-            // Aplica algoritmo de atribuição (first-fit) nos pedidos pendentes
-            const routes = planRoutes(pendingOrders, vehiclesData);
-            // Identifica pedidos alocados nesta rodada
-            const allocatedIds = new Set();
-            for (let route of routes) {
-                for (let ped of route.orders) allocatedIds.add(ped.pedido_id);
-            }
-            const allocatedOrders = pendingOrders.filter(p => allocatedIds.has(p.pedido_id));
-            const remainingOrders = pendingOrders.filter(p => !allocatedIds.has(p.pedido_id));
-
-            rounds.push({
-                round,
-                time: currentRoundTime.toLocaleString(),
-                routes,
-                allocatedCount: allocatedOrders.length,
-                remainingCount: remainingOrders.length
-            });
-
-            pendingOrders = remainingOrders;
-            // Avança o horário
-            currentRoundTime.setHours(currentRoundTime.getHours() + intervalHours);
-            if (pendingOrders.length === 0) break;
-        }
-
-        // Exibe resultados das rodadas
-        let html = "<h2>Resultado das Rodadas</h2>";
-        for (let r of rounds) {
-            html += `<h3>Rodada ${r.round} - ${r.time}</h3>`;
-            html += `<p>Pedidos alocados: ${r.allocatedCount} | Pendentes: ${r.remainingCount}</p>`;
-            if (r.routes.length === 0) {
-                html += "<p>Nenhuma rota gerada nesta rodada.</p>";
-                continue;
-            }
-            for (let i=0; i<r.routes.length; i++) {
-                const route = r.routes[i];
-                html += `<h4>Veículo: ${route.vehicle.veiculo_id} (${route.vehicle.tipo})</h4>`;
-                html += `<p>Peso total: ${route.totalWeight} kg / ${route.vehicle.cap_peso_kg} kg | Notas: ${route.totalNotes} / ${route.vehicle.max_notas}</p>`;
-                html += "<table><thead><tr><th>Pedido</th><th>Cliente</th><th>Endereço</th><th>Peso</th><th>Notas</th></tr></thead><tbody>";
-                for (let ped of route.orders) {
-                    html += `<tr><td>${ped.pedido_id}</td><td>${ped.cliente}</td><td>${ped.endereco}</td><td>${ped.peso_kg}</td><td>${ped.num_notas}</td></tr>`;
-                }
-                html += "</tbody></table>";
-            }
-        }
-        if (pendingOrders.length > 0) {
-            html += `<h3>Pedidos não alocados após todas as rodadas</h3><ul>`;
-            pendingOrders.forEach(p => html += `<li>${p.pedido_id} - ${p.cliente}</li>`);
-            html += `</ul>`;
+            html += "</tbody></table>";
         }
         resultsDiv.innerHTML = html;
         statusDiv.innerHTML = '<span class="success">Planejamento concluído!</span>';
 
-        // Desenhar rotas no mapa (usando a primeira rodada como exemplo, mas poderia ser todas)
-        if (rounds.length > 0 && rounds[0].routes.length > 0) {
-            // Limpa mapa
-            map.eachLayer(layer => {
-                if (layer instanceof L.Marker || layer instanceof L.Polyline) map.removeLayer(layer);
-            });
-            // Adiciona marcador do depósito
-            L.marker([depotCoords.lat, depotCoords.lng], { title: "Depósito", icon: L.icon({ iconUrl: 'https://leafletjs.com/examples/custom-icons/leaf-green.png', shadowUrl: 'https://leafletjs.com/examples/custom-icons/leaf-shadow.png', iconSize: [38,95], shadowSize: [50,64], iconAnchor: [22,94], shadowAnchor: [4,62], popupAnchor: [-3,-76] }) }).addTo(map).bindPopup("Depósito");
-
-            // Para cada rota da primeira rodada, desenhar a rota otimizada
-            const colors = ["#FF0000","#0000FF","#00FF00","#FF00FF","#00FFFF","#FFA500","#800080","#008080"];
-            let colorIdx = 0;
-            for (let route of rounds[0].routes) {
-                if (route.orders.length === 0) continue;
-                const points = [depotCoords, ...route.orders.map(p => p.coords)];
-                // Ordena pontos com vizinho mais próximo (usando OSRM)
-                const optimized = await nearestNeighborWithOSRM(points);
-                const latlngs = optimized.map(p => [p.lat, p.lng]);
-                L.polyline(latlngs, { color: colors[colorIdx % colors.length], weight: 4 }).addTo(map);
-                // Adiciona marcadores para os pedidos
-                for (let i=1; i<optimized.length; i++) {
-                    const ped = route.orders[i-1];
-                    L.marker([optimized[i].lat, optimized[i].lng]).addTo(map).bindPopup(`${ped.pedido_id} - ${ped.cliente}`);
-                }
-                colorIdx++;
-            }
-            // Ajusta visualização para mostrar todos os pontos
-            const allPoints = [depotCoords, ...rounds[0].routes.flatMap(r => r.orders.map(p => p.coords))];
-            if (allPoints.length > 1) {
-                const bounds = L.latLngBounds(allPoints.map(p => [p.lat, p.lng]));
-                map.fitBounds(bounds);
-            }
-        }
+        await displayRoutesOnMap(routes, depotCoords);
     });
 </script>
 </body>
