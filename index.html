@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Frete Inteligente - TMS Completo</title>
+  <title>Frete Inteligente - Roteirizador PRO</title>
 
   <script
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds&libraries=places&callback=initMap"
@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -71,7 +71,6 @@
     .content {
       flex: 1;
       padding: 26px;
-      overflow-y: auto;
     }
 
     .tab { display: none; }
@@ -99,6 +98,7 @@
     .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .grid-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 
     .field {
       display: flex;
@@ -241,7 +241,7 @@
 
     .metrics {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: 14px;
     }
 
@@ -291,86 +291,34 @@
       width: auto;
     }
 
-    /* Dashboard Resultado Styles */
-    .kpis-dashboard {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 15px;
-      margin-bottom: 20px;
-    }
-
-    .kpi-card {
+    .route-box {
       background: #fff;
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: 0 2px 8px rgba(15,23,42,0.05);
-      text-align: center;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
     }
 
-    .kpi-card h3 {
-      font-size: 14px;
-      color: #64748b;
+    .route-title {
+      font-size: 16px;
+      font-weight: 700;
       margin-bottom: 8px;
     }
 
-    .kpi-card p {
-      font-size: 28px;
-      font-weight: 800;
-      color: #0f172a;
-    }
-
-    .veiculo-item {
-      margin-bottom: 15px;
-    }
-
-    .veiculo-item span {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: 600;
-    }
-
-    .barra {
-      background: #e2e8f0;
-      height: 8px;
-      border-radius: 5px;
-      overflow: hidden;
-    }
-
-    .fill {
-      height: 100%;
-      background: #22c55e;
-      border-radius: 5px;
-      transition: width 0.3s ease;
-    }
-
-    .gargalos-list {
-      margin-top: 10px;
-      padding-left: 20px;
-    }
-
-    .gargalos-list li {
-      color: #dc2626;
-      margin-bottom: 5px;
-    }
-
-    .grid-dashboard {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 20px;
-      margin-top: 20px;
-    }
-
-    .warning-badge {
-      background: #fef3c7;
-      color: #92400e;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      margin-left: 8px;
+    .decision-tag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 12px;
+      font-weight: 700;
+      margin-right: 8px;
+      margin-bottom: 6px;
     }
 
     @media (max-width: 1200px) {
-      .grid-4, .grid-5, .metrics, .kpis-dashboard, .grid-dashboard {
+      .grid-4, .grid-5, .grid-6, .metrics {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
@@ -378,7 +326,7 @@
     @media (max-width: 900px) {
       .app { flex-direction: column; }
       .sidebar { width: 100%; }
-      .grid-2, .grid-3, .grid-4, .grid-5, .metrics, .kpis-dashboard, .grid-dashboard {
+      .grid-2, .grid-3, .grid-4, .grid-5, .grid-6, .metrics {
         grid-template-columns: 1fr;
       }
     }
@@ -396,14 +344,12 @@
     </aside>
 
     <main class="content">
+      <!-- PARÂMETROS -->
       <section id="parametros" class="tab active">
         <div class="card">
           <h2>Cadastro de Veículos</h2>
-          <p class="small" style="margin-bottom: 12px; color: #e67e22;">
-            ⚠️ O sistema NÃO trava por limite de notas - prioriza peso e cubagem
-          </p>
 
-          <div class="grid grid-4">
+          <div class="grid grid-5">
             <div class="field">
               <label>Veículo</label>
               <input type="text" id="v_nome" placeholder="Ex.: Fiorino 01" />
@@ -415,14 +361,18 @@
             </div>
 
             <div class="field">
-              <label>Capacidade Peso (kg)</label>
+              <label>TT Peso (kg)</label>
               <input type="number" id="v_peso" step="0.01" placeholder="Ex.: 1500" />
             </div>
 
             <div class="field">
-              <label>Limite Notas (informativo)</label>
+              <label>TT Nota atendida</label>
               <input type="number" id="v_notas" placeholder="Ex.: 25" />
-              <span class="small">Apenas referência - não bloqueia alocação</span>
+            </div>
+
+            <div class="field">
+              <label>Custo por km (R$)</label>
+              <input type="number" id="v_custo_km" step="0.01" placeholder="Ex.: 2.50" />
             </div>
           </div>
 
@@ -453,11 +403,12 @@
                 <tr>
                   <th>Veículo</th>
                   <th>M³</th>
-                  <th>Peso (kg)</th>
-                  <th>Notas (ref)</th>
+                  <th>Peso</th>
+                  <th>Notas</th>
                   <th>Altura</th>
                   <th>Largura</th>
                   <th>Profundidade</th>
+                  <th>R$/km</th>
                   <th>Ação</th>
                 </tr>
               </thead>
@@ -502,13 +453,15 @@
             <label><input type="checkbox" id="regraPesado" checked /> Rodoviário acima de 1000 kg → incluir nas rotas</label>
           </div>
 
-          <p class="small" style="margin-top: 12px; background: #fef3c7; padding: 8px; border-radius: 8px;">
-            ⚡ <strong>Importante:</strong> O sistema prioriza <strong>PESO e VOLUME</strong> para alocação.
-            O limite de notas é apenas informativo e NÃO trava a operação.
+          <p class="small" style="margin-top: 12px;">
+            A ferramenta lê a <strong>OBS</strong> para identificar automaticamente:
+            <strong>agendamento</strong>, <strong>paletização</strong> e <strong>horário previsto</strong>.
+            Além disso, considera o <strong>maior item</strong> para validar a compatibilidade real com o veículo.
           </p>
         </div>
       </section>
 
+      <!-- PEDIDOS -->
       <section id="pedidos" class="tab">
         <div class="card">
           <h2>Importar Pedidos por CSV</h2>
@@ -549,11 +502,17 @@
                   <th>UF</th>
                   <th>Modalidade</th>
                   <th>Data previsão</th>
+                  <th>Qtd itens</th>
                   <th>Peso total</th>
                   <th>Volume total</th>
+                  <th>Maior altura</th>
+                  <th>Maior largura</th>
+                  <th>Maior profundidade</th>
+                  <th>Maior cubagem item</th>
                   <th>Agendamento</th>
                   <th>Paletizado</th>
                   <th>Horário</th>
+                  <th>Obs consolidada</th>
                 </tr>
               </thead>
               <tbody id="pedidoTableBody"></tbody>
@@ -562,13 +521,15 @@
         </div>
       </section>
 
+      <!-- PLANEJAMENTO -->
       <section id="planejamento" class="tab">
         <div class="card">
           <h2>Executar Planejamento</h2>
 
           <div class="row">
             <button class="btn btn-green" onclick="executarPlanejamento()">Calcular rotas</button>
-            <button class="btn btn-blue" onclick="showTab('resultado')">Ir para resultado</button>
+            <button class="btn btn-blue" onclick="exportarRelatorioCSV()">Exportar relatório CSV</button>
+            <button class="btn btn-gray" onclick="showTab('resultado')">Ir para resultado</button>
           </div>
 
           <div id="statusPlanejamento" class="status"></div>
@@ -582,70 +543,47 @@
         </div>
       </section>
 
+      <!-- RESULTADO -->
       <section id="resultado" class="tab">
-        <!-- Dashboard KPIs -->
-        <div class="kpis-dashboard">
-          <div class="kpi-card">
-            <h3>Pedidos</h3>
-            <p id="dashTotalPedidos">0</p>
-          </div>
-          <div class="kpi-card">
-            <h3>Alocados</h3>
-            <p id="dashAlocados">0</p>
-          </div>
-          <div class="kpi-card">
-            <h3>Não Alocados</h3>
-            <p id="dashNaoAlocados">0</p>
-          </div>
-          <div class="kpi-card">
-            <h3>Ocupação Média</h3>
-            <p id="dashOcupacao">0%</p>
-          </div>
-        </div>
-
-        <div class="grid-dashboard">
-          <!-- Tabela de Pedidos com Status -->
-          <div>
-            <div class="card">
-              <h3>Distribuição de Pedidos</h3>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>OS/Pedido</th>
-                      <th>Peso (kg)</th>
-                      <th>Volume (m³)</th>
-                      <th>Veículo Alocado</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dashTabelaPedidos"></tbody>
-                </table>
-              </div>
-            </div>
+        <div class="metrics">
+          <div class="metric">
+            <div class="label">Pedidos (OS)</div>
+            <div class="value" id="mPedidos">0</div>
           </div>
 
-          <!-- Lado Direito - Veículos e Gargalos -->
-          <div>
-            <div class="card">
-              <h3>Ocupação dos Veículos</h3>
-              <div id="dashVeiculosOcupacao"></div>
-            </div>
+          <div class="metric">
+            <div class="label">Pedidos aprovados</div>
+            <div class="value" id="mAprovados">0</div>
+          </div>
 
-            <div class="card" style="margin-top: 20px;">
-              <h3>Gargalos Operacionais</h3>
-              <ul id="dashGargalos" class="gargalos-list"></ul>
-            </div>
+          <div class="metric">
+            <div class="label">Sugestões consolidação</div>
+            <div class="value" id="mConsolidar">0</div>
+          </div>
+
+          <div class="metric">
+            <div class="label">Veículos</div>
+            <div class="value" id="mVeiculos">0</div>
+          </div>
+
+          <div class="metric">
+            <div class="label">Rotas</div>
+            <div class="value" id="mRotas">0</div>
+          </div>
+
+          <div class="metric">
+            <div class="label">Custo estimado</div>
+            <div class="value" id="mCustoTotal">R$ 0</div>
           </div>
         </div>
 
         <div class="card" style="margin-top: 20px;">
-          <h2>Mapa de Rotas</h2>
+          <h2>Mapa</h2>
           <div id="map"></div>
         </div>
 
         <div class="card">
-          <h2>Resumo Detalhado</h2>
+          <h2>Resumo Operacional</h2>
           <div id="resumoOperacional"></div>
         </div>
       </section>
@@ -690,11 +628,24 @@
       }
     }
 
+    function setStatus(msg, type = "") {
+      const el = document.getElementById("statusPlanejamento");
+      el.className = `status ${type}`;
+      el.innerHTML = msg;
+    }
+
     function formatNumber(value) {
       if (value === null || value === undefined || value === "") return "-";
       return Number(value).toLocaleString("pt-BR", {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2
+      });
+    }
+
+    function formatCurrency(value) {
+      return Number(value || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL"
       });
     }
 
@@ -706,7 +657,11 @@
     }
 
     function normalizarTexto(value) {
-      return (value || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      return (value || "")
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
     }
 
     function valorColuna(row, possibleNames) {
@@ -722,7 +677,13 @@
 
     function extrairHorario(texto) {
       if (!texto) return null;
-      const patterns = [/(\d{1,2}:\d{2})/i, /(\d{1,2}h\d{0,2})/i, /(?:às|as|ate|até)\s*(\d{1,2}(?::\d{2})?h?)/i];
+
+      const patterns = [
+        /(\d{1,2}:\d{2})/i,
+        /(\d{1,2}h\d{0,2})/i,
+        /(?:às|as|ate|até)\s*(\d{1,2}(?::\d{2})?h?)/i
+      ];
+
       for (const pattern of patterns) {
         const match = texto.match(pattern);
         if (match) return match[1];
@@ -732,11 +693,30 @@
 
     function analisarObs(obs) {
       const texto = normalizarTexto(obs).toLowerCase();
+
       return {
-        paletizado: texto.includes("palet") || texto.includes("pallet") || texto.includes("palete"),
-        agendamento: texto.includes("agend") || texto.includes("janela") || texto.includes("horario marcado") || texto.includes("horário marcado"),
+        paletizado:
+          texto.includes("palet") ||
+          texto.includes("pallet") ||
+          texto.includes("palete"),
+        agendamento:
+          texto.includes("agend") ||
+          texto.includes("janela") ||
+          texto.includes("horario marcado") ||
+          texto.includes("horário marcado"),
         horario: extrairHorario(texto)
       };
+    }
+
+    function custoPorKmPadrao(nomeVeiculo) {
+      const nome = normalizarTexto(nomeVeiculo).toLowerCase();
+      if (nome.includes("fiorino")) return 1.8;
+      if (nome.includes("van") || nome.includes("vam")) return 2.2;
+      if (nome.includes("vuc")) return 3.2;
+      if (nome.includes("toco")) return 4.5;
+      if (nome.includes("truck")) return 6.0;
+      if (nome.includes("carreta")) return 8.5;
+      return 3.0;
     }
 
     function addVehicle() {
@@ -747,9 +727,10 @@
       const altura = parseFloat(document.getElementById("v_altura").value || 0);
       const largura = parseFloat(document.getElementById("v_largura").value || 0);
       const profundidade = parseFloat(document.getElementById("v_profundidade").value || 0);
+      const custoKmInformado = parseFloat(document.getElementById("v_custo_km").value || 0);
 
-      if (!nome || volume <= 0 || peso <= 0 || altura <= 0 || largura <= 0 || profundidade <= 0) {
-        alert("Preencha corretamente todos os dados do veículo (nome, volume, peso e dimensões).");
+      if (!nome || volume <= 0 || peso <= 0 || notas <= 0 || altura <= 0 || largura <= 0 || profundidade <= 0) {
+        alert("Preencha corretamente todos os dados do veículo.");
         return;
       }
 
@@ -758,22 +739,16 @@
         nome,
         volumeMax: volume,
         pesoMax: peso,
-        notasMax: notas || 999999, // Se não informado, coloca valor alto
+        notasMax: notas,
         alturaMax: altura,
         larguraMax: largura,
         profundidadeMax: profundidade,
-        usadoPeso: 0,
-        usadoVolume: 0,
-        usadoNotas: 0
+        custoKm: custoKmInformado > 0 ? custoKmInformado : custoPorKmPadrao(nome)
       });
 
-      document.getElementById("v_nome").value = "";
-      document.getElementById("v_volume").value = "";
-      document.getElementById("v_peso").value = "";
-      document.getElementById("v_notas").value = "";
-      document.getElementById("v_altura").value = "";
-      document.getElementById("v_largura").value = "";
-      document.getElementById("v_profundidade").value = "";
+      ["v_nome","v_volume","v_peso","v_notas","v_altura","v_largura","v_profundidade","v_custo_km"].forEach(id => {
+        document.getElementById(id).value = "";
+      });
 
       renderVehicles();
       atualizarMetricas();
@@ -787,19 +762,22 @@
 
     function renderVehicles() {
       const tbody = document.getElementById("vehicleTableBody");
+
       if (!vehicles.length) {
-        tbody.innerHTML = `<tr><td colspan="8" class="small">Nenhum veículo cadastrado.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="small">Nenhum veículo cadastrado.</td></tr>`;
         return;
       }
+
       tbody.innerHTML = vehicles.map(v => `
         <tr>
           <td>${v.nome}</td>
           <td>${formatNumber(v.volumeMax)}</td>
           <td>${formatNumber(v.pesoMax)}</td>
-          <td>${v.notasMax === 999999 ? 'Ilimitado' : v.notasMax}</td>
+          <td>${v.notasMax}</td>
           <td>${formatNumber(v.alturaMax)}</td>
           <td>${formatNumber(v.larguraMax)}</td>
           <td>${formatNumber(v.profundidadeMax)}</td>
+          <td>${formatCurrency(v.custoKm)}</td>
           <td><button class="btn btn-red" onclick="removeVehicle(${v.id})">Excluir</button></td>
         </tr>
       `).join("");
@@ -809,9 +787,11 @@
       const csv = [
         "OS,COD. DEPOSITANTE,DEPOSITANTE,CNPJ,DESTINATARIO,CIDADE,UF,JOB,CODIGO PRODUTO,PRODUTO,PESO BRUTO,LARGURA,ALTURA,PROFUNDIDADE,METROCUBICO,DATAPREVISAO,MODALIDADE,OBS",
         '1001,1,EMPRESA TESTE,00000000000191,CLIENTE A,SAO JOSE DOS CAMPOS,SP,JOB01,PROD01,DISPLAY,850,2,2.5,1.5,7.5,2026-03-25,Rodoviario,"carga paletizada, entrega com agendamento às 10h"',
-        '1002,1,EMPRESA TESTE,00000000000191,CLIENTE B,GUARULHOS,SP,JOB01,PROD02,CAIXA,2000,1.5,1.2,1.2,2.16,2026-03-25,Rodoviario,"entrega normal"',
-        '1003,1,EMPRESA TESTE,00000000000191,CLIENTE C,CAMPINAS,SP,JOB01,PROD03,PALETE,3500,2.2,1.8,1.8,7.13,2026-03-26,Rodoviario,"carga pesada"'
+        '1001,1,EMPRESA TESTE,00000000000191,CLIENTE A,SAO JOSE DOS CAMPOS,SP,JOB01,PROD02,CAIXA,100,0.5,0.5,0.5,0.125,2026-03-25,Rodoviario,"carga paletizada, entrega com agendamento às 10h"',
+        '1002,2,EMPRESA B,00000000000291,CLIENTE B,RIO DE JANEIRO,RJ,JOB02,PROD03,PECA,500,1.2,1.0,1.0,1.2,2026-03-26,Rodoviario,"entrega normal"',
+        '1003,3,EMPRESA C,00000000000391,CLIENTE C,APARECIDA,SP,JOB03,PROD04,KIT,300,0.8,1.1,0.9,0.8,2026-03-26,Rodoviario,"entrega normal"'
       ].join("\n");
+
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -823,60 +803,123 @@
 
     function agruparPedidosPorOS(linhas) {
       const mapa = new Map();
+
       linhas.forEach(row => {
         const os = valorColuna(row, ["OS"]).toString().trim();
         if (!os) return;
+
+        const depositanteCod = valorColuna(row, ["COD. DEPOSITANTE", "COD DEPOSITANTE"]);
         const depositante = valorColuna(row, ["DEPOSITANTE"]);
+        const cnpj = valorColuna(row, ["CNPJ"]);
         const destinatario = valorColuna(row, ["DESTINATARIO"]);
         const cidade = valorColuna(row, ["CIDADE"]);
         const uf = valorColuna(row, ["UF"]);
-        const pesoBruto = parseFloat((valorColuna(row, ["PESO BRUTO"]) || "0").toString().replace(",", "."));
-        const metroCubico = parseFloat((valorColuna(row, ["METROCUBICO"]) || "0").toString().replace(",", "."));
+        const job = valorColuna(row, ["JOB"]);
+        const codigoProduto = valorColuna(row, ["CODIGO PRODUTO"]);
+        const produto = valorColuna(row, ["PRODUTO"]);
+        const pesoBruto = parseFloat((valorColuna(row, ["PESO BRUTO"]) || "0").toString().replace(/\./g, "").replace(",", ".")) || 0;
+        const largura = parseFloat((valorColuna(row, ["LARGURA"]) || "0").toString().replace(",", ".")) || 0;
+        const altura = parseFloat((valorColuna(row, ["ALTURA"]) || "0").toString().replace(",", ".")) || 0;
+        const profundidade = parseFloat((valorColuna(row, ["PROFUNDIDADE"]) || "0").toString().replace(",", ".")) || 0;
+        const metroCubico = parseFloat((valorColuna(row, ["METROCUBICO"]) || "0").toString().replace(",", ".")) || 0;
         const dataPrevisao = valorColuna(row, ["DATAPREVISAO"]);
         const modalidade = valorColuna(row, ["MODALIDADE"]) || "Rodoviario";
         const obs = valorColuna(row, ["OBS"]) || "";
+
         const leituraObs = analisarObs(obs);
+
+        const item = {
+          codigoProduto,
+          produto,
+          peso_kg: pesoBruto,
+          largura,
+          altura,
+          profundidade,
+          volume_m3: metroCubico,
+          obs
+        };
 
         if (!mapa.has(os)) {
           mapa.set(os, {
-            id: os, os, depositante, destinatario, cidade, uf, modalidade, dataPrevisao,
-            endereco: `${cidade}, ${uf}`, pesoTotal: 0, volumeTotal: 0,
-            agendamento: false, paletizado: false, horario: null
+            id: os,
+            os,
+            codDepositante: depositanteCod,
+            depositante,
+            cnpj,
+            destinatario,
+            cidade,
+            uf,
+            job,
+            modalidade,
+            dataPrevisao,
+            endereco: `${cidade}, ${uf}`,
+            itens: [],
+            pesoTotal: 0,
+            volumeTotal: 0,
+            numNotas: 1,
+            maiorAltura: 0,
+            maiorLargura: 0,
+            maiorProfundidade: 0,
+            maiorCubagemItem: 0,
+            agendamento: false,
+            paletizado: false,
+            horario: null,
+            obsConsolidada: []
           });
         }
+
         const pedido = mapa.get(os);
+        pedido.itens.push(item);
         pedido.pesoTotal += pesoBruto;
         pedido.volumeTotal += metroCubico;
+        pedido.maiorAltura = Math.max(pedido.maiorAltura, altura);
+        pedido.maiorLargura = Math.max(pedido.maiorLargura, largura);
+        pedido.maiorProfundidade = Math.max(pedido.maiorProfundidade, profundidade);
+        pedido.maiorCubagemItem = Math.max(pedido.maiorCubagemItem, metroCubico);
+
         if (leituraObs.agendamento) pedido.agendamento = true;
         if (leituraObs.paletizado) pedido.paletizado = true;
         if (!pedido.horario && leituraObs.horario) pedido.horario = leituraObs.horario;
+        if (obs) pedido.obsConsolidada.push(obs);
       });
-      return Array.from(mapa.values());
+
+      return Array.from(mapa.values()).map(p => ({
+        ...p,
+        obsConsolidada: [...new Set(p.obsConsolidada)].join(" | ")
+      }));
     }
 
     document.getElementById("ordersCsvFile").addEventListener("change", function (e) {
       const file = e.target.files[0];
       if (!file) return;
+
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         complete: function (results) {
-          rawItens = results.data;
-          pedidos = agruparPedidosPorOS(rawItens);
-          renderPedidos();
-          atualizarMetricas();
-          alert(`${pedidos.length} pedidos (OS) importados com sucesso.`);
-          e.target.value = "";
+          try {
+            rawItens = results.data;
+            pedidos = agruparPedidosPorOS(rawItens);
+            renderPedidos();
+            atualizarMetricas();
+            alert(`${pedidos.length} pedidos (OS) importados com sucesso.`);
+            e.target.value = "";
+          } catch (err) {
+            console.error(err);
+            alert("Erro ao importar CSV.");
+          }
         }
       });
     });
 
     function renderPedidos() {
       const tbody = document.getElementById("pedidoTableBody");
+
       if (!pedidos.length) {
-        tbody.innerHTML = `<tr><td colspan="12" class="small">Nenhum pedido importado.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="18" class="small">Nenhum pedido importado.</td></tr>`;
         return;
       }
+
       tbody.innerHTML = pedidos.map(p => `
         <tr>
           <td>${p.os}</td>
@@ -886,25 +929,89 @@
           <td>${p.uf || "-"}</td>
           <td>${p.modalidade || "-"}</td>
           <td>${formatDate(p.dataPrevisao)}</td>
+          <td>${p.itens.length}</td>
           <td>${formatNumber(p.pesoTotal)}</td>
           <td>${formatNumber(p.volumeTotal)}</td>
+          <td>${formatNumber(p.maiorAltura)}</td>
+          <td>${formatNumber(p.maiorLargura)}</td>
+          <td>${formatNumber(p.maiorProfundidade)}</td>
+          <td>${formatNumber(p.maiorCubagemItem)}</td>
           <td>${p.agendamento ? '<span class="pill pill-yellow">Sim</span>' : 'Não'}</td>
           <td>${p.paletizado ? '<span class="pill pill-blue">Sim</span>' : 'Não'}</td>
           <td>${p.horario || '-'}</td>
+          <td>${p.obsConsolidada || '-'}</td>
         </tr>
       `).join("");
     }
 
     function atualizarMetricas() {
-      document.getElementById("mPedidos") && (document.getElementById("mPedidos").textContent = pedidos.length);
-      document.getElementById("mVeiculos") && (document.getElementById("mVeiculos").textContent = vehicles.length);
+      document.getElementById("mPedidos").textContent = pedidos.length;
+      document.getElementById("mVeiculos").textContent = vehicles.length;
+
+      if (ultimoResultado) {
+        document.getElementById("mAprovados").textContent = ultimoResultado.aprovados.length;
+        document.getElementById("mConsolidar").textContent = ultimoResultado.sugestoesConsolidacao.length;
+        document.getElementById("mRotas").textContent = ultimoResultado.rotas.length;
+        document.getElementById("mCustoTotal").textContent = formatCurrency(
+          ultimoResultado.rotas.reduce((s, r) => s + Number(r.custoEstimado || 0), 0)
+        );
+      } else {
+        document.getElementById("mAprovados").textContent = "0";
+        document.getElementById("mConsolidar").textContent = "0";
+        document.getElementById("mRotas").textContent = "0";
+        document.getElementById("mCustoTotal").textContent = "R$ 0";
+      }
+
       const validacao = [];
       validacao.push(`Veículos cadastrados: ${vehicles.length}`);
       validacao.push(`Pedidos importados (OS): ${pedidos.length}`);
+      validacao.push(`Origem/CD: ${document.getElementById("depot").value || "-"}`);
       document.getElementById("validacaoPlanejamento").innerHTML = validacao.join("<br>");
     }
 
-    function aplicarRegrasConsolidacao(pedidosBase) {
+    function clearRoutes() {
+      directionsRenderers.forEach(r => r.setMap(null));
+      directionsRenderers = [];
+    }
+
+    function geocodeAddress(address) {
+      return new Promise((resolve, reject) => {
+        const key = (address || "").trim().toLowerCase();
+        if (!key) return reject("Endereço vazio.");
+
+        if (geocodeCache[key]) {
+          resolve(geocodeCache[key]);
+          return;
+        }
+
+        geocoder.geocode({ address }, (results, status) => {
+          if (status === "OK" && results[0]) {
+            const loc = results[0].geometry.location;
+            const coords = { lat: loc.lat(), lng: loc.lng() };
+            geocodeCache[key] = coords;
+            resolve(coords);
+          } else {
+            reject(`Falha ao geocodificar: ${address}`);
+          }
+        });
+      });
+    }
+
+    function haversineKm(a, b) {
+      const R = 6371;
+      const dLat = (b.lat - a.lat) * Math.PI / 180;
+      const dLng = (b.lng - a.lng) * Math.PI / 180;
+      const lat1 = a.lat * Math.PI / 180;
+      const lat2 = b.lat * Math.PI / 180;
+
+      const x = Math.sin(dLat / 2) ** 2 +
+        Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+
+      const y = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+      return R * y;
+    }
+
+    function aplicarRegras(pedidosBase) {
       const aprovados = [];
       const sugestoesConsolidacao = [];
 
@@ -923,237 +1030,665 @@
         }
 
         if (document.getElementById("regraLeve").checked && isRod && peso <= 1000) {
-          aprovados.push(p);
+          aprovados.push({ ...p, regra_aplicada: "Rodoviário até 1000 kg" });
           continue;
         }
 
         if (document.getElementById("regraPesado").checked && isRod && peso > 1000) {
-          aprovados.push(p);
+          aprovados.push({ ...p, regra_aplicada: "Rodoviário acima de 1000 kg" });
           continue;
         }
 
-        aprovados.push(p);
+        aprovados.push({ ...p, regra_aplicada: "Sem bloqueio" });
       }
 
       return { aprovados, sugestoesConsolidacao };
     }
 
-    function executarPlanejamento() {
-      if (!vehicles.length) { 
-        setStatus("Cadastre pelo menos um veículo.", "err");
-        return; 
-      }
-      if (!pedidos.length) { 
-        setStatus("Importe pelo menos um arquivo de pedidos.", "err");
-        return; 
+    async function consolidarAutomaticamente(lista) {
+      const raioKm = parseFloat(document.getElementById("cfgRaioKm").value || 5);
+      const pesoMax = parseFloat(document.getElementById("cfgPesoMax").value || 5000);
+      const volumeMax = parseFloat(document.getElementById("cfgVolumeMax").value || 20);
+
+      const grupos = [];
+      const usados = new Set();
+
+      for (let i = 0; i < lista.length; i++) {
+        if (usados.has(i)) continue;
+
+        const base = lista[i];
+        let baseCoords;
+
+        try {
+          baseCoords = await geocodeAddress(base.endereco);
+        } catch {
+          grupos.push({
+            pedidos: [base],
+            pesoTotal: base.pesoTotal,
+            volumeTotal: base.volumeTotal,
+            enderecoReferencia: base.endereco
+          });
+          usados.add(i);
+          continue;
+        }
+
+        const grupo = [base];
+        let pesoTotal = Number(base.pesoTotal || 0);
+        let volumeTotal = Number(base.volumeTotal || 0);
+
+        usados.add(i);
+
+        for (let j = i + 1; j < lista.length; j++) {
+          if (usados.has(j)) continue;
+
+          const cand = lista[j];
+
+          try {
+            const candCoords = await geocodeAddress(cand.endereco);
+            const distancia = haversineKm(baseCoords, candCoords);
+
+            const novoPeso = pesoTotal + Number(cand.pesoTotal || 0);
+            const novoVolume = volumeTotal + Number(cand.volumeTotal || 0);
+
+            if (distancia <= raioKm && novoPeso <= pesoMax && novoVolume <= volumeMax) {
+              grupo.push(cand);
+              usados.add(j);
+              pesoTotal = novoPeso;
+              volumeTotal = novoVolume;
+            }
+          } catch (err) {
+            console.warn("Falha ao geocodificar pedido para consolidação:", cand.endereco);
+          }
+        }
+
+        grupos.push({
+          pedidos: grupo,
+          pesoTotal,
+          volumeTotal,
+          enderecoReferencia: base.endereco
+        });
       }
 
-      setStatus("Processando alocação...", "warn");
+      return grupos;
+    }
 
-      // Resetar uso dos veículos
-      vehicles.forEach(v => { 
-        v.usadoPeso = 0; 
-        v.usadoVolume = 0;
-        v.usadoNotas = 0;
+    function gerarDescricaoRota(rota, origemTexto) {
+      const cidadesUnicas = [];
+      rota.pedidos.forEach(p => {
+        const cidadeUf = `${p.cidade}/${p.uf}`;
+        if (!cidadesUnicas.includes(cidadeUf)) cidadesUnicas.push(cidadeUf);
       });
-      
-      // Aplicar regras de consolidação
-      const { aprovados, sugestoesConsolidacao } = aplicarRegrasConsolidacao(pedidos);
-      
-      // Alocar pedidos (prioriza peso e volume, NÃO trava por notas)
-      const alocados = [];
+
+      const destinoFinal = cidadesUnicas[cidadesUnicas.length - 1] || rota.destino;
+      const intermediarias = cidadesUnicas.slice(0, -1);
+
+      if (!intermediarias.length) {
+        return `${origemTexto} → destino final ${destinoFinal}`;
+      }
+
+      return `${origemTexto} → ${intermediarias.join(" | ")} → destino final ${destinoFinal}`;
+    }
+
+    function fatorDecisorioPedido(pedido, veiculo) {
+      const pesoPct = veiculo.pesoMax ? pedido.pesoTotal / veiculo.pesoMax : 0;
+      const volumePct = veiculo.volumeMax ? pedido.volumeTotal / veiculo.volumeMax : 0;
+
+      const alturaPct = veiculo.alturaMax ? pedido.maiorAltura / veiculo.alturaMax : 0;
+      const larguraPct = veiculo.larguraMax ? pedido.maiorLargura / veiculo.larguraMax : 0;
+      const profundidadePct = veiculo.profundidadeMax ? pedido.maiorProfundidade / veiculo.profundidadeMax : 0;
+      const medidaPct = Math.max(alturaPct, larguraPct, profundidadePct);
+
+      if (medidaPct >= volumePct && medidaPct >= pesoPct) return "Item de maior medida";
+      if (volumePct >= pesoPct) return "Cubagem";
+      return "Peso";
+    }
+
+    function fatorDecisorioRota(rota, veiculo) {
+      const pesoPct = veiculo.pesoMax ? rota.pesoTotal / veiculo.pesoMax : 0;
+      const volumePct = veiculo.volumeMax ? rota.volumeTotal / veiculo.volumeMax : 0;
+
+      const alturaPct = veiculo.alturaMax ? rota.maiorAltura / veiculo.alturaMax : 0;
+      const larguraPct = veiculo.larguraMax ? rota.maiorLargura / veiculo.larguraMax : 0;
+      const profundidadePct = veiculo.profundidadeMax ? rota.maiorProfundidade / veiculo.profundidadeMax : 0;
+      const medidaPct = Math.max(alturaPct, larguraPct, profundidadePct);
+
+      if (medidaPct >= volumePct && medidaPct >= pesoPct) return "Item de maior medida";
+      if (volumePct >= pesoPct) return "Cubagem";
+      return "Peso";
+    }
+
+    function montarRotasPorCidade(pedidosBase, frota) {
+      const rotasMap = {};
       const naoAlocados = [];
-      
-      // Ordenar pedidos por peso decrescente (priorizar maiores)
-      const pedidosOrdenados = [...aprovados].sort((a, b) => b.pesoTotal - a.pesoTotal);
-      
-      pedidosOrdenados.forEach(pedido => {
-        let alocado = false;
-        
-        // Tentar alocar em veículos existentes
-        for (let v of vehicles) {
-          const cabePeso = v.usadoPeso + pedido.pesoTotal <= v.pesoMax;
-          const cabeVolume = v.usadoVolume + pedido.volumeTotal <= v.volumeMax;
-          // NOTA: limite de notas NÃO bloqueia - apenas informativo
-          
-          if (cabePeso && cabeVolume) {
-            v.usadoPeso += pedido.pesoTotal;
-            v.usadoVolume += pedido.volumeTotal;
-            v.usadoNotas += 1;
-            alocados.push({ ...pedido, veiculo: v.nome, veiculoId: v.id });
-            alocado = true;
+
+      pedidosBase.forEach(p => {
+        const chave = `${p.cidade}-${p.uf}`;
+
+        if (!rotasMap[chave]) {
+          rotasMap[chave] = {
+            destino: chave,
+            cidade: p.cidade,
+            uf: p.uf,
+            pedidos: [],
+            pesoTotal: 0,
+            volumeTotal: 0,
+            maiorAltura: 0,
+            maiorLargura: 0,
+            maiorProfundidade: 0,
+            numNotas: 0
+          };
+        }
+
+        const rota = rotasMap[chave];
+        rota.pedidos.push(p);
+        rota.pesoTotal += Number(p.pesoTotal || 0);
+        rota.volumeTotal += Number(p.volumeTotal || 0);
+        rota.numNotas += Number(p.numNotas || 1);
+        rota.maiorAltura = Math.max(rota.maiorAltura, Number(p.maiorAltura || 0));
+        rota.maiorLargura = Math.max(rota.maiorLargura, Number(p.maiorLargura || 0));
+        rota.maiorProfundidade = Math.max(rota.maiorProfundidade, Number(p.maiorProfundidade || 0));
+      });
+
+      const rotas = [];
+
+      for (const key in rotasMap) {
+        const rota = rotasMap[key];
+        let melhorVeiculo = null;
+
+        const frotaOrdenada = [...frota].sort((a, b) => a.volumeMax - b.volumeMax);
+
+        for (const v of frotaOrdenada) {
+          const cabePeso = rota.pesoTotal <= v.pesoMax;
+          const cabeVolume = rota.volumeTotal <= v.volumeMax;
+          const cabeNotas = rota.numNotas <= v.notasMax;
+          const cabeDimensao =
+            rota.maiorAltura <= v.alturaMax &&
+            rota.maiorLargura <= v.larguraMax &&
+            rota.maiorProfundidade <= v.profundidadeMax;
+
+          if (cabePeso && cabeVolume && cabeNotas && cabeDimensao) {
+            melhorVeiculo = v;
             break;
           }
         }
-        
-        if (!alocado) {
-          naoAlocados.push(pedido);
+
+        if (!melhorVeiculo) {
+          naoAlocados.push({
+            ...rota,
+            motivoNaoAlocado: "Sem veículo compatível por peso, volume, notas ou dimensão"
+          });
+        } else {
+          rota.veiculo = melhorVeiculo;
+          rota.fatorDecisorio = fatorDecisorioRota(rota, melhorVeiculo);
+          rota.distanciaKm = 0;
+          rota.custoEstimado = 0;
+          rotas.push(rota);
         }
-      });
-      
-      // Calcular ocupação média
-      let totalPesoCap = 0, totalPesoUsado = 0;
-      vehicles.forEach(v => {
-        totalPesoCap += v.pesoMax;
-        totalPesoUsado += v.usadoPeso;
-      });
-      const ocupacaoMedia = totalPesoCap > 0 ? (totalPesoUsado / totalPesoCap * 100).toFixed(0) : 0;
-      
-      ultimoResultado = { 
-        alocados, 
-        naoAlocados, 
-        vehicles: vehicles.map(v => ({ ...v })),
-        sugestoesConsolidacao,
-        ocupacaoMedia,
-        totalPedidos: pedidos.length
-      };
-      
-      atualizarDashboard();
-      renderResumoOperacional();
-      setStatus(`Planejamento concluído! ${alocados.length} pedidos alocados, ${naoAlocados.length} não alocados.`, "ok");
-      showTab("resultado");
+      }
+
+      return { rotas, naoAlocados };
     }
 
-    function setStatus(msg, type = "") {
-      const el = document.getElementById("statusPlanejamento");
-      el.className = `status ${type}`;
-      el.innerHTML = msg;
+    async function desenharRotas(rotas, origem) {
+      clearRoutes();
+
+      const originCoords = await geocodeAddress(origem);
+      const bounds = new google.maps.LatLngBounds();
+      bounds.extend(originCoords);
+
+      for (const rota of rotas) {
+        if (!rota.pedidos.length) continue;
+
+        const waypoints = [];
+        for (const pedido of rota.pedidos) {
+          try {
+            const c = await geocodeAddress(pedido.endereco);
+            waypoints.push({
+              location: new google.maps.LatLng(c.lat, c.lng),
+              stopover: true
+            });
+            bounds.extend(c);
+          } catch (err) {
+            console.warn("Endereço ignorado no mapa:", pedido.endereco);
+          }
+        }
+
+        if (!waypoints.length) {
+          rota.distanciaKm = 0;
+          rota.custoEstimado = 0;
+          continue;
+        }
+
+        const service = new google.maps.DirectionsService();
+
+        await new Promise(resolve => {
+          service.route({
+            origin: new google.maps.LatLng(originCoords.lat, originCoords.lng),
+            destination: new google.maps.LatLng(originCoords.lat, originCoords.lng),
+            waypoints,
+            optimizeWaypoints: true,
+            travelMode: google.maps.TravelMode.DRIVING
+          }, (result, status) => {
+            if (status === "OK") {
+              const renderer = new google.maps.DirectionsRenderer({
+                map,
+                preserveViewport: true,
+                suppressMarkers: false
+              });
+              renderer.setDirections(result);
+              directionsRenderers.push(renderer);
+
+              let distanciaTotal = 0;
+              result.routes[0].legs.forEach(leg => {
+                distanciaTotal += leg.distance?.value || 0;
+              });
+
+              rota.distanciaKm = distanciaTotal / 1000;
+              rota.custoEstimado = rota.distanciaKm * Number(rota.veiculo.custoKm || 0);
+            } else {
+              console.warn("Falha ao montar rota:", status);
+              rota.distanciaKm = 0;
+              rota.custoEstimado = 0;
+            }
+            resolve();
+          });
+        });
+      }
+
+      if (rotas.length) {
+        map.fitBounds(bounds);
+      }
     }
 
-    function atualizarDashboard() {
-      if (!ultimoResultado) return;
-      
-      const total = ultimoResultado.totalPedidos;
-      const alocados = ultimoResultado.alocados.length;
-      const naoAlocados = ultimoResultado.naoAlocados.length;
-      
-      document.getElementById("dashTotalPedidos").innerText = total;
-      document.getElementById("dashAlocados").innerText = alocados;
-      document.getElementById("dashNaoAlocados").innerText = naoAlocados;
-      document.getElementById("dashOcupacao").innerText = ultimoResultado.ocupacaoMedia + "%";
-      
-      const tabelaBody = document.getElementById("dashTabelaPedidos");
-      tabelaBody.innerHTML = ultimoResultado.alocados.map(p => `
-        <tr>
-          <td>${p.os}</td>
-          <td>${formatNumber(p.pesoTotal)}</td>
-          <td>${formatNumber(p.volumeTotal)}</td>
-          <td><strong>${p.veiculo}</strong></td>
-          <td><span class="pill pill-green">✓ Alocado</span></td>
-        </tr>
-      `).join("") + ultimoResultado.naoAlocados.map(p => `
-        <tr>
-          <td>${p.os}</td>
-          <td>${formatNumber(p.pesoTotal)}</td>
-          <td>${formatNumber(p.volumeTotal)}</td>
-          <td>-</td>
-          <td><span class="pill pill-red">⚠ Não Alocado</span></td>
-        </tr>
-      `).join("");
-      
-      if (ultimoResultado.alocados.length === 0 && ultimoResultado.naoAlocados.length === 0) {
-        tabelaBody.innerHTML = `<tr><td colspan="5" class="small">Nenhum pedido processado.</td></tr>`;
+    async function executarPlanejamento() {
+      try {
+        if (!map || !geocoder) {
+          setStatus("Mapa ainda não carregou. Aguarde alguns segundos.", "warn");
+          return;
+        }
+
+        if (!vehicles.length) {
+          setStatus("Cadastre pelo menos um veículo.", "err");
+          return;
+        }
+
+        if (!pedidos.length) {
+          setStatus("Importe pelo menos um arquivo de pedidos.", "err");
+          return;
+        }
+
+        const origem = document.getElementById("depot").value.trim();
+        if (!origem) {
+          setStatus("Informe a origem/CD.", "err");
+          return;
+        }
+
+        setStatus("Aplicando regras e analisando pedidos...", "warn");
+
+        const { aprovados, sugestoesConsolidacao } = aplicarRegras(pedidos);
+        const gruposConsolidados = await consolidarAutomaticamente(sugestoesConsolidacao);
+
+        const pedidosConsolidadosComoRota = gruposConsolidados.map((grupo, idx) => {
+          const base = grupo.pedidos[0];
+          return {
+            id: "CONS-" + idx,
+            os: `CONS-${idx + 1}`,
+            depositante: base.depositante,
+            destinatario: `Consolidação ${idx + 1}`,
+            cidade: base.cidade,
+            uf: base.uf,
+            modalidade: "Rodoviario",
+            dataPrevisao: base.dataPrevisao,
+            endereco: grupo.enderecoReferencia,
+            itens: grupo.pedidos.flatMap(p => p.itens || []),
+            pesoTotal: grupo.pesoTotal,
+            volumeTotal: grupo.volumeTotal,
+            numNotas: grupo.pedidos.reduce((s, p) => s + Number(p.numNotas || 1), 0),
+            maiorAltura: Math.max(...grupo.pedidos.map(p => Number(p.maiorAltura || 0))),
+            maiorLargura: Math.max(...grupo.pedidos.map(p => Number(p.maiorLargura || 0))),
+            maiorProfundidade: Math.max(...grupo.pedidos.map(p => Number(p.maiorProfundidade || 0))),
+            maiorCubagemItem: Math.max(...grupo.pedidos.map(p => Number(p.maiorCubagemItem || 0))),
+            obsConsolidada: grupo.pedidos.map(p => `${p.os}: ${p.obsConsolidada || "-"}`).join(" | "),
+            consolidado: true,
+            qtdPedidosOrigem: grupo.pedidos.length
+          };
+        });
+
+        const baseParaRota = [...aprovados, ...pedidosConsolidadosComoRota];
+        const { rotas, naoAlocados } = montarRotasPorCidade(baseParaRota, vehicles);
+
+        setStatus("Desenhando rotas no mapa...", "warn");
+        await desenharRotas(rotas, origem);
+
+        ultimoResultado = {
+          aprovados,
+          sugestoesConsolidacao,
+          gruposConsolidados,
+          pedidosParaRota: baseParaRota,
+          rotas,
+          naoAlocados
+        };
+
+        atualizarMetricas();
+        renderResumoOperacional();
+        showTab("resultado");
+        setStatus("Planejamento concluído com sucesso.", "ok");
+      } catch (err) {
+        console.error(err);
+        setStatus("Erro ao processar planejamento.", "err");
       }
-      
-      const veiculosDiv = document.getElementById("dashVeiculosOcupacao");
-      veiculosDiv.innerHTML = ultimoResultado.vehicles.map(v => {
-        const percentPeso = (v.usadoPeso / v.pesoMax * 100).toFixed(0);
-        const percentVolume = (v.usadoVolume / v.volumeMax * 100).toFixed(0);
-        return `
-          <div class="veiculo-item">
-            <span>${v.nome} <small style="color:#64748b;">(peso ${percentPeso}% | volume ${percentVolume}%)</small></span>
-            <div class="barra"><div class="fill" style="width: ${percentPeso}%"></div></div>
-            <small>${formatNumber(v.usadoPeso)}/${formatNumber(v.pesoMax)} kg | ${formatNumber(v.usadoVolume)}/${formatNumber(v.volumeMax)} m³</small>
-          </div>
-        `;
-      }).join("");
-      
-      if (ultimoResultado.vehicles.length === 0) {
-        veiculosDiv.innerHTML = "<p class='small'>Nenhum veículo cadastrado.</p>";
-      }
-      
-      const gargalos = document.getElementById("dashGargalos");
-      let gargalosHtml = "";
-      
-      if (ultimoResultado.naoAlocados.length > 0) {
-        const pesoNaoAlocado = ultimoResultado.naoAlocados.reduce((s,p) => s + p.pesoTotal, 0);
-        const volumeNaoAlocado = ultimoResultado.naoAlocados.reduce((s,p) => s + p.volumeTotal, 0);
-        gargalosHtml += `<li>❌ ${ultimoResultado.naoAlocados.length} pedidos não alocados</li>`;
-        gargalosHtml += `<li class="small">📦 Peso não alocado: ${formatNumber(pesoNaoAlocado)} kg</li>`;
-        gargalosHtml += `<li class="small">📐 Volume não alocado: ${formatNumber(volumeNaoAlocado)} m³</li>`;
-      }
-      
-      if (ultimoResultado.sugestoesConsolidacao && ultimoResultado.sugestoesConsolidacao.length > 0) {
-        gargalosHtml += `<li>💡 ${ultimoResultado.sugestoesConsolidacao.length} pedidos sugeridos para consolidação</li>`;
-      }
-      
-      const veiculosSobrecarregados = ultimoResultado.vehicles.filter(v => (v.usadoPeso / v.pesoMax) > 0.9);
-      if (veiculosSobrecarregados.length > 0) {
-        gargalosHtml += `<li>⚠️ ${veiculosSobrecarregados.map(v => v.nome).join(", ")} com alta ocupação (>90%)</li>`;
-      }
-      
-      gargalos.innerHTML = gargalosHtml || "<li>✓ Nenhum gargalo identificado</li>";
     }
 
     function renderResumoOperacional() {
       const el = document.getElementById("resumoOperacional");
+
       if (!ultimoResultado) {
         el.innerHTML = `<p class="small">Nenhum planejamento executado.</p>`;
         return;
       }
-      
-      const pesoTotalAlocado = ultimoResultado.alocados.reduce((s,p) => s + p.pesoTotal, 0);
-      const volumeTotalAlocado = ultimoResultado.alocados.reduce((s,p) => s + p.volumeTotal, 0);
-      const pesoTotalNaoAlocado = ultimoResultado.naoAlocados.reduce((s,p) => s + p.pesoTotal, 0);
-      const volumeTotalNaoAlocado = ultimoResultado.naoAlocados.reduce((s,p) => s + p.volumeTotal, 0);
-      
+
+      const {
+        aprovados,
+        sugestoesConsolidacao,
+        gruposConsolidados,
+        pedidosParaRota,
+        rotas,
+        naoAlocados
+      } = ultimoResultado;
+
+      const totalPeso = pedidosParaRota.reduce((s, p) => s + Number(p.pesoTotal || 0), 0);
+      const totalVolume = pedidosParaRota.reduce((s, p) => s + Number(p.volumeTotal || 0), 0);
+      const totalCusto = rotas.reduce((s, r) => s + Number(r.custoEstimado || 0), 0);
+      const origem = document.getElementById("depot").value;
+
       el.innerHTML = `
         <div class="grid grid-3">
           <div class="metric">
-            <div class="label">Peso total alocado</div>
-            <div class="value">${formatNumber(pesoTotalAlocado)} kg</div>
+            <div class="label">Peso total roteirizado</div>
+            <div class="value">${formatNumber(totalPeso)} kg</div>
           </div>
           <div class="metric">
-            <div class="label">Volume total alocado</div>
-            <div class="value">${formatNumber(volumeTotalAlocado)} m³</div>
+            <div class="label">Volume total roteirizado</div>
+            <div class="value">${formatNumber(totalVolume)} m³</div>
           </div>
           <div class="metric">
-            <div class="label">Eficiência de alocação</div>
-            <div class="value">${ultimoResultado.ocupacaoMedia}%</div>
+            <div class="label">Custo total estimado</div>
+            <div class="value">${formatCurrency(totalCusto)}</div>
           </div>
         </div>
-        
-        <div style="margin-top: 16px; padding: 12px; background: #eef2ff; border-radius: 12px;">
-          <p class="small" style="margin: 0;">
-            📊 <strong>Resumo da Operação:</strong> ${ultimoResultado.alocados.length} pedidos alocados | 
-            ${ultimoResultado.naoAlocados.length} não alocados<br>
-            🚛 Veículos utilizados: ${ultimoResultado.vehicles.filter(v => v.usadoPeso > 0).length} de ${ultimoResultado.vehicles.length}<br>
-            ⚡ <strong>Nota:</strong> O sistema priorizou PESO e VOLUME para alocação. Limite de notas NÃO foi considerado como trava.
-          </p>
+
+        <div style="height:16px;"></div>
+
+        <h3>Resumo de Rotas</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rota</th>
+                <th>Descrição</th>
+                <th>Cubagem Total</th>
+                <th>Peso Total</th>
+                <th>Veículo</th>
+                <th>Fator decisório</th>
+                <th>Km estimado</th>
+                <th>Custo estimado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rotas.length ? rotas.map((r, i) => `
+                <tr>
+                  <td>Rota ${String(i + 1).padStart(2, "0")}</td>
+                  <td>${gerarDescricaoRota(r, origem)}</td>
+                  <td>${formatNumber(r.volumeTotal)} m³</td>
+                  <td>${formatNumber(r.pesoTotal)} kg</td>
+                  <td><strong>${r.veiculo.nome}</strong></td>
+                  <td>${r.fatorDecisorio}</td>
+                  <td>${formatNumber(r.distanciaKm)} km</td>
+                  <td>${formatCurrency(r.custoEstimado)}</td>
+                </tr>
+              `).join("") : `<tr><td colspan="8" class="small">Nenhuma rota gerada.</td></tr>`}
+            </tbody>
+          </table>
         </div>
-        
-        ${ultimoResultado.sugestoesConsolidacao && ultimoResultado.sugestoesConsolidacao.length > 0 ? `
-        <div style="margin-top: 16px;">
-          <h3>📦 Sugestões de Consolidação</h3>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>OS</th><th>Destinatário</th><th>Motivo</th><th>Peso</th><th>Volume</th></tr></thead>
-              <tbody>
-                ${ultimoResultado.sugestoesConsolidacao.slice(0, 5).map(p => `
+
+        <h3 style="margin-top:20px;">Visão detalhada por rota / pedido</h3>
+        ${rotas.length ? rotas.map((rota, idx) => `
+          <div class="route-box">
+            <div class="route-title">Rota ${String(idx + 1).padStart(2, "0")} - ${rota.veiculo.nome} - ${rota.cidade}/${rota.uf}</div>
+            <div>
+              <span class="decision-tag">Fator rota: ${rota.fatorDecisorio}</span>
+              <span class="decision-tag">${formatNumber(rota.pesoTotal)} kg</span>
+              <span class="decision-tag">${formatNumber(rota.volumeTotal)} m³</span>
+              <span class="decision-tag">${formatNumber(rota.distanciaKm)} km</span>
+              <span class="decision-tag">${formatCurrency(rota.custoEstimado)}</span>
+            </div>
+
+            <div class="table-wrap" style="margin-top:10px;">
+              <table>
+                <thead>
                   <tr>
-                    <td>${p.os}</td>
-                    <td>${p.destinatario}</td>
-                    <td>${p.motivo || "-"}</td>
-                    <td>${formatNumber(p.pesoTotal)}</td>
-                    <td>${formatNumber(p.volumeTotal)}</td>
+                    <th>OS</th>
+                    <th>Cliente</th>
+                    <th>Cidade</th>
+                    <th>Peso</th>
+                    <th>Cubagem</th>
+                    <th>Maior medida</th>
+                    <th>Decisão do pedido</th>
+                    <th>Regra aplicada</th>
                   </tr>
-                `).join("")}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  ${rota.pedidos.map(p => `
+                    <tr>
+                      <td>${p.os}</td>
+                      <td>${p.destinatario || p.depositante || "-"}</td>
+                      <td>${p.cidade}/${p.uf}</td>
+                      <td>${formatNumber(p.pesoTotal)} kg</td>
+                      <td>${formatNumber(p.volumeTotal)} m³</td>
+                      <td>${formatNumber(Math.max(p.maiorAltura, p.maiorLargura, p.maiorProfundidade))} m</td>
+                      <td>${fatorDecisorioPedido(p, rota.veiculo)}</td>
+                      <td>${p.regra_aplicada || (p.consolidado ? "Consolidação automática" : "Sem bloqueio")}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
           </div>
+        `).join("") : `<p class="small">Nenhuma rota gerada.</p>`}
+
+        <h3 style="margin-top:20px;">Pedidos aprovados</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>OS</th>
+                <th>Destinatário</th>
+                <th>Peso</th>
+                <th>Volume</th>
+                <th>Regra aplicada</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${aprovados.length ? aprovados.map(p => `
+                <tr>
+                  <td>${p.os}</td>
+                  <td>${p.destinatario}</td>
+                  <td>${formatNumber(p.pesoTotal)}</td>
+                  <td>${formatNumber(p.volumeTotal)}</td>
+                  <td>${p.regra_aplicada || "-"}</td>
+                </tr>
+              `).join("") : `<tr><td colspan="5" class="small">Nenhum pedido aprovado diretamente.</td></tr>`}
+            </tbody>
+          </table>
         </div>
-        ` : ""}
+
+        <h3 style="margin-top:20px;">Sugestões de consolidação</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>OS</th>
+                <th>Destinatário</th>
+                <th>Motivo</th>
+                <th>Horário</th>
+                <th>Peso</th>
+                <th>Volume</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sugestoesConsolidacao.length ? sugestoesConsolidacao.map(p => `
+                <tr>
+                  <td>${p.os}</td>
+                  <td>${p.destinatario}</td>
+                  <td>${p.motivo || "-"}</td>
+                  <td>${p.horario || "-"}</td>
+                  <td>${formatNumber(p.pesoTotal)}</td>
+                  <td>${formatNumber(p.volumeTotal)}</td>
+                </tr>
+              `).join("") : `<tr><td colspan="6" class="small">Nenhuma sugestão de consolidação.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+
+        <h3 style="margin-top:20px;">Consolidações automáticas</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>Qtd. pedidos</th>
+                <th>Endereço base</th>
+                <th>Peso total</th>
+                <th>Volume total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${gruposConsolidados.length ? gruposConsolidados.map((g, i) => `
+                <tr>
+                  <td>Consolidação ${i + 1}</td>
+                  <td>${g.pedidos.length}</td>
+                  <td>${g.enderecoReferencia}</td>
+                  <td>${formatNumber(g.pesoTotal)}</td>
+                  <td>${formatNumber(g.volumeTotal)}</td>
+                </tr>
+              `).join("") : `<tr><td colspan="5" class="small">Nenhuma consolidação gerada.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+
+        <h3 style="margin-top:20px;">Distribuição por veículo</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Veículo</th>
+                <th>Pedidos na rota</th>
+                <th>Peso alocado</th>
+                <th>Volume alocado</th>
+                <th>Notas alocadas</th>
+                <th>Custo</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rotas.length ? rotas.map(r => `
+                <tr>
+                  <td>${r.veiculo.nome}</td>
+                  <td>${r.pedidos.length}</td>
+                  <td>${formatNumber(r.pesoTotal)}</td>
+                  <td>${formatNumber(r.volumeTotal)}</td>
+                  <td>${r.numNotas}</td>
+                  <td>${formatCurrency(r.custoEstimado)}</td>
+                </tr>
+              `).join("") : `<tr><td colspan="6" class="small">Nenhuma rota gerada.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+
+        <h3 style="margin-top:20px;">Pedidos não alocados</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Destino</th>
+                <th>Peso</th>
+                <th>Volume</th>
+                <th>Altura</th>
+                <th>Largura</th>
+                <th>Profundidade</th>
+                <th>Motivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${naoAlocados.length ? naoAlocados.map(p => `
+                <tr>
+                  <td>${p.cidade}/${p.uf}</td>
+                  <td>${formatNumber(p.pesoTotal)}</td>
+                  <td>${formatNumber(p.volumeTotal)}</td>
+                  <td>${formatNumber(p.maiorAltura)}</td>
+                  <td>${formatNumber(p.maiorLargura)}</td>
+                  <td>${formatNumber(p.maiorProfundidade)}</td>
+                  <td>${p.motivoNaoAlocado || "-"}</td>
+                </tr>
+              `).join("") : `<tr><td colspan="7" class="small">Todos os pedidos foram alocados.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
       `;
+    }
+
+    function exportarRelatorioCSV() {
+      if (!ultimoResultado) {
+        alert("Execute o planejamento antes de exportar.");
+        return;
+      }
+
+      const linhas = [];
+      linhas.push(["ROTA","VEICULO","DESCRICAO","CIDADE","UF","PESO_TOTAL","VOLUME_TOTAL","FATOR_DECISORIO","KM_ESTIMADO","CUSTO_ESTIMADO"]);
+
+      const origem = document.getElementById("depot").value;
+
+      ultimoResultado.rotas.forEach((r, i) => {
+        linhas.push([
+          `Rota ${String(i + 1).padStart(2, "0")}`,
+          r.veiculo.nome,
+          gerarDescricaoRota(r, origem),
+          r.cidade,
+          r.uf,
+          r.pesoTotal,
+          r.volumeTotal,
+          r.fatorDecisorio,
+          (r.distanciaKm || 0).toFixed(2),
+          (r.custoEstimado || 0).toFixed(2)
+        ]);
+      });
+
+      linhas.push([]);
+      linhas.push(["OS","CLIENTE","CIDADE","UF","PESO","VOLUME","MAIOR_MEDIDA","DECISAO_PEDIDO","ROTA"]);
+
+      ultimoResultado.rotas.forEach((r, i) => {
+        r.pedidos.forEach(p => {
+          linhas.push([
+            p.os,
+            p.destinatario || p.depositante || "-",
+            p.cidade,
+            p.uf,
+            p.pesoTotal,
+            p.volumeTotal,
+            Math.max(p.maiorAltura, p.maiorLargura, p.maiorProfundidade),
+            fatorDecisorioPedido(p, r.veiculo),
+            `Rota ${String(i + 1).padStart(2, "0")}`
+          ]);
+        });
+      });
+
+      const csv = Papa.unparse(linhas);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "relatorio_rotas_pro.csv";
+      a.click();
+      URL.revokeObjectURL(url);
     }
 
     renderVehicles();
