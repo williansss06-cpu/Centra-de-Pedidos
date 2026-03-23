@@ -680,35 +680,36 @@
       return Array.from(mapa.values()).map(p => ({ ...p, obsConsolidada: [...new Set(p.obsConsolidada)].join(" | ") }));
     }
 
-    document.getElementById("ordersCsvFile").addEventListener("change", function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-Papa.parse(file, {
-  header: true,
-  skipEmptyLines: true,
-  complete: function (results) {
-    try {
+document.getElementById("ordersCsvFile").addEventListener("change", function (e) {
+  const file = e.target.files[0];
+  if (!file) return;
 
-      // 🔥 VALIDAÇÃO AQUI
-      if (!results.data || !results.data.length) {
-        alert("CSV vazio ou inválido");
-        return;
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: function (results) {
+      try {
+
+        if (!results.data || !results.data.length) {
+          alert("CSV vazio ou inválido");
+          return;
+        }
+
+        rawItens = results.data;
+        pedidos = agruparPedidosPorOS(rawItens);
+
+        renderPedidos();
+        atualizarMetricas();
+
+        alert(`${pedidos.length} pedidos (OS) importados com sucesso.`);
+        e.target.value = "";
+
+      } catch (err) {
+        console.error(err);
+        alert("Erro ao importar CSV.");
       }
-
-      rawItens = results.data;
-      pedidos = agruparPedidosPorOS(rawItens);
-
-      renderPedidos();
-      atualizarMetricas();
-
-      alert(`${pedidos.length} pedidos (OS) importados com sucesso.`);
-      e.target.value = "";
-
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao importar CSV.");
     }
-  }
+  });
 });
        function renderPedidos() {
       const tbody = document.getElementById("pedidoTableBody");
