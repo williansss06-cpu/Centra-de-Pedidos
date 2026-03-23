@@ -287,10 +287,13 @@
         }
 
         const savedVehicles = JSON.parse(localStorage.getItem(STORAGE_KEYS.veiculos) || "[]");
-        if (Array.isArray(savedVehicles)) {
+        if (Array.isArray(savedVehicles) && savedVehicles.length > 0) {
           vehicles = savedVehicles;
+          console.log("Veículos carregados do localStorage:", vehicles);
           renderVehicles();
           atualizarMetricas();
+        } else {
+          console.log("Nenhum veículo encontrado no localStorage.");
         }
       } catch (error) {
         console.error("Erro ao carregar dados locais:", error);
@@ -560,6 +563,7 @@
     }
 
     async function carregarParametrosDoBanco(silent = false) {
+      // Primeiro carrega do localStorage como fallback
       carregarDoStorageLocal();
       if (!supabaseClient) {
         if (!silent) setStatusBanco("Dados carregados do navegador. Para usar banco, configure o Supabase.", "ok");
@@ -1496,14 +1500,18 @@
 
     // ==================== INICIALIZAÇÃO ====================
     async function initApp() {
+      // Carrega dados do localStorage primeiro
       carregarDoStorageLocal();
+      // Se houver Supabase configurado, tenta carregar e sobrescrever
+      if (supabaseClient) {
+        await carregarParametrosDoBanco(true);
+      } else {
+        console.log("Supabase não configurado. Usando dados do navegador.");
+      }
       renderVehicles();
       renderPedidos();
       atualizarMetricas();
       loadGoogleMaps();
-      if (supabaseClient) {
-        await carregarParametrosDoBanco(true);
-      }
     }
 
     document.addEventListener("DOMContentLoaded", initApp);
