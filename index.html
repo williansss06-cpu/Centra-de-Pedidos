@@ -686,23 +686,34 @@
       return Array.from(mapa.values()).map(p => ({ ...p, obsConsolidada: [...new Set(p.obsConsolidada)].join(" | ") }));
     }
 
-    document.getElementById("ordersCsvFile").addEventListener("change", function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      Papa.parse(file, {
-        header: true, skipEmptyLines: true,
-        complete: function (results) {
-          try {
-            rawItens = results.data;
-            pedidos = agruparPedidosPorOS(rawItens);
-            renderPedidos();
-            atualizarMetricas();
-            alert(`${pedidos.length} pedidos (OS) importados com sucesso.`);
-            e.target.value = "";
-          } catch (err) { console.error(err); alert("Erro ao importar CSV."); }
-        }
+    const ordersCsvInput = document.getElementById("ordersCsvFile");
+    if (ordersCsvInput) {
+      ordersCsvInput.addEventListener("change", function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function (results) {
+            try {
+              if (!results.data || !results.data.length) {
+                alert("CSV vazio ou inválido");
+                return;
+              }
+              rawItens = results.data;
+              pedidos = agruparPedidosPorOS(rawItens);
+              renderPedidos();
+              atualizarMetricas();
+              alert(`${pedidos.length} pedidos (OS) importados com sucesso.`);
+              e.target.value = "";
+            } catch (err) {
+              console.error(err);
+              alert("Erro ao importar CSV.");
+            }
+          }
+        });
       });
-    });
+    }
 
     function renderPedidos() {
       const tbody = document.getElementById("pedidoTableBody");
@@ -748,6 +759,89 @@
     }
 
     // ==================== GEOCÓDIGO ====================
+    function getGeoCacheValue(address) {
+      const key = (address || "").trim().toLowerCase();
+      return key ? geocodeCache[key] || null : null;
+    }
+
+    function setGeoCacheValue(address, coords) {
+      const key = (address || "").trim().toLowerCase();
+      if (!key || !coords) return;
+      geocodeCache[key] = coords;
+      localStorage.setItem(STORAGE_KEYS.geoCache, JSON.stringify(geocodeCache));
+    }
+
+    async function geocodeSeguro(address) {
+      if (!address) return null;
+      const cached = getGeoCacheValue(address);
+      if (cached) return cached;
+      try {
+        const coords = await geocodeAddress(address);
+        setGeoCacheValue(address, coords);
+        return coords;
+      } catch (e) {
+        console.warn("Erro no geocode:", address, e);
+        return null;
+      }
+    }
+
+    async function prepararPedidosComGeocode(listaPedidos) {
+      const saida = [];
+      for (const pedido of listaPedidos) {
+        try {
+          await resolverCoordenadasPedido(pedido);
+        } catch (e) {
+          console.warn("Pedido sem coordenadas válidas:", pedido.os, e);
+        }
+        saida.push(pedido);
+      }
+      return saida;
+    }
+
+    async function otimizarSequenciaPorEstrada(pedidosLista, origemCoords) {
+      const pedidosValidos = pedidosLista.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+      if (pedidosValidos.length <= 1 || !(window.google && google.maps)) {
+        return [...pedidosLista];
+      }
+      if (pedidosValidos.length > 23) {
+        return ordenarRotaInteligente(pedidosValidos, origemCoords);
+      }
+
+      const tipoRotaAtual = document.getElementById("tipoRota")?.value || "somente_ida";
+      const destinoFinal = tipoRotaAtual === "somente_ida"
+        ? [...pedidosValidos].sort((a, b) => haversineKm(origemCoords, { lat: b.lat, lng: b.lng }) - haversineKm(origemCoords, { lat: a.lat, lng: a.lng }))[0]
+        : null;
+
+      const intermediarios = destinoFinal
+        ? pedidosValidos.filter(p => p.os !== destinoFinal.os)
+        : pedidosValidos;
+
+      const waypoints = intermediarios.map(p => ({ location: new google.maps.LatLng(p.lat, p.lng), stopover: true }));
+      const service = new google.maps.DirectionsService();
+
+      return await new Promise(resolve => {
+        service.route({
+          origin: new google.maps.LatLng(origemCoords.lat, origemCoords.lng),
+          destination: destinoFinal
+            ? new google.maps.LatLng(destinoFinal.lat, destinoFinal.lng)
+            : new google.maps.LatLng(origemCoords.lat, origemCoords.lng),
+          waypoints,
+          optimizeWaypoints: true,
+          travelMode: google.maps.TravelMode.DRIVING
+        }, (result, status) => {
+          if (status !== "OK" || !result?.routes?.[0]) {
+            resolve([...pedidosLista]);
+            return;
+          }
+          const ordem = result.routes[0].waypoint_order || [];
+          const ordenados = ordem.map(i => intermediarios[i]).filter(Boolean);
+          if (destinoFinal) ordenados.push(destinoFinal);
+          const semCoord = pedidosLista.filter(p => !Number.isFinite(p.lat) || !Number.isFinite(p.lng));
+          resolve([...ordenados, ...semCoord]);
+        });
+      });
+    }
+
     async function geocodeAddress(address) {
       if (!geocoder) throw new Error("Geocodificador não disponível");
       const key = (address || "").trim().toLowerCase();
@@ -758,8 +852,7 @@
           if (status === "OK" && results[0]) {
             const loc = results[0].geometry.location;
             const coords = { lat: loc.lat(), lng: loc.lng() };
-            geocodeCache[key] = coords;
-            localStorage.setItem(STORAGE_KEYS.geoCache, JSON.stringify(geocodeCache));
+            setGeoCacheValue(address, coords);
             resolve(coords);
           } else reject(`Falha ao geocodificar: ${address}`);
         });
@@ -795,242 +888,37 @@
       const y = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
       return R * y;
     }
-async function ordenarRotaInteligente(pedidos, origem) {
-    if (pedidos.length === 0) return [];
-    
-    const pontos = [
-        { lat: origem.lat, lng: origem.lng, name: "Origem" },
-        ...pedidos.map(p => ({ lat: p.lat, lng: p.lng, pedido: p }))
-    ];
-    
-    const origins = pontos.map(p => new google.maps.LatLng(p.lat, p.lng));
-    const destinations = origins;
-    
-    const distanceMatrixService = new google.maps.DistanceMatrixService();
-    
-    return new Promise((resolve, reject) => {
-        distanceMatrixService.getDistanceMatrix(
-            {
-                origins: origins,
-                destinations: destinations,
-                travelMode: google.maps.TravelMode.DRIVING,
-                unitSystem: google.maps.UnitSystem.METRIC,
-            },
-            (response, status) => {
-                if (status !== "OK") {
-                    console.error("Erro na Distance Matrix:", status);
-                    resolve(ordenarPorHaversine(pedidos, origem));
-                    return;
-                }
-                
-                const distMatrix = [];
-                for (let i = 0; i < response.rows.length; i++) {
-                    const row = response.rows[i];
-                    distMatrix[i] = [];
-                    for (let j = 0; j < row.elements.length; j++) {
-                        const element = row.elements[j];
-                        distMatrix[i][j] = element.status === "OK" ? element.distance.value : Infinity;
-                    }
-                }
-                
-                const numPontos = pontos.length;
-                const visited = new Array(numPontos).fill(false);
-                visited[0] = true;
-                const orderIndices = [0];
-                let current = 0;
-                for (let step = 1; step < numPontos; step++) {
-                    let nearest = -1;
-                    let minDist = Infinity;
-                    for (let j = 0; j < numPontos; j++) {
-                        if (!visited[j] && distMatrix[current][j] < minDist) {
-                            minDist = distMatrix[current][j];
-                            nearest = j;
-                        }
-                    }
-                    if (nearest !== -1) {
-                        visited[nearest] = true;
-                        orderIndices.push(nearest);
-                        current = nearest;
-                    } else break;
-                }
-                
-                const pedidosOrdenados = orderIndices
-                    .filter(idx => idx !== 0)
-                    .map(idx => pontos[idx].pedido)
-                    .filter(p => p);
-                resolve(pedidosOrdenados);
-            }
-        );
+function ordenarRotaInteligente(pedidos, origem) {
+  const rota = [];
+  let atual = origem;
+  const pendentes = [...pedidos];
+
+  while (pendentes.length) {
+    let maisProximo = null;
+    let menorDistancia = Infinity;
+    let index = 0;
+
+    pendentes.forEach((p, i) => {
+      if (!p.lat || !p.lng) return;
+
+      const dist = haversineKm(atual, { lat: p.lat, lng: p.lng });
+
+      if (dist < menorDistancia) {
+        menorDistancia = dist;
+        maisProximo = p;
+        index = i;
+      }
     });
+
+    if (!maisProximo) break;
+
+    rota.push(maisProximo);
+    atual = { lat: maisProximo.lat, lng: maisProximo.lng };
+    pendentes.splice(index, 1);
+  }
+
+  return rota;
 }
-
-async function ordenarRotaInteligente(pedidos, origem) {
-    if (pedidos.length === 0) return [];
-    
-    const pontos = [
-        { lat: origem.lat, lng: origem.lng, name: "Origem" },
-        ...pedidos.map(p => ({ lat: p.lat, lng: p.lng, pedido: p }))
-    ];
-    
-    const origins = pontos.map(p => new google.maps.LatLng(p.lat, p.lng));
-    const destinations = origins;
-    
-    const distanceMatrixService = new google.maps.DistanceMatrixService();
-    
-    return new Promise((resolve, reject) => {
-        distanceMatrixService.getDistanceMatrix(
-            {
-                origins: origins,
-                destinations: destinations,
-                travelMode: google.maps.TravelMode.DRIVING,
-                unitSystem: google.maps.UnitSystem.METRIC,
-            },
-            (response, status) => {
-                if (status !== "OK") {
-                    console.error("Erro na Distance Matrix:", status);
-                    resolve(ordenarPorHaversine(pedidos, origem));
-                    return;
-                }
-                
-                const distMatrix = [];
-                for (let i = 0; i < response.rows.length; i++) {
-                    const row = response.rows[i];
-                    distMatrix[i] = [];
-                    for (let j = 0; j < row.elements.length; j++) {
-                        const element = row.elements[j];
-                        distMatrix[i][j] = element.status === "OK" ? element.distance.value : Infinity;
-                    }
-                }
-                
-                const numPontos = pontos.length;
-                const visited = new Array(numPontos).fill(false);
-                visited[0] = true;
-                const orderIndices = [0];
-                let current = 0;
-                for (let step = 1; step < numPontos; step++) {
-                    let nearest = -1;
-                    let minDist = Infinity;
-                    for (let j = 0; j < numPontos; j++) {
-                        if (!visited[j] && distMatrix[current][j] < minDist) {
-                            minDist = distMatrix[current][j];
-                            nearest = j;
-                        }
-                    }
-                    if (nearest !== -1) {
-                        visited[nearest] = true;
-                        orderIndices.push(nearest);
-                        current = nearest;
-                    } else break;
-                }
-                
-                const pedidosOrdenados = orderIndices
-                    .filter(idx => idx !== 0)
-                    .map(idx => pontos[idx].pedido)
-                    .filter(p => p);
-                resolve(pedidosOrdenados);
-            }
-        );
-    });
-}
-
-    // ==================== ORDENAÇÃO POR DISTÂNCIA REAL (Distance Matrix) ====================
-    async function ordenarRotaInteligente(pedidos, origem) {
-        if (pedidos.length === 0) return [];
-        
-        const pontos = [
-            { lat: origem.lat, lng: origem.lng, name: "Origem" },
-            ...pedidos.map(p => ({ lat: p.lat, lng: p.lng, pedido: p }))
-        ];
-        
-        const origins = pontos.map(p => new google.maps.LatLng(p.lat, p.lng));
-        const destinations = origins;
-        
-        const distanceMatrixService = new google.maps.DistanceMatrixService();
-        
-        return new Promise((resolve, reject) => {
-            distanceMatrixService.getDistanceMatrix(
-                {
-                    origins: origins,
-                    destinations: destinations,
-                    travelMode: google.maps.TravelMode.DRIVING,
-                    unitSystem: google.maps.UnitSystem.METRIC,
-                },
-                (response, status) => {
-                    if (status !== "OK") {
-                        console.error("Erro na Distance Matrix:", status);
-                        resolve(ordenarPorHaversine(pedidos, origem));
-                        return;
-                    }
-                    
-                    const distMatrix = [];
-                    for (let i = 0; i < response.rows.length; i++) {
-                        const row = response.rows[i];
-                        distMatrix[i] = [];
-                        for (let j = 0; j < row.elements.length; j++) {
-                            const element = row.elements[j];
-                            distMatrix[i][j] = element.status === "OK" ? element.distance.value : Infinity;
-                        }
-                    }
-                    
-                    const numPontos = pontos.length;
-                    const visited = new Array(numPontos).fill(false);
-                    visited[0] = true;
-                    const orderIndices = [0];
-                    let current = 0;
-                    for (let step = 1; step < numPontos; step++) {
-                        let nearest = -1;
-                        let minDist = Infinity;
-                        for (let j = 0; j < numPontos; j++) {
-                            if (!visited[j] && distMatrix[current][j] < minDist) {
-                                minDist = distMatrix[current][j];
-                                nearest = j;
-                            }
-                        }
-                        if (nearest !== -1) {
-                            visited[nearest] = true;
-                            orderIndices.push(nearest);
-                            current = nearest;
-                        } else break;
-                    }
-                    
-                    const pedidosOrdenados = orderIndices
-                        .filter(idx => idx !== 0)
-                        .map(idx => pontos[idx].pedido)
-                        .filter(p => p);
-                    resolve(pedidosOrdenados);
-                }
-            );
-        });
-    }
-
-    // Fallback para ordenação por haversine
-    function ordenarPorHaversine(pedidos, origem) {
-        const rota = [];
-        let atual = origem;
-        const pendentes = [...pedidos];
-        
-        while (pendentes.length) {
-            let maisProximo = null;
-            let menorDistancia = Infinity;
-            let index = 0;
-            
-            pendentes.forEach((p, i) => {
-                if (!p.lat || !p.lng) return;
-                const dist = haversineKm(atual, { lat: p.lat, lng: p.lng });
-                if (dist < menorDistancia) {
-                    menorDistancia = dist;
-                    maisProximo = p;
-                    index = i;
-                }
-            });
-            
-            if (!maisProximo) break;
-            rota.push(maisProximo);
-            atual = { lat: maisProximo.lat, lng: maisProximo.lng };
-            pendentes.splice(index, 1);
-        }
-        return rota;
-    }
     // ==================== REGRAS E CONSOLIDAÇÃO ====================
     function aplicarRegras(pedidosBase) {
       const aprovados = [], sugestoesConsolidacao = [];
@@ -1136,9 +1024,7 @@ async function ordenarRotaInteligente(pedidos, origem) {
     }
 
     async function montarRotasPorCorredor(pedidosBase, frota) {
-      const gruposMap = {};
-      const naoAlocados = [];
-
+      const gruposMap = {}, naoAlocados = [];
       pedidosBase.forEach(p => {
         const chave = corredorUF(p.uf || "");
         if (!gruposMap[chave]) gruposMap[chave] = [];
@@ -1151,12 +1037,11 @@ async function ordenarRotaInteligente(pedidos, origem) {
       const volumeMaxConfig = Number(document.getElementById("cfgVolumeMax")?.value || 20);
       const origemTexto = document.getElementById("depot")?.value?.trim() || "Guarulhos/SP";
 
-      let origemBase;
+      let origem;
       try {
-        origemBase = await geocodeAddress(origemTexto);
-      } catch (e) {
-        console.error("Erro geocode origem:", e);
-        origemBase = { lat: -23.5505, lng: -46.6333 };
+        origem = await geocodeSeguro(origemTexto) || { lat: -23.5505, lng: -46.6333 };
+      } catch {
+        origem = { lat: -23.5505, lng: -46.6333 };
       }
 
       for (const chave of Object.keys(gruposMap)) {
@@ -1193,12 +1078,13 @@ async function ordenarRotaInteligente(pedidos, origem) {
           if (!melhorVeiculo) {
             lote.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: "Sem veículo compatível" }));
           } else {
+            const pedidosOrdenados = await otimizarSequenciaPorEstrada([...lote], origem);
             const rota = {
               id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
               corredor: chave,
               cidade: lote[0].cidade,
               uf: lote[0].uf,
-              pedidos: await ordenarRotaInteligente(lote, origemBase),
+              pedidos: pedidosOrdenados,
               pesoTotal: pesoAtual,
               volumeTotal: volumeAtual,
               numNotas: notasAtual,
@@ -1210,7 +1096,6 @@ async function ordenarRotaInteligente(pedidos, origem) {
               distanciaKm: 0,
               custoEstimado: 0
             };
-
             rota.fatorDecisorio = fatorDecisorioRota(rota, melhorVeiculo);
             rotas.push(rota);
           }
@@ -1227,11 +1112,9 @@ async function ordenarRotaInteligente(pedidos, origem) {
         for (const p of lista) {
           const novoPeso = pesoAtual + Number(p.pesoTotal || 0);
           const novoVolume = volumeAtual + Number(p.volumeTotal || 0);
-
-          if (lote.length && (novoPeso > pesoMaxConfig || novoVolume > volumeMaxConfig)) {
+          if (novoPeso > pesoMaxConfig || novoVolume > volumeMaxConfig) {
             await fecharLote();
           }
-
           lote.push(p);
           pesoAtual += Number(p.pesoTotal || 0);
           volumeAtual += Number(p.volumeTotal || 0);
@@ -1251,7 +1134,7 @@ async function ordenarRotaInteligente(pedidos, origem) {
     async function desenharRotas(rotas, origem, routeId = "") {
       if (!map || !geocoder) return;
       clearRoutes();
-      const originCoords = await geocodeAddress(origem);
+      const originCoords = await geocodeSeguro(origem) || { lat: -23.5505, lng: -46.6333 };
       const bounds = new google.maps.LatLngBounds();
       bounds.extend(originCoords);
       const colors = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#d97706", "#0891b2", "#be123c", "#4f46e8"];
@@ -1259,6 +1142,8 @@ async function ordenarRotaInteligente(pedidos, origem) {
 
       for (let idx = 0; idx < rotas.length; idx++) {
         const rota = rotas[idx];
+        rota.distanciaKm = 0;
+        rota.custoEstimado = 0;
         if (routeId && rota.id !== routeId) continue;
         if (!rota.pedidos.length) continue;
 
@@ -1268,36 +1153,39 @@ async function ordenarRotaInteligente(pedidos, origem) {
             const c = await resolverCoordenadasPedido(pedido);
             pedidosComCoord.push({ pedido, coord: c });
             bounds.extend(c);
-            const marker = new google.maps.Marker({
-              position: c, map, title: `${pedido.os} - ${pedido.destinatario}`,
-              label: String(pedidosComCoord.length),
-              icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: colors[idx % colors.length], fillOpacity: 1, strokeColor: "#fff", strokeWeight: 1 }
-            });
-            const info = new google.maps.InfoWindow({
-              content: `<div><strong>${pedido.os} - ${pedido.destinatario||"-"}</strong><br>${pedido.endereco||"-"}<br>Peso: ${formatNumber(pedido.pesoTotal)} kg<br>Volume: ${formatNumber(pedido.volumeTotal)} m³<br>Decisão: ${fatorDecisorioPedido(pedido, rota.veiculo)}</div>`
-            });
-            marker.addListener("click", () => info.open(map, marker));
-            mapMarkers.push(marker);
-          } catch {}
+          } catch (e) {
+            console.warn("Falha ao resolver pedido no mapa:", pedido.os, e);
+          }
         }
+        if (!pedidosComCoord.length) continue;
 
         const service = new google.maps.DirectionsService();
-        const maxWaypoints = 23;
-        const routePoints = pedidosComCoord.map(x => x.coord);
-        for (let start = 0; start < routePoints.length; start += maxWaypoints) {
-          const chunk = routePoints.slice(start, start + maxWaypoints);
-          if (!chunk.length) continue;
-          let destinationCoord;
-          if (tipoRota === "somente_ida") destinationCoord = chunk[chunk.length - 1];
-          else destinationCoord = (start + maxWaypoints >= routePoints.length) ? originCoords : chunk[chunk.length - 1];
-          const waypoints = chunk.slice(0, Math.max(0, chunk.length-1)).map(c => ({ location: new google.maps.LatLng(c.lat, c.lng), stopover: true }));
-          const chunkOrigin = start === 0 ? new google.maps.LatLng(originCoords.lat, originCoords.lng) : new google.maps.LatLng(routePoints[start-1].lat, routePoints[start-1].lng);
-          const chunkDestination = new google.maps.LatLng(destinationCoord.lat, destinationCoord.lng);
+
+        if (pedidosComCoord.length <= 23) {
+          const destinoFinal = tipoRota === "somente_ida"
+            ? [...pedidosComCoord].sort((a, b) => haversineKm(originCoords, b.coord) - haversineKm(originCoords, a.coord))[0]
+            : null;
+          const intermediarios = destinoFinal
+            ? pedidosComCoord.filter(item => item.pedido.os !== destinoFinal.pedido.os)
+            : pedidosComCoord;
+          const waypoints = intermediarios.map(item => ({ location: new google.maps.LatLng(item.coord.lat, item.coord.lng), stopover: true }));
+
           await new Promise(resolve => {
             service.route({
-              origin: chunkOrigin, destination: chunkDestination, waypoints, optimizeWaypoints: true, travelMode: google.maps.TravelMode.DRIVING
+              origin: new google.maps.LatLng(originCoords.lat, originCoords.lng),
+              destination: destinoFinal
+                ? new google.maps.LatLng(destinoFinal.coord.lat, destinoFinal.coord.lng)
+                : new google.maps.LatLng(originCoords.lat, originCoords.lng),
+              waypoints,
+              optimizeWaypoints: true,
+              travelMode: google.maps.TravelMode.DRIVING
             }, (result, status) => {
-              if (status === "OK") {
+              if (status === "OK" && result?.routes?.[0]) {
+                const ordem = result.routes[0].waypoint_order || [];
+                const pedidosOrdenados = ordem.map(i => intermediarios[i]?.pedido).filter(Boolean);
+                if (destinoFinal) pedidosOrdenados.push(destinoFinal.pedido);
+                rota.pedidos = pedidosOrdenados;
+
                 const renderer = new google.maps.DirectionsRenderer({
                   map, preserveViewport: true, suppressMarkers: true,
                   polylineOptions: { strokeColor: colors[idx % colors.length], strokeWeight: 5, strokeOpacity: 0.8 }
@@ -1311,8 +1199,61 @@ async function ordenarRotaInteligente(pedidos, origem) {
               resolve();
             });
           });
+        } else {
+          // fallback para volumes maiores
+          rota.pedidos = await otimizarSequenciaPorEstrada(rota.pedidos, originCoords);
+          const routePoints = rota.pedidos.map(p => ({ lat: p.lat, lng: p.lng }));
+          const maxWaypoints = 23;
+          for (let start = 0; start < routePoints.length; start += maxWaypoints) {
+            const chunk = routePoints.slice(start, start + maxWaypoints);
+            if (!chunk.length) continue;
+            const destinationCoord = tipoRota === "somente_ida"
+              ? chunk[chunk.length - 1]
+              : (start + maxWaypoints >= routePoints.length ? originCoords : chunk[chunk.length - 1]);
+            const waypoints = chunk.slice(0, Math.max(0, chunk.length - 1)).map(c => ({ location: new google.maps.LatLng(c.lat, c.lng), stopover: true }));
+            const chunkOrigin = start === 0 ? new google.maps.LatLng(originCoords.lat, originCoords.lng) : new google.maps.LatLng(routePoints[start - 1].lat, routePoints[start - 1].lng);
+            const chunkDestination = new google.maps.LatLng(destinationCoord.lat, destinationCoord.lng);
+            await new Promise(resolve => {
+              service.route({
+                origin: chunkOrigin,
+                destination: chunkDestination,
+                waypoints,
+                optimizeWaypoints: false,
+                travelMode: google.maps.TravelMode.DRIVING
+              }, (result, status) => {
+                if (status === "OK") {
+                  const renderer = new google.maps.DirectionsRenderer({
+                    map, preserveViewport: true, suppressMarkers: true,
+                    polylineOptions: { strokeColor: colors[idx % colors.length], strokeWeight: 5, strokeOpacity: 0.8 }
+                  });
+                  renderer.setDirections(result);
+                  directionsRenderers.push(renderer);
+                  let distanciaTotal = 0;
+                  result.routes[0].legs.forEach(leg => distanciaTotal += leg.distance?.value || 0);
+                  rota.distanciaKm += distanciaTotal / 1000;
+                }
+                resolve();
+              });
+            });
+          }
         }
+
         rota.custoEstimado = rota.distanciaKm * Number(rota.veiculo.custoKm || 0);
+
+        rota.pedidos.forEach((pedido, posicao) => {
+          const marker = new google.maps.Marker({
+            position: { lat: pedido.lat, lng: pedido.lng },
+            map,
+            title: `${pedido.os} - ${pedido.destinatario}`,
+            label: String(posicao + 1),
+            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: colors[idx % colors.length], fillOpacity: 1, strokeColor: "#fff", strokeWeight: 1 }
+          });
+          const info = new google.maps.InfoWindow({
+            content: `<div><strong>${pedido.os} - ${pedido.destinatario || "-"}</strong><br>${pedido.endereco || "-"}<br>Peso: ${formatNumber(pedido.pesoTotal)} kg<br>Volume: ${formatNumber(pedido.volumeTotal)} m³<br>Decisão: ${fatorDecisorioPedido(pedido, rota.veiculo)}</div>`
+          });
+          marker.addListener("click", () => info.open(map, marker));
+          mapMarkers.push(marker);
+        });
       }
       if (!bounds.isEmpty()) map.fitBounds(bounds);
     }
@@ -1333,7 +1274,8 @@ async function ordenarRotaInteligente(pedidos, origem) {
         const origem = document.getElementById("depot").value.trim();
         if (!origem) { setStatus("Informe a origem/CD.", "err"); return; }
         setStatus("Validando coordenadas dos pedidos...", "warn");
-        for (const p of pedidos) try { await resolverCoordenadasPedido(p); } catch {}
+        pedidos = await prepararPedidosComGeocode(pedidos);
+        renderPedidos();
         setStatus("Aplicando regras de negócio...", "warn");
         const { aprovados, sugestoesConsolidacao } = aplicarRegras(pedidos);
         const gruposConsolidados = await consolidarAutomaticamente(sugestoesConsolidacao);
