@@ -126,12 +126,12 @@
           <div class="row" style="margin-top: 14px;"><button class="btn btn-green" onclick="addVehicle()">Adicionar veículo</button></div>
 
           <div class="table-wrap">
-            <table>
+             <table>
               <thead>
-                <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Altura</th><th>Largura</th><th>Profundidade</th><th>R$/km</th><th>Ação</th></tr>
+                 <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Altura</th><th>Largura</th><th>Profundidade</th><th>R$/km</th><th>Ação</th></tr>
               </thead>
               <tbody id="vehicleTableBody"></tbody>
-            </table>
+             </table>
           </div>
           <div id="statusBanco" class="status"></div>
         </div>
@@ -795,37 +795,44 @@
       const y = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
       return R * y;
     }
-function ordenarRotaInteligente(pedidos, origem) {
-  const rota = [];
-  let atual = origem;
-  const pendentes = [...pedidos];
 
-  while (pendentes.length) {
-    let maisProximo = null;
-    let menorDistancia = Infinity;
-    let index = 0;
+    // ========== NOVA FUNÇÃO DE ORDENAÇÃO LINEAR (EVITA IDAS E VINDAS) ==========
+    /**
+     * Ordena os pedidos de forma linear, projetando cada ponto sobre o vetor
+     * origem -> ponto de referência (o mais distante em direção ao destino).
+     * Isso evita que o roteirizador faça desvios desnecessários.
+     */
+    function ordenarRotaLinear(pedidos, origem, pontoReferencia = null) {
+      if (pedidos.length === 0) return [];
 
-    pendentes.forEach((p, i) => {
-      if (!p.lat || !p.lng) return;
-
-      const dist = haversineKm(atual, { lat: p.lat, lng: p.lng });
-
-      if (dist < menorDistancia) {
-        menorDistancia = dist;
-        maisProximo = p;
-        index = i;
+      // Se não foi passado um ponto de referência, escolhe o pedido mais a leste/sudeste
+      if (!pontoReferencia) {
+        pontoReferencia = pedidos.reduce((max, p) => {
+          // Critério: maior longitude (leste) e, se empatar, menor latitude (mais sul)
+          if (p.lng > max.lng || (p.lng === max.lng && p.lat < max.lat)) return p;
+          return max;
+        }, pedidos[0]);
       }
-    });
 
-    if (!maisProximo) break;
+      // Vetor diretor (origem -> referência)
+      const dx = pontoReferencia.lng - origem.lng;
+      const dy = pontoReferencia.lat - origem.lat;
+      const comprimento = Math.hypot(dx, dy);
 
-    rota.push(maisProximo);
-    atual = { lat: maisProximo.lat, lng: maisProximo.lng };
-    pendentes.splice(index, 1);
-  }
+      // Se origem e referência são o mesmo ponto, retorna os pedidos sem ordenação
+      if (comprimento === 0) return pedidos;
 
-  return rota;
-}
+      // Função de projeção: t = ( (p - origem) · (ref - origem) ) / |ref - origem|^2
+      const projetar = (p) => {
+        const px = p.lng - origem.lng;
+        const py = p.lat - origem.lat;
+        return (px * dx + py * dy) / (comprimento * comprimento);
+      };
+
+      // Ordena por t crescente (do mais próximo da origem ao mais próximo da referência)
+      return [...pedidos].sort((a, b) => projetar(a) - projetar(b));
+    }
+
     // ==================== REGRAS E CONSOLIDAÇÃO ====================
     function aplicarRegras(pedidosBase) {
       const aprovados = [], sugestoesConsolidacao = [];
@@ -988,12 +995,18 @@ function ordenarRotaInteligente(pedidos, origem) {
           if (!melhorVeiculo) {
             lote.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: "Sem veículo compatível" }));
           } else {
+            // Determina o ponto de referência para ordenação linear (o mais a leste/sudeste)
+            const pontoRef = lote.reduce((max, p) => {
+              if (p.lng > max.lng || (p.lng === max.lng && p.lat < max.lat)) return p;
+              return max;
+            }, lote[0]);
+
             const rota = {
               id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
               corredor: chave,
               cidade: lote[0].cidade,
               uf: lote[0].uf,
-              pedidos: ordenarRotaInteligente(lote, origemBase),
+              pedidos: ordenarRotaLinear(lote, origemBase, pontoRef),
               pesoTotal: pesoAtual,
               volumeTotal: volumeAtual,
               numNotas: notasAtual,
