@@ -1198,7 +1198,7 @@ async function ordenarRotaInteligente(pedidos, origem) {
               corredor: chave,
               cidade: lote[0].cidade,
               uf: lote[0].uf,
-              pedidos: ordenarRotaInteligente(lote, origemBase),
+              pedidos: await ordenarRotaInteligente(lote, origemBase),
               pesoTotal: pesoAtual,
               volumeTotal: volumeAtual,
               numNotas: notasAtual,
