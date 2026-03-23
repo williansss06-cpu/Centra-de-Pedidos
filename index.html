@@ -1349,6 +1349,20 @@ const origem = await geocodeAddress(origemTexto);
     renderVehicles();
     renderPedidos();
     atualizarMetricas();
-  </script>
+    <script>
+  // ==================== CONFIGURAÇÕES ====================
+  const APP_CONFIG = { ... }
+
+  // ==================== VEÍCULOS ====================
+  function addVehicle() { ... }
+
+  // ==================== SUPABASE ====================
+  async function carregarParametrosDoBanco() { ... }
+
+  // ==================== PLANEJAMENTO ====================
+  async function executarPlanejamento() { ... }
+
+  // etc...
+</script>
 </body>
 </html>
