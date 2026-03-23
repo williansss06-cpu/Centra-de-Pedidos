@@ -680,38 +680,25 @@
       return Array.from(mapa.values()).map(p => ({ ...p, obsConsolidada: [...new Set(p.obsConsolidada)].join(" | ") }));
     }
 
-document.getElementById("ordersCsvFile").addEventListener("change", function (e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  Papa.parse(file, {
-    header: true,
-    skipEmptyLines: true,
-    complete: function (results) {
-      try {
-
-        if (!results.data || !results.data.length) {
-          alert("CSV vazio ou inválido");
-          return;
+    document.getElementById("ordersCsvFile").addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true,
+        complete: function (results) {
+          try {
+            rawItens = results.data;
+            pedidos = agruparPedidosPorOS(rawItens);
+            renderPedidos();
+            atualizarMetricas();
+            alert(`${pedidos.length} pedidos (OS) importados com sucesso.`);
+            e.target.value = "";
+          } catch (err) { console.error(err); alert("Erro ao importar CSV."); }
         }
+      });
+    });
 
-        rawItens = results.data;
-        pedidos = agruparPedidosPorOS(rawItens);
-
-        renderPedidos();
-        atualizarMetricas();
-
-        alert(`${pedidos.length} pedidos (OS) importados com sucesso.`);
-        e.target.value = "";
-
-      } catch (err) {
-        console.error(err);
-        alert("Erro ao importar CSV.");
-      }
-    }
-  });
-});
-       function renderPedidos() {
+    function renderPedidos() {
       const tbody = document.getElementById("pedidoTableBody");
       if (!pedidos.length) {
         tbody.innerHTML = `<tr><td colspan="10" class="small">Nenhum pedido importado.</td></tr>`;
@@ -802,37 +789,7 @@ document.getElementById("ordersCsvFile").addEventListener("change", function (e)
       const y = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
       return R * y;
     }
-function ordenarRotaInteligente(pedidos, origem) {
-  const rota = [];
-  let atual = origem;
-  const pendentes = [...pedidos];
 
-  while (pendentes.length) {
-    let maisProximo = null;
-    let menorDistancia = Infinity;
-    let index = 0;
-
-    pendentes.forEach((p, i) => {
-      if (!p.lat || !p.lng) return;
-
-      const dist = haversineKm(atual, { lat: p.lat, lng: p.lng });
-
-      if (dist < menorDistancia) {
-        menorDistancia = dist;
-        maisProximo = p;
-        index = i;
-      }
-    });
-
-    if (!maisProximo) break;
-
-    rota.push(maisProximo);
-    atual = { lat: maisProximo.lat, lng: maisProximo.lng };
-    pendentes.splice(index, 1);
-  }
-
-  return rota;
-}
     // ==================== REGRAS E CONSOLIDAÇÃO ====================
     function aplicarRegras(pedidosBase) {
       const aprovados = [], sugestoesConsolidacao = [];
@@ -937,119 +894,72 @@ function ordenarRotaInteligente(pedidos, origem) {
       return uf;
     }
 
-async function montarRotasPorCorredor(pedidosBase, frota) {
-  const gruposMap = {}, naoAlocados = [];
-
-  pedidosBase.forEach(p => {
-    const chave = corredorUF(p.uf || "");
-    if (!gruposMap[chave]) gruposMap[chave] = [];
-    gruposMap[chave].push(p);
-  });
-
-  const rotas = [];
-  const frotaOrdenada = [...frota].sort((a, b) => a.volumeMax - b.volumeMax);
-
-  for (const chave of Object.keys(gruposMap)) {
-    const lista = [...gruposMap[chave]].sort((a, b) =>
-      (b.volumeTotal + b.pesoTotal / 1000) - (a.volumeTotal + a.pesoTotal / 1000)
-    );
-
-    let lote = [];
-    let pesoAtual = 0;
-    let volumeAtual = 0;
-    let notasAtual = 0;
-    let maiorAltura = 0;
-    let maiorLargura = 0;
-    let maiorProfundidade = 0;
-
-    const fecharLote = async () => {
-      if (!lote.length) return;
-
-      let melhorVeiculo = null;
-
-      for (const v of frotaOrdenada) {
-        if (
-          pesoAtual <= v.pesoMax &&
-          volumeAtual <= v.volumeMax &&
-          notasAtual <= v.notasMax &&
-          maiorAltura <= v.alturaMax &&
-          maiorLargura <= v.larguraMax &&
-          maiorProfundidade <= v.profundidadeMax
-        ) {
-          melhorVeiculo = v;
-          break;
-        }
-      }
-
-      if (!melhorVeiculo) {
-        lote.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: "Sem veículo compatível" }));
-      } else {
-        const origemTexto = document.getElementById("depot").value;
-
-        let origem;
-        try {
-          origem = await geocodeAddress(origemTexto);
-        } catch (e) {
-          console.error("Erro geocode origem:", e);
-          origem = { lat: -23.5505, lng: -46.6333 };
-        }
-
-        const rota = {
-          id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
-          corredor: chave,
-          cidade: lote[0].cidade,
-          uf: lote[0].uf,
-          pedidos: ordenarRotaInteligente(lote, origem),
-          pesoTotal: pesoAtual,
-          volumeTotal: volumeAtual,
-          numNotas: notasAtual,
-          maiorAltura,
-          maiorLargura,
-          maiorProfundidade,
-          veiculo: melhorVeiculo,
-          fatorDecisorio: null,
-          distanciaKm: 0,
-          custoEstimado: 0
+    function montarRotasPorCorredor(pedidosBase, frota) {
+      const gruposMap = {}, naoAlocados = [];
+      pedidosBase.forEach(p => {
+        const chave = corredorUF(p.uf || "");
+        if (!gruposMap[chave]) gruposMap[chave] = [];
+        gruposMap[chave].push(p);
+      });
+      const rotas = [];
+      const frotaOrdenada = [...frota].sort((a,b) => a.volumeMax - b.volumeMax);
+      Object.keys(gruposMap).forEach(chave => {
+        const lista = [...gruposMap[chave]].sort((a,b) => (b.volumeTotal + b.pesoTotal/1000) - (a.volumeTotal + a.pesoTotal/1000));
+        let lote = [], pesoAtual=0, volumeAtual=0, notasAtual=0, maiorAltura=0, maiorLargura=0, maiorProfundidade=0;
+        const fecharLote = () => {
+          if (!lote.length) return;
+          let melhorVeiculo = null;
+          for (const v of frotaOrdenada) {
+            if (pesoAtual <= v.pesoMax && volumeAtual <= v.volumeMax && notasAtual <= v.notasMax &&
+                maiorAltura <= v.alturaMax && maiorLargura <= v.larguraMax && maiorProfundidade <= v.profundidadeMax) {
+              melhorVeiculo = v; break;
+            }
+          }
+          if (!melhorVeiculo) {
+            lote.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: "Sem veículo compatível" }));
+          } else {
+            const rota = {
+              id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+              corredor: chave, cidade: lote[0].cidade, uf: lote[0].uf,
+              pedidos: [...lote], pesoTotal: pesoAtual, volumeTotal: volumeAtual,
+              numNotas: notasAtual, maiorAltura, maiorLargura, maiorProfundidade,
+              veiculo: melhorVeiculo, fatorDecisorio: null, distanciaKm: 0, custoEstimado: 0
+            };
+            rota.fatorDecisorio = fatorDecisorioRota(rota, melhorVeiculo);
+            rotas.push(rota);
+          }
+          lote = []; pesoAtual=0; volumeAtual=0; notasAtual=0; maiorAltura=0; maiorLargura=0; maiorProfundidade=0;
         };
-
-        rota.fatorDecisorio = fatorDecisorioRota(rota, melhorVeiculo);
-        rotas.push(rota);
-      }
-
-      lote = [];
-      pesoAtual = 0;
-      volumeAtual = 0;
-      notasAtual = 0;
-      maiorAltura = 0;
-      maiorLargura = 0;
-      maiorProfundidade = 0;
-    };
-
-    const pesoMax = Number(document.getElementById("cfgPesoMax").value || 5000);
-    const volumeMax = Number(document.getElementById("cfgVolumeMax").value || 20);
-
-    for (const p of lista) {
-      const novoPeso = pesoAtual + p.pesoTotal;
-      const novoVolume = volumeAtual + p.volumeTotal;
-
-      if (novoPeso > pesoMax || novoVolume > volumeMax) {
-        await fecharLote();
-      }
-
-      lote.push(p);
-      pesoAtual += p.pesoTotal;
-      volumeAtual += p.volumeTotal;
-      notasAtual += 1;
-      maiorAltura = Math.max(maiorAltura, p.maiorAltura);
-      maiorLargura = Math.max(maiorLargura, p.maiorLargura);
-      maiorProfundidade = Math.max(maiorProfundidade, p.maiorProfundidade);
+        lista.forEach(p => {
+          const tentativaPeso = pesoAtual + Number(p.pesoTotal||0);
+          const tentativaVolume = volumeAtual + Number(p.volumeTotal||0);
+          const tentativaNotas = notasAtual + Number(p.numNotas||1);
+          const tentativaAltura = Math.max(maiorAltura, Number(p.maiorAltura||0));
+          const tentativaLargura = Math.max(maiorLargura, Number(p.maiorLargura||0));
+          const tentativaProf = Math.max(maiorProfundidade, Number(p.maiorProfundidade||0));
+          const cabeEmAlgum = frotaOrdenada.some(v =>
+            tentativaPeso <= v.pesoMax && tentativaVolume <= v.volumeMax && tentativaNotas <= v.notasMax &&
+            tentativaAltura <= v.alturaMax && tentativaLargura <= v.larguraMax && tentativaProf <= v.profundidadeMax);
+          if (!cabeEmAlgum && lote.length) fecharLote();
+          const cabeAgora = frotaOrdenada.some(v =>
+            (pesoAtual + Number(p.pesoTotal||0)) <= v.pesoMax && (volumeAtual + Number(p.volumeTotal||0)) <= v.volumeMax &&
+            (notasAtual + Number(p.numNotas||1)) <= v.notasMax &&
+            Math.max(maiorAltura, Number(p.maiorAltura||0)) <= v.alturaMax &&
+            Math.max(maiorLargura, Number(p.maiorLargura||0)) <= v.larguraMax &&
+            Math.max(maiorProfundidade, Number(p.maiorProfundidade||0)) <= v.profundidadeMax);
+          if (!cabeAgora && lote.length) fecharLote();
+          lote.push(p);
+          pesoAtual += Number(p.pesoTotal||0);
+          volumeAtual += Number(p.volumeTotal||0);
+          notasAtual += Number(p.numNotas||1);
+          maiorAltura = Math.max(maiorAltura, Number(p.maiorAltura||0));
+          maiorLargura = Math.max(maiorLargura, Number(p.maiorLargura||0));
+          maiorProfundidade = Math.max(maiorProfundidade, Number(p.maiorProfundidade||0));
+        });
+        fecharLote();
+      });
+      return { rotas, naoAlocados };
     }
-
-    await fecharLote();
-  }
-
-  return { rotas, naoAlocados };
-}
 
     // ==================== DESENHO DAS ROTAS ====================
     async function desenharRotas(rotas, origem, routeId = "") {
@@ -1158,7 +1068,7 @@ async function montarRotasPorCorredor(pedidosBase, frota) {
           };
         });
         const baseParaRota = [...aprovados, ...pedidosConsolidadosComoRota];
-        const { rotas, naoAlocados } = await montarRotasPorCorredor(baseParaRota, vehicles);
+        const { rotas, naoAlocados } = montarRotasPorCorredor(baseParaRota, vehicles);
         setStatus("Desenhando rotas no mapa...", "warn");
         ultimoResultado = { aprovados, sugestoesConsolidacao, gruposConsolidados, pedidosParaRota: baseParaRota, rotas, naoAlocados };
         await desenharRotas(ultimoResultado.rotas, origem);
@@ -1363,30 +1273,6 @@ async function montarRotasPorCorredor(pedidosBase, frota) {
     renderVehicles();
     renderPedidos();
     atualizarMetricas();
-    <script>
-  // ==================== CONFIGURAÇÕES ====================
-  const APP_CONFIG = { ... }
-
-  // ==================== VEÍCULOS ====================
-  function addVehicle() { ... }
-
-  // ==================== SUPABASE ====================
-  async function carregarParametrosDoBanco() { ... }
-
-  // ==================== PLANEJAMENTO ====================
-  async function executarPlanejamento() { ... }
-
-  // etc...
-<script>
-
-  // TODO seu código inteiro...
-
-  // 🔥 AUTO LOAD DO SISTEMA
-  window.addEventListener("load", async () => {
-    await carregarParametrosDoBanco(true);
-    loadGoogleMaps();
-  });
-
-</script>
+  </script>
 </body>
 </html>
