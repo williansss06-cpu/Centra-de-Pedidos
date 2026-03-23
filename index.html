@@ -789,7 +789,37 @@
       const y = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
       return R * y;
     }
+function ordenarRotaInteligente(pedidos, origem) {
+  const rota = [];
+  let atual = origem;
+  const pendentes = [...pedidos];
 
+  while (pendentes.length) {
+    let maisProximo = null;
+    let menorDistancia = Infinity;
+    let index = 0;
+
+    pendentes.forEach((p, i) => {
+      if (!p.lat || !p.lng) return;
+
+      const dist = haversineKm(atual, { lat: p.lat, lng: p.lng });
+
+      if (dist < menorDistancia) {
+        menorDistancia = dist;
+        maisProximo = p;
+        index = i;
+      }
+    });
+
+    if (!maisProximo) break;
+
+    rota.push(maisProximo);
+    atual = { lat: maisProximo.lat, lng: maisProximo.lng };
+    pendentes.splice(index, 1);
+  }
+
+  return rota;
+}
     // ==================== REGRAS E CONSOLIDAÇÃO ====================
     function aplicarRegras(pedidosBase) {
       const aprovados = [], sugestoesConsolidacao = [];
@@ -921,7 +951,15 @@
             const rota = {
               id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
               corredor: chave, cidade: lote[0].cidade, uf: lote[0].uf,
-              pedidos: [...lote], pesoTotal: pesoAtual, volumeTotal: volumeAtual,
+              const origem = { lat: -23.5505, lng: -46.6333 }; // CD (pode melhorar depois)
+
+const rota = {
+  ...
+  pedidos: ordenarRotaInteligente(lote, origem),
+  pesoTotal: pesoAtual,
+  volumeTotal: volumeAtual,
+  ...
+};
               numNotas: notasAtual, maiorAltura, maiorLargura, maiorProfundidade,
               veiculo: melhorVeiculo, fatorDecisorio: null, distanciaKm: 0, custoEstimado: 0
             };
