@@ -958,7 +958,7 @@ Object.keys(gruposMap).forEach(chave => {
   let maiorLargura = 0;
   let maiorProfundidade = 0;
 
-  const fecharLote = () => {
+  const fecharLote = async () => {
     if (!lote.length) return;
 
     let melhorVeiculo = null;
@@ -1019,9 +1019,12 @@ const origem = await geocodeAddress(origemTexto);
     const novoPeso = pesoAtual + p.pesoTotal;
     const novoVolume = volumeAtual + p.volumeTotal;
 
-    if (novoPeso > 5000 || novoVolume > 20) {
-      fecharLote();
-    }
+    const pesoMax = Number(document.getElementById("cfgPesoMax").value || 5000);
+const volumeMax = Number(document.getElementById("cfgVolumeMax").value || 20);
+
+if (novoPeso > pesoMax || novoVolume > volumeMax) {
+  await fecharLote();
+}
 
     lote.push(p);
     pesoAtual += p.pesoTotal;
