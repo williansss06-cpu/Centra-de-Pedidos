@@ -126,12 +126,12 @@
           <div class="row" style="margin-top: 14px;"><button class="btn btn-green" onclick="addVehicle()">Adicionar veículo</button></div>
 
           <div class="table-wrap">
-             <table>
-              <thead>
-                 <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Altura</th><th>Largura</th><th>Profundidade</th><th>R$/km</th><th>Ação</th></tr>
-              </thead>
-              <tbody id="vehicleTableBody"></tbody>
-            </table>
+              <table>
+                <thead>
+                  <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Altura</th><th>Largura</th><th>Profundidade</th><th>R$/km</th><th>Ação</th></tr>
+                </thead>
+                <tbody id="vehicleTableBody"></tbody>
+              </table>
           </div>
           <div id="statusBanco" class="status"></div>
         </div>
@@ -146,6 +146,7 @@
           </div>
           <div class="grid grid-4" style="margin-top: 16px;">
             <div class="field"><label>Desvio máximo do corredor (km)</label><input type="number" id="cfgMaxDesvio" value="50" step="0.1" /></div>
+            <div class="field"><label>Cubagem mínima por veículo (m³)</label><input type="number" id="cfgMinVolume" value="0" step="0.01" /></div>
             <div class="field"><label>Tipo de rota</label>
               <select id="tipoRota">
                 <option value="ida_volta">Ida e volta (retorno ao CD)</option>
@@ -175,11 +176,16 @@
             <div class="field" style="flex:1; min-width: 320px;"><label>Arquivo CSV</label><input type="file" id="ordersCsvFile" accept=".csv" /></div>
             <div class="field"><label>&nbsp;</label><button class="btn btn-blue" onclick="baixarModeloPedidos()">Baixar modelo CSV</button></div>
           </div>
-          <p class="small" style="margin-top: 10px;">Colunas aceitas: OS, COD. DEPOSITANTE, DEPOSITANTE, CNPJ, DESTINATARIO, CEP, LOGRADOURO, NUMERO, BAIRRO, CIDADE, UF, LAT, LNG, JOB, CODIGO PRODUTO, PRODUTO, PESO BRUTO, LARGURA, ALTURA, PROFUNDIDADE, METROCUBICO, DATAPREVISAO, MODALIDADE, OBS</p>
+          <p class="small" style="margin-top: 10px;">Colunas aceitas: OS, COD. DEPOSITANTE, DEPOSITANTE, CNPJ, DESTINATARIO, CEP, LOGRADOURO, NUMERO, BAIRRO, CIDADE, UF, LAT, LNG, JOB, CODIGO PRODUTO, PRODUTO, PESO BRUTO, LARGURA, ALTURA, PROFUNDIDADE, METROCUBICO, DATAPREVISAO, MODALIDADE, OBS, CARRO_EXCLUSIVO (Sim/Não)</p>
         </div>
         <div class="card">
           <h2>Pedidos agrupados por OS</h2>
-          <div class="table-wrap"><table><thead><tr><th>OS</th><th>Destinatário</th><th>Endereço</th><th>Cidade</th><th>UF</th><th>Peso total</th><th>Volume total</th><th>Agendamento</th><th>Paletizado</th><th>Lat/Lng</th></tr></thead><tbody id="pedidoTableBody"></tbody></table></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>OS</th><th>Destinatário</th><th>Endereço</th><th>Cidade</th><th>UF</th><th>Peso total</th><th>Volume total</th><th>Agendamento</th><th>Paletizado</th><th>Exclusivo</th><th>Lat/Lng</th></tr></thead>
+              <tbody id="pedidoTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -237,14 +243,12 @@
       CONFIG_NAME: "DEFAULT"
     };
 
-    // Chaves para localStorage
     const STORAGE_KEYS = {
       parametros: "frete_inteligente_parametros_v1",
       veiculos: "frete_inteligente_veiculos_v1",
       geoCache: "frete_inteligente_geo_cache_v1"
     };
 
-    const CONFIG_NAME = APP_CONFIG.CONFIG_NAME;
     const hasSupabaseConfig = !!APP_CONFIG.SUPABASE_URL && !!APP_CONFIG.SUPABASE_ANON_KEY &&
                                !APP_CONFIG.SUPABASE_URL.includes("SUA_") &&
                                !APP_CONFIG.SUPABASE_ANON_KEY.includes("SUA_");
@@ -273,6 +277,7 @@
           document.getElementById("cfgPesoMax").value = savedConfig.peso_max_consolidacao ?? 5000;
           document.getElementById("cfgVolumeMax").value = savedConfig.volume_max_consolidacao ?? 20;
           document.getElementById("cfgMaxDesvio").value = savedConfig.max_desvio ?? 50;
+          document.getElementById("cfgMinVolume").value = savedConfig.min_volume ?? 0;
           document.getElementById("regraLeve").checked = savedConfig.regra_leve !== false;
           document.getElementById("regraPaletizado").checked = savedConfig.regra_paletizado !== false;
           document.getElementById("regraAgendamento").checked = savedConfig.regra_agendamento !== false;
@@ -293,12 +298,13 @@
 
     function salvarNoStorageLocal() {
       const configPayload = {
-        nome_config: CONFIG_NAME,
+        nome_config: APP_CONFIG.CONFIG_NAME,
         origem_cd: document.getElementById("depot").value.trim(),
         raio_consolidacao: Number(document.getElementById("cfgRaioKm").value || 0),
         peso_max_consolidacao: Number(document.getElementById("cfgPesoMax").value || 0),
         volume_max_consolidacao: Number(document.getElementById("cfgVolumeMax").value || 0),
         max_desvio: Number(document.getElementById("cfgMaxDesvio").value || 0),
+        min_volume: Number(document.getElementById("cfgMinVolume").value || 0),
         regra_leve: document.getElementById("regraLeve").checked,
         regra_paletizado: document.getElementById("regraPaletizado").checked,
         regra_agendamento: document.getElementById("regraAgendamento").checked,
@@ -314,7 +320,7 @@
     // ==================== GOOGLE MAPS ====================
     function initMap() {
       try {
-        if (!APP_CONFIG.GOOGLE_API_KEY) {
+        if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "minha chave") {
           console.warn("Chave do Google Maps não configurada.");
           document.getElementById("map").innerHTML = '<div style="padding:24px;color:#475569;">Mapa indisponível: configure APP_CONFIG.GOOGLE_API_KEY.</div>';
           return;
@@ -336,7 +342,7 @@
     }
 
     function loadGoogleMaps() {
-      if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY.includes("minha chave")) {
+      if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "minha chave") {
         initMap();
         return;
       }
@@ -488,17 +494,17 @@
         return;
       }
       tbody.innerHTML = vehicles.map(v => `
-         <tr>
-           <td>${v.nome}</td>
-           <td>${formatNumber(v.volumeMax)}</td>
-           <td>${formatNumber(v.pesoMax)}</td>
-           <td>${v.notasMax}</td>
-           <td>${formatNumber(v.alturaMax)}</td>
-           <td>${formatNumber(v.larguraMax)}</td>
-           <td>${formatNumber(v.profundidadeMax)}</td>
-           <td>${formatCurrency(v.custoKm)}</td>
-           <td><button class="btn btn-red" onclick="removeVehicle('${v.id}')">Excluir</button></td>
-         </tr>
+          <tr>
+            <td>${v.nome}</td>
+            <td>${formatNumber(v.volumeMax)}</td>
+            <td>${formatNumber(v.pesoMax)}</td>
+            <td>${v.notasMax}</td>
+            <td>${formatNumber(v.alturaMax)}</td>
+            <td>${formatNumber(v.larguraMax)}</td>
+            <td>${formatNumber(v.profundidadeMax)}</td>
+            <td>${formatCurrency(v.custoKm)}</td>
+            <td><button class="btn btn-red" onclick="removeVehicle('${v.id}')">Excluir</button></td>
+          </tr>
       `).join("");
     }
 
@@ -513,12 +519,13 @@
       try {
         setStatusBanco("Salvando parâmetros no Supabase...", "warn");
         const configPayload = {
-          nome_config: CONFIG_NAME,
+          nome_config: APP_CONFIG.CONFIG_NAME,
           origem_cd: document.getElementById("depot").value.trim(),
           raio_consolidacao: Number(document.getElementById("cfgRaioKm").value || 0),
           peso_max_consolidacao: Number(document.getElementById("cfgPesoMax").value || 0),
           volume_max_consolidacao: Number(document.getElementById("cfgVolumeMax").value || 0),
           max_desvio: Number(document.getElementById("cfgMaxDesvio").value || 0),
+          min_volume: Number(document.getElementById("cfgMinVolume").value || 0),
           regra_leve: document.getElementById("regraLeve").checked,
           regra_paletizado: document.getElementById("regraPaletizado").checked,
           regra_agendamento: document.getElementById("regraAgendamento").checked,
@@ -562,7 +569,7 @@
         const { data: config, error: configError } = await supabaseClient
           .from("roteirizador_config")
           .select("*")
-          .eq("nome_config", CONFIG_NAME)
+          .eq("nome_config", APP_CONFIG.CONFIG_NAME)
           .maybeSingle();
         if (configError) throw configError;
         if (config) {
@@ -571,6 +578,7 @@
           document.getElementById("cfgPesoMax").value = config.peso_max_consolidacao ?? 5000;
           document.getElementById("cfgVolumeMax").value = config.volume_max_consolidacao ?? 20;
           document.getElementById("cfgMaxDesvio").value = config.max_desvio ?? 50;
+          document.getElementById("cfgMinVolume").value = config.min_volume ?? 0;
           document.getElementById("regraLeve").checked = !!config.regra_leve;
           document.getElementById("regraPaletizado").checked = !!config.regra_paletizado;
           document.getElementById("regraAgendamento").checked = !!config.regra_agendamento;
@@ -603,9 +611,9 @@
     // ==================== PEDIDOS ====================
     function baixarModeloPedidos() {
       const csv = [
-        "OS,COD. DEPOSITANTE,DEPOSITANTE,CNPJ,DESTINATARIO,CEP,LOGRADOURO,NUMERO,BAIRRO,CIDADE,UF,LAT,LNG,JOB,CODIGO PRODUTO,PRODUTO,PESO BRUTO,LARGURA,ALTURA,PROFUNDIDADE,METROCUBICO,DATAPREVISAO,MODALIDADE,OBS",
-        '1001,1,EMPRESA TESTE,00000000000191,CLIENTE A,07000-000,RUA TESTE,100,CENTRO,GUARULHOS,SP,-23.4543,-46.5333,JOB01,PROD01,DISPLAY,850,2,2.5,1.5,7.5,2026-03-25,Rodoviario,"carga paletizada, entrega com agendamento às 10h"',
-        '1002,2,EMPRESA B,00000000000291,CLIENTE B,20000-000,AV TESTE,500,CENTRO,RIO DE JANEIRO,RJ,-22.9068,-43.1729,JOB02,PROD03,PECA,500,1.2,1.0,1.0,1.2,2026-03-26,Rodoviario,"entrega normal"'
+        "OS,COD. DEPOSITANTE,DEPOSITANTE,CNPJ,DESTINATARIO,CEP,LOGRADOURO,NUMERO,BAIRRO,CIDADE,UF,LAT,LNG,JOB,CODIGO PRODUTO,PRODUTO,PESO BRUTO,LARGURA,ALTURA,PROFUNDIDADE,METROCUBICO,DATAPREVISAO,MODALIDADE,OBS,CARRO_EXCLUSIVO",
+        '1001,1,EMPRESA TESTE,00000000000191,CLIENTE A,07000-000,RUA TESTE,100,CENTRO,GUARULHOS,SP,-23.4543,-46.5333,JOB01,PROD01,DISPLAY,850,2,2.5,1.5,7.5,2026-03-25,Rodoviario,"carga paletizada, entrega com agendamento às 10h",Não',
+        '1002,2,EMPRESA B,00000000000291,CLIENTE B,20000-000,AV TESTE,500,CENTRO,RIO DE JANEIRO,RJ,-22.9068,-43.1729,JOB02,PROD03,PECA,500,1.2,1.0,1.0,1.2,2026-03-26,Rodoviario,"entrega normal",Não'
       ].join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -661,6 +669,8 @@
         const dataPrevisao = valorColuna(row, ["DATAPREVISAO"]);
         const modalidade = valorColuna(row, ["MODALIDADE"]) || "Rodoviario";
         const obs = valorColuna(row, ["OBS"]) || "";
+        const exclusivoStr = valorColuna(row, ["CARRO_EXCLUSIVO", "CARRO EXCLUSIVO", "EXCLUSIVO"]).toString().trim().toUpperCase();
+        const exclusivo = exclusivoStr === "SIM" || exclusivoStr === "TRUE" || exclusivoStr === "1";
         const leituraObs = analisarObs(obs);
         const item = { codigoProduto, produto, peso_kg: pesoBruto, largura, altura, profundidade, volume_m3: metroCubico, obs };
         if (!mapa.has(os)) {
@@ -669,7 +679,8 @@
             lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, job, modalidade, dataPrevisao,
             endereco: montarEnderecoCompleto({ logradouro, numero, bairro, cidade, uf, cep, destinatario }),
             itens: [], pesoTotal: 0, volumeTotal: 0, numNotas: 1, maiorAltura: 0, maiorLargura: 0, maiorProfundidade: 0, maiorCubagemItem: 0,
-            agendamento: false, paletizado: false, horario: null, obsConsolidada: []
+            agendamento: false, paletizado: false, horario: null, obsConsolidada: [],
+            exclusivo: exclusivo
           });
         }
         const pedido = mapa.get(os);
@@ -709,22 +720,23 @@
     function renderPedidos() {
       const tbody = document.getElementById("pedidoTableBody");
       if (!pedidos.length) {
-        tbody.innerHTML = `<tr><td colspan="10" class="small">Nenhum pedido importado.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="small">Nenhum pedido importado.</td></tr>`;
         return;
       }
       tbody.innerHTML = pedidos.map(p => `
-         <tr>
-           <td>${p.os}</td>
-           <td>${p.destinatario || "-"}</td>
-           <td>${p.endereco || "-"}</td>
-           <td>${p.cidade || "-"}</td>
-           <td>${p.uf || "-"}</td>
-           <td>${formatNumber(p.pesoTotal)}</td>
-           <td>${formatNumber(p.volumeTotal)}</td>
-           <td>${p.agendamento ? '<span class="pill pill-yellow">Sim</span>' : 'Não'}</td>
-           <td>${p.paletizado ? '<span class="pill pill-blue">Sim</span>' : 'Não'}</td>
-           <td>${p.lat && p.lng ? `${formatNumber(p.lat)} / ${formatNumber(p.lng)}` : '-'}</td>
-         </tr>
+          <tr>
+            <td>${p.os}</td>
+            <td>${p.destinatario || "-"}</td>
+            <td>${p.endereco || "-"}</td>
+            <td>${p.cidade || "-"}</td>
+            <td>${p.uf || "-"}</td>
+            <td>${formatNumber(p.pesoTotal)}</td>
+            <td>${formatNumber(p.volumeTotal)}</td>
+            <td>${p.agendamento ? '<span class="pill pill-yellow">Sim</span>' : 'Não'}</td>
+            <td>${p.paletizado ? '<span class="pill pill-blue">Sim</span>' : 'Não'}</td>
+            <td>${p.exclusivo ? '<span class="pill pill-red">Sim</span>' : 'Não'}</td>
+            <td>${p.lat && p.lng ? `${formatNumber(p.lat)} / ${formatNumber(p.lng)}` : '-'}</td>
+          </tr>
       `).join("");
     }
 
@@ -800,10 +812,8 @@
 
     // Distância perpendicular (em km) de um ponto à reta (origem -> destino)
     function distanciaPontoReta(ponto, origem, destino) {
-      // Usa fórmula da área do triângulo: dist = 2 * area / base
       const a = haversineKm(origem, destino);
       if (a === 0) return haversineKm(ponto, origem);
-      // Fórmula de Heron para área
       const b = haversineKm(ponto, origem);
       const c = haversineKm(ponto, destino);
       const s = (a + b + c) / 2;
@@ -945,6 +955,7 @@
       const pesoMaxConfig = Number(document.getElementById("cfgPesoMax")?.value || 5000);
       const volumeMaxConfig = Number(document.getElementById("cfgVolumeMax")?.value || 20);
       const maxDesvio = Number(document.getElementById("cfgMaxDesvio")?.value || 50);
+      const minVolume = Number(document.getElementById("cfgMinVolume")?.value || 0);
       const origemTexto = document.getElementById("depot")?.value?.trim() || "Guarulhos/SP";
 
       let origemBase;
@@ -990,7 +1001,6 @@
           }
 
           if (pedidosFiltrados.length === 0) {
-            // Todos fora do corredor
             foraCorredor.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: `Fora do corredor principal (desvio > ${maxDesvio} km)` }));
             lote = [];
             pesoAtual = 0;
@@ -1002,10 +1012,8 @@
             return;
           }
 
-          // Aqueles que ficaram fora vão para não alocados
           foraCorredor.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: `Fora do corredor principal (desvio > ${maxDesvio} km)` }));
 
-          // Recalcula totais com os filtrados
           const pesoFiltrado = pedidosFiltrados.reduce((s, p) => s + Number(p.pesoTotal || 0), 0);
           const volumeFiltrado = pedidosFiltrados.reduce((s, p) => s + Number(p.volumeTotal || 0), 0);
           const notasFiltrado = pedidosFiltrados.reduce((s, p) => s + Number(p.numNotas || 1), 0);
@@ -1046,7 +1054,8 @@
               veiculo: melhorVeiculo,
               fatorDecisorio: null,
               distanciaKm: 0,
-              custoEstimado: 0
+              custoEstimado: 0,
+              avisoMinVolume: volumeFiltrado < minVolume ? `Volume abaixo do mínimo (${minVolume} m³)` : null
             };
             rota.fatorDecisorio = fatorDecisorioRota(rota, melhorVeiculo);
             rotas.push(rota);
@@ -1080,6 +1089,10 @@
 
         await fecharLote();
       }
+
+      // Tentativa de mesclar lotes de baixo volume (apenas para rotas que já foram criadas)
+      // Simplificado: após todas as rotas criadas, podemos tentar combinar rotas com volume abaixo do mínimo com outras rotas da mesma data? 
+      // Por enquanto, apenas registramos o aviso.
 
       return { rotas, naoAlocados };
     }
@@ -1190,30 +1203,62 @@
             maiorProfundidade: Math.max(...grupo.pedidos.map(p=>Number(p.maiorProfundidade||0))),
             maiorCubagemItem: Math.max(...grupo.pedidos.map(p=>Number(p.maiorCubagemItem||0))),
             obsConsolidada: grupo.pedidos.map(p=>`${p.os}: ${p.obsConsolidada||"-"}`).join(" | "),
-            consolidado: true, qtdPedidosOrigem: grupo.pedidos.length
+            consolidado: true, qtdPedidosOrigem: grupo.pedidos.length,
+            exclusivo: grupo.pedidos.some(p => p.exclusivo) // se algum pedido for exclusivo, todo o grupo é exclusivo
           };
         });
 
         const baseParaRota = [...aprovados, ...pedidosConsolidadosComoRota];
 
-        // Agrupa por data de entrega
+        // Separar exclusivos e não exclusivos
+        const exclusivos = baseParaRota.filter(p => p.exclusivo);
+        const naoExclusivos = baseParaRota.filter(p => !p.exclusivo);
+
+        // Agrupar por data
         const gruposPorData = new Map();
+        const adicionarAoGrupo = (lista, data) => {
+          if (!gruposPorData.has(data)) gruposPorData.set(data, { exclusivos: [], naoExclusivos: [] });
+          const grupo = gruposPorData.get(data);
+          lista.forEach(p => {
+            if (p.exclusivo) grupo.exclusivos.push(p);
+            else grupo.naoExclusivos.push(p);
+          });
+        };
+
+        adicionarAoGrupo(exclusivos, "Sem data");
+        adicionarAoGrupo(naoExclusivos, "Sem data");
+        // Na verdade, devemos agrupar por data de cada pedido, mas para simplificar, já que data pode ser vazia,
+        // vamos reorganizar com base na dataPrevisao de cada pedido
+        const gruposPorDataReal = new Map();
         for (const p of baseParaRota) {
           const dataChave = p.dataPrevisao || "Sem data";
-          if (!gruposPorData.has(dataChave)) gruposPorData.set(dataChave, []);
-          gruposPorData.get(dataChave).push(p);
+          if (!gruposPorDataReal.has(dataChave)) gruposPorDataReal.set(dataChave, { exclusivos: [], naoExclusivos: [] });
+          const grupo = gruposPorDataReal.get(dataChave);
+          if (p.exclusivo) grupo.exclusivos.push(p);
+          else grupo.naoExclusivos.push(p);
         }
 
         let todasRotas = [];
         let todosNaoAlocados = [];
 
         setStatus("Processando rotas por data...", "warn");
-        for (const [data, pedidosDoDia] of gruposPorData.entries()) {
-          const { rotas, naoAlocados } = await montarRotasPorCorredor(pedidosDoDia, vehicles);
-          rotas.forEach(r => r.dataEntrega = data);
-          naoAlocados.forEach(n => n.dataEntrega = data);
-          todasRotas.push(...rotas);
-          todosNaoAlocados.push(...naoAlocados);
+        for (const [data, { exclusivos: excs, naoExclusivos: naos }] of gruposPorDataReal.entries()) {
+          // Processa exclusivos
+          if (excs.length) {
+            const { rotas, naoAlocados } = await montarRotasPorCorredor(excs, vehicles);
+            rotas.forEach(r => r.dataEntrega = data);
+            naoAlocados.forEach(n => n.dataEntrega = data);
+            todasRotas.push(...rotas);
+            todosNaoAlocados.push(...naoAlocados);
+          }
+          // Processa não exclusivos
+          if (naos.length) {
+            const { rotas, naoAlocados } = await montarRotasPorCorredor(naos, vehicles);
+            rotas.forEach(r => r.dataEntrega = data);
+            naoAlocados.forEach(n => n.dataEntrega = data);
+            todasRotas.push(...rotas);
+            todosNaoAlocados.push(...naoAlocados);
+          }
         }
 
         setStatus("Desenhando rotas no mapa...", "warn");
@@ -1284,6 +1329,7 @@
         <div class="route-box">
           <div class="route-title">Rota ${i+1} - ${r.veiculo.nome} - ${r.corredor}</div>
           <div class="small">Data: ${r.dataEntrega || "-"} | Peso: ${formatNumber(r.pesoTotal)} kg | Volume: ${formatNumber(r.volumeTotal)} m³ | Km: ${formatNumber(r.distanciaKm)}</div>
+          ${r.avisoMinVolume ? `<div class="small" style="color:#b45309;">⚠️ ${r.avisoMinVolume}</div>` : ''}
           ${r.pedidos.map(p => `
             <div class="pedido-chip">
               <strong>${p.os} - ${p.destinatario||"-"}</strong> ${p.cidade}/${p.uf}<br>
@@ -1377,24 +1423,49 @@
         <div class="grid grid-3"><div class="metric"><div class="label">Peso total roteirizado</div><div class="value">${formatNumber(totalPeso)} kg</div></div><div class="metric"><div class="label">Volume total roteirizado</div><div class="value">${formatNumber(totalVolume)} m³</div></div><div class="metric"><div class="label">Custo total estimado</div><div class="value">${formatCurrency(totalCusto)}</div></div></div>
         <div style="height:16px;"></div>
         <h3>Resumo de Rotas</h3>
-        <div class="table-wrap"><table><thead><tr><th>Rota</th><th>Data</th><th>Descrição</th><th>Cubagem Total</th><th>Peso Total</th><th>Veículo</th><th>Fator decisório</th><th>Km estimado</th><th>Custo estimado</th></tr></thead><tbody>${rotas.length ? rotas.map((r,i)=>`<tr><td>Rota ${String(i+1).padStart(2,"0")}</td><td>${r.dataEntrega || "-"}</td><td>${gerarDescricaoRota(r, origem)}</td><td>${formatNumber(r.volumeTotal)} m³</td><td>${formatNumber(r.pesoTotal)} kg</td><td><strong>${r.veiculo.nome}</strong></td><td>${r.fatorDecisorio}</td><td>${formatNumber(r.distanciaKm)} km</td><td>${formatCurrency(r.custoEstimado)}</td></tr>`).join("") : `<tr><td colspan="9" class="small">Nenhuma rota gerada.</td></tr>`}</tbody></table></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Rota</th><th>Data</th><th>Descrição</th><th>Cubagem Total</th><th>Peso Total</th><th>Veículo</th><th>Fator decisório</th><th>Km estimado</th><th>Custo estimado</th><th>Aviso</th></tr></thead>
+            <tbody>${rotas.length ? rotas.map((r,i)=>`<tr><td>Rota ${String(i+1).padStart(2,"0")}</td><td>${r.dataEntrega || "-"}</td><td>${gerarDescricaoRota(r, origem)}</td><td>${formatNumber(r.volumeTotal)} m³</td><td>${formatNumber(r.pesoTotal)} kg</td><td><strong>${r.veiculo.nome}</strong></td><td>${r.fatorDecisorio}</td><td>${formatNumber(r.distanciaKm)} km</td><td>${formatCurrency(r.custoEstimado)}</td><td>${r.avisoMinVolume ? `<span class="pill pill-red">${r.avisoMinVolume}</span>` : "-"}</td></tr>`).join("") : `<tr><td colspan="10" class="small">Nenhuma rota gerada.</td></tr>`}</tbody>
+          </table>
+        </div>
         <h3 style="margin-top:20px;">Pedidos não alocados</h3>
-        <div class="table-wrap"><table><thead><tr><th>OS</th><th>Data</th><th>Cliente</th><th>Cidade</th><th>UF</th><th>Peso</th><th>Volume</th><th>Motivo</th></tr></thead><tbody>${naoAlocados.length ? naoAlocados.map(p=>`<tr><td>${p.os}</td><td>${p.dataEntrega || p.dataPrevisao || "-"}</td><td>${p.destinatario||"-"}</td><td>${p.cidade||"-"}</td><td>${p.uf||"-"}</td><td>${formatNumber(p.pesoTotal)}</td><td>${formatNumber(p.volumeTotal)}</td><td>${p.motivoNaoAlocado||"-"}</td></tr>`).join("") : `<tr><td colspan="8" class="small">Todos os pedidos foram alocados.</td></tr>`}</tbody></table></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>OS</th><th>Data</th><th>Cliente</th><th>Cidade</th><th>UF</th><th>Peso</th><th>Volume</th><th>Motivo</th></tr></thead>
+            <tbody>${naoAlocados.length ? naoAlocados.map(p=>`<tr><td>${p.os}</td><td>${p.dataEntrega || p.dataPrevisao || "-"}</td><td>${p.destinatario||"-"}</td><td>${p.cidade||"-"}</td><td>${p.uf||"-"}</td><td>${formatNumber(p.pesoTotal)}</td><td>${formatNumber(p.volumeTotal)}</td><td>${p.motivoNaoAlocado||"-"}</td></tr>`).join("") : `<tr><td colspan="8" class="small">Todos os pedidos foram alocados.</td></tr>`}</tbody>
+          </table>
+        </div>
         <h3 style="margin-top:20px;">Pedidos aprovados</h3>
-        <div class="table-wrap"><table><thead><tr><th>OS</th><th>Destinatário</th><th>Peso</th><th>Volume</th><th>Regra aplicada</th></tr></thead><tbody>${aprovados.length ? aprovados.map(p=>`<tr><td>${p.os}</td><td>${p.destinatario}</td><td>${formatNumber(p.pesoTotal)}</td><td>${formatNumber(p.volumeTotal)}</td><td>${p.regra_aplicada||"-"}</td></tr>`).join("") : `<tr><td colspan="5" class="small">Nenhum pedido aprovado diretamente.</td></tr>`}</tbody></table></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>OS</th><th>Destinatário</th><th>Peso</th><th>Volume</th><th>Regra aplicada</th></tr></thead>
+            <tbody>${aprovados.length ? aprovados.map(p=>`<tr><td>${p.os}</td><td>${p.destinatario}</td><td>${formatNumber(p.pesoTotal)}</td><td>${formatNumber(p.volumeTotal)}</td><td>${p.regra_aplicada||"-"}</td></tr>`).join("") : `<tr><td colspan="5" class="small">Nenhum pedido aprovado diretamente.</td></tr>`}</tbody>
+          </table>
+        </div>
         <h3 style="margin-top:20px;">Sugestões de consolidação</h3>
-        <div class="table-wrap"><table><thead><tr><th>OS</th><th>Destinatário</th><th>Motivo</th><th>Horário</th><th>Peso</th><th>Volume</th></tr></thead><tbody>${sugestoesConsolidacao.length ? sugestoesConsolidacao.map(p=>`<tr><td>${p.os}</td><td>${p.destinatario}</td><td>${p.motivo||"-"}</td><td>${p.horario||"-"}</td><td>${formatNumber(p.pesoTotal)}</td><td>${formatNumber(p.volumeTotal)}</td></tr>`).join("") : `<tr><td colspan="6" class="small">Nenhuma sugestão de consolidação.</td></tr>`}</tbody></table></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>OS</th><th>Destinatário</th><th>Motivo</th><th>Horário</th><th>Peso</th><th>Volume</th></tr></thead>
+            <tbody>${sugestoesConsolidacao.length ? sugestoesConsolidacao.map(p=>`<tr><td>${p.os}</td><td>${p.destinatario}</td><td>${p.motivo||"-"}</td><td>${p.horario||"-"}</td><td>${formatNumber(p.pesoTotal)}</td><td>${formatNumber(p.volumeTotal)}</td></tr>`).join("") : `<tr><td colspan="6" class="small">Nenhuma sugestão de consolidação.</td></tr>`}</tbody>
+          </table>
+        </div>
         <h3 style="margin-top:20px;">Consolidações automáticas</h3>
-        <div class="table-wrap"><table><thead><tr><th>Grupo</th><th>Qtd. pedidos</th><th>Endereço base</th><th>Peso total</th><th>Volume total</th></tr></thead><tbody>${gruposConsolidados.length ? gruposConsolidados.map((g,i)=>`<tr><td>Consolidação ${i+1}</td><td>${g.pedidos.length}</td><td>${g.enderecoReferencia}</td><td>${formatNumber(g.pesoTotal)}</td><td>${formatNumber(g.volumeTotal)}</td></tr>`).join("") : `<tr><td colspan="5" class="small">Nenhuma consolidação gerada.</td></tr>`}</tbody></table></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Grupo</th><th>Qtd. pedidos</th><th>Endereço base</th><th>Peso total</th><th>Volume total</th></tr></thead>
+            <tbody>${gruposConsolidados.length ? gruposConsolidados.map((g,i)=>`<tr><td>Consolidação ${i+1}</td><td>${g.pedidos.length}</td><td>${g.enderecoReferencia}</td><td>${formatNumber(g.pesoTotal)}</td><td>${formatNumber(g.volumeTotal)}</td></tr>`).join("") : `<tr><td colspan="5" class="small">Nenhuma consolidação gerada.</td></tr>`}</tbody>
+          </table>
+        </div>
       `;
     }
 
     function exportarRelatorioCSV() {
       if (!ultimoResultado) { alert("Execute o planejamento antes de exportar."); return; }
       const linhas = [];
-      linhas.push(["ROTA","DATA","VEICULO","CORREDOR","PESO_TOTAL","VOLUME_TOTAL","FATOR_DECISORIO","KM_ESTIMADO","CUSTO_ESTIMADO"]);
+      linhas.push(["ROTA","DATA","VEICULO","CORREDOR","PESO_TOTAL","VOLUME_TOTAL","FATOR_DECISORIO","KM_ESTIMADO","CUSTO_ESTIMADO","AVISO"]);
       ultimoResultado.rotas.forEach((r,i) => {
-        linhas.push([`Rota ${String(i+1).padStart(2,"0")}`, r.dataEntrega || "", r.veiculo.nome, r.corredor, r.pesoTotal, r.volumeTotal, r.fatorDecisorio, (r.distanciaKm||0).toFixed(2), (r.custoEstimado||0).toFixed(2)]);
+        linhas.push([`Rota ${String(i+1).padStart(2,"0")}`, r.dataEntrega || "", r.veiculo.nome, r.corredor, r.pesoTotal, r.volumeTotal, r.fatorDecisorio, (r.distanciaKm||0).toFixed(2), (r.custoEstimado||0).toFixed(2), r.avisoMinVolume || ""]);
       });
       linhas.push([]);
       linhas.push(["OS","DATA","CLIENTE","ENDERECO","CIDADE","UF","LAT","LNG","PESO","VOLUME","DECISAO_PEDIDO","ROTA"]);
