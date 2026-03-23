@@ -683,22 +683,34 @@
     document.getElementById("ordersCsvFile").addEventListener("change", function (e) {
       const file = e.target.files[0];
       if (!file) return;
-      Papa.parse(file, {
-        header: true, skipEmptyLines: true,
-        complete: function (results) {
-          try {
-            rawItens = results.data;
-            pedidos = agruparPedidosPorOS(rawItens);
-            renderPedidos();
-            atualizarMetricas();
-            alert(`${pedidos.length} pedidos (OS) importados com sucesso.`);
-            e.target.value = "";
-          } catch (err) { console.error(err); alert("Erro ao importar CSV."); }
-        }
-      });
-    });
+Papa.parse(file, {
+  header: true,
+  skipEmptyLines: true,
+  complete: function (results) {
+    try {
 
-    function renderPedidos() {
+      // 🔥 VALIDAÇÃO AQUI
+      if (!results.data || !results.data.length) {
+        alert("CSV vazio ou inválido");
+        return;
+      }
+
+      rawItens = results.data;
+      pedidos = agruparPedidosPorOS(rawItens);
+
+      renderPedidos();
+      atualizarMetricas();
+
+      alert(`${pedidos.length} pedidos (OS) importados com sucesso.`);
+      e.target.value = "";
+
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao importar CSV.");
+    }
+  }
+});
+       function renderPedidos() {
       const tbody = document.getElementById("pedidoTableBody");
       if (!pedidos.length) {
         tbody.innerHTML = `<tr><td colspan="10" class="small">Nenhum pedido importado.</td></tr>`;
@@ -968,7 +980,8 @@ Object.keys(gruposMap).forEach(chave => {
     if (!melhorVeiculo) {
       lote.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: "Sem veículo compatível" }));
     } else {
-      const origem = { lat: -23.5505, lng: -46.6333 };
+    const origemTexto = document.getElementById("depot").value;
+const origem = await geocodeAddress(origemTexto);
 
       const rota = {
         id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
