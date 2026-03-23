@@ -126,12 +126,12 @@
           <div class="row" style="margin-top: 14px;"><button class="btn btn-green" onclick="addVehicle()">Adicionar veículo</button></div>
 
           <div class="table-wrap">
-              <table>
+               <table>
                 <thead>
                   <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Altura</th><th>Largura</th><th>Profundidade</th><th>R$/km</th><th>Ação</th></tr>
                 </thead>
                 <tbody id="vehicleTableBody"></tbody>
-              </table>
+               </table>
           </div>
           <div id="statusBanco" class="status"></div>
         </div>
@@ -563,7 +563,6 @@
     }
 
     async function carregarParametrosDoBanco(silent = false) {
-      // Primeiro carrega do localStorage como fallback
       carregarDoStorageLocal();
       if (!supabaseClient) {
         if (!silent) setStatusBanco("Dados carregados do navegador. Para usar banco, configure o Supabase.", "ok");
@@ -677,7 +676,6 @@
         const obs = valorColuna(row, ["OBS"]) || "";
         const leituraObs = analisarObs(obs);
 
-        // Exclusivo apenas para exibição, não será usado para separar rotas
         const exclusivo = modalidade.toLowerCase().includes("exclusivo") ||
                            (valorColuna(row, ["CARRO_EXCLUSIVO", "CARRO EXCLUSIVO", "EXCLUSIVO"]).toString().trim().toUpperCase() === "SIM");
 
@@ -819,7 +817,6 @@
       return R * y;
     }
 
-    // Distância perpendicular (em km) de um ponto à reta (origem -> destino)
     function distanciaPontoReta(ponto, origem, destino) {
       const a = haversineKm(origem, destino);
       if (a === 0) return haversineKm(ponto, origem);
@@ -830,7 +827,6 @@
       return (2 * area) / a;
     }
 
-    // Ordenação linear por projeção sobre o vetor origem -> pontoRef
     function ordenarRotaLinear(pedidos, origem, pontoRef) {
       if (pedidos.length === 0) return [];
       const dx = pontoRef.lng - origem.lng;
@@ -843,6 +839,60 @@
         return (px * dx + py * dy) / (comprimento * comprimento);
       };
       return [...pedidos].sort((a, b) => projetar(a) - projetar(b));
+    }
+
+    // ==================== NOVA SELEÇÃO DE VEÍCULO POR CUBAGEM E DIMENSÕES ====================
+    function selecionarVeiculoPorRota(rota, frotaOrdenada) {
+      // Define a curva de tipos e limites de volume
+      const limites = [
+        { max: 3, tipo: "fiorino", nome: "Fiorino" },
+        { max: 7, tipo: "vam", nome: "Vam" },
+        { max: 19, tipo: "vuc", nome: "Vuc" },
+        { max: 30, tipo: "toco", nome: "Toco" },
+        { max: 45, tipo: "truck", nome: "Truck" },
+        { max: 90, tipo: "carreta", nome: "Carreta" }
+      ];
+
+      const volumeTotal = rota.volumeTotal;
+      // Encontra o tipo ideal
+      let tipoIdeal = null;
+      for (let lim of limites) {
+        if (volumeTotal <= lim.max) {
+          tipoIdeal = lim.tipo;
+          break;
+        }
+      }
+      if (!tipoIdeal) tipoIdeal = "carreta"; // acima de 90
+
+      // Lista de tipos em ordem crescente (do ideal para cima)
+      const tiposOrdenados = limites.map(l => l.tipo);
+      const startIdx = tiposOrdenados.indexOf(tipoIdeal);
+      const tiposExpansao = tiposOrdenados.slice(startIdx);
+
+      // Função que testa se o veículo atende a rota
+      const atende = (v) => {
+        return (
+          rota.pesoTotal <= v.pesoMax &&
+          rota.volumeTotal <= v.volumeMax &&
+          rota.numNotas <= v.notasMax &&
+          rota.maiorAltura <= v.alturaMax &&
+          rota.maiorLargura <= v.larguraMax &&
+          rota.maiorProfundidade <= v.profundidadeMax
+        );
+      };
+
+      // Para cada tipo na ordem de expansão, procura veículos que atendam
+      for (let tipo of tiposExpansao) {
+        const candidatos = frotaOrdenada.filter(v => v.nome.toLowerCase().includes(tipo));
+        // Ordena por volume (menor primeiro) para escolher o mais econômico
+        candidatos.sort((a, b) => a.volumeMax - b.volumeMax);
+        for (let v of candidatos) {
+          if (atende(v)) {
+            return v;
+          }
+        }
+      }
+      return null; // nenhum veículo encontrado
     }
 
     // ==================== REGRAS E CONSOLIDAÇÃO ====================
@@ -949,18 +999,12 @@
       return uf;
     }
 
-    // Função que, para um pedido de sugestão, encontra a rota mais adequada para encaixá-lo
     function encontrarRotaSugerida(pedidoSugestao, rotasExistentes) {
       if (!rotasExistentes || rotasExistentes.length === 0) return null;
-      // Filtra rotas com a mesma data de entrega
       const mesmoDia = rotasExistentes.filter(r => r.dataEntrega === pedidoSugestao.dataPrevisao);
       if (mesmoDia.length === 0) return null;
-      
-      // Prioriza rotas do mesmo corredor (UF)
       const mesmoCorredor = mesmoDia.filter(r => r.corredor === corredorUF(pedidoSugestao.uf));
       let rotasCandidatas = mesmoCorredor.length ? mesmoCorredor : mesmoDia;
-      
-      // Para cada rota, verifica se cabe (capacidade, notas, dimensões)
       for (const rota of rotasCandidatas) {
         const v = rota.veiculo;
         const novoPeso = rota.pesoTotal + pedidoSugestao.pesoTotal;
@@ -969,10 +1013,9 @@
         const novaAltura = Math.max(rota.maiorAltura, pedidoSugestao.maiorAltura);
         const novaLargura = Math.max(rota.maiorLargura, pedidoSugestao.maiorLargura);
         const novaProfundidade = Math.max(rota.maiorProfundidade, pedidoSugestao.maiorProfundidade);
-        
         if (novoPeso <= v.pesoMax && novoVolume <= v.volumeMax && novasNotas <= v.notasMax &&
             novaAltura <= v.alturaMax && novaLargura <= v.larguraMax && novaProfundidade <= v.profundidadeMax) {
-          return rota; // retorna a primeira rota compatível encontrada
+          return rota;
         }
       }
       return null;
@@ -1020,13 +1063,11 @@
         const fecharLote = async () => {
           if (!lote.length) return;
 
-          // Determina ponto de referência (mais a leste)
           const pontoRef = lote.reduce((max, p) => {
             if (p.lng > max.lng || (p.lng === max.lng && p.lat < max.lat)) return p;
             return max;
           }, lote[0]);
 
-          // Filtra pedidos dentro do corredor (desvio <= maxDesvio)
           const pedidosFiltrados = [];
           const foraCorredor = [];
           for (const p of lote) {
@@ -1059,20 +1100,17 @@
           const larguraFiltrado = Math.max(...pedidosFiltrados.map(p => Number(p.maiorLargura || 0)), 0);
           const profundidadeFiltrado = Math.max(...pedidosFiltrados.map(p => Number(p.maiorProfundidade || 0)), 0);
 
-          let melhorVeiculo = null;
-          for (const v of frotaOrdenada) {
-            if (
-              pesoFiltrado <= v.pesoMax &&
-              volumeFiltrado <= v.volumeMax &&
-              notasFiltrado <= v.notasMax &&
-              alturaFiltrado <= v.alturaMax &&
-              larguraFiltrado <= v.larguraMax &&
-              profundidadeFiltrado <= v.profundidadeMax
-            ) {
-              melhorVeiculo = v;
-              break;
-            }
-          }
+          // Cria objeto temporário da rota para seleção de veículo
+          const rotaTemp = {
+            pesoTotal: pesoFiltrado,
+            volumeTotal: volumeFiltrado,
+            numNotas: notasFiltrado,
+            maiorAltura: alturaFiltrado,
+            maiorLargura: larguraFiltrado,
+            maiorProfundidade: profundidadeFiltrado
+          };
+
+          const melhorVeiculo = selecionarVeiculoPorRota(rotaTemp, frotaOrdenada);
 
           if (!melhorVeiculo) {
             pedidosFiltrados.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: "Sem veículo compatível" }));
@@ -1238,13 +1276,12 @@
             maiorCubagemItem: Math.max(...grupo.pedidos.map(p=>Number(p.maiorCubagemItem||0))),
             obsConsolidada: grupo.pedidos.map(p=>`${p.os}: ${p.obsConsolidada||"-"}`).join(" | "),
             consolidado: true, qtdPedidosOrigem: grupo.pedidos.length,
-            exclusivo: grupo.pedidos.some(p => p.exclusivo) // apenas para informação
+            exclusivo: grupo.pedidos.some(p => p.exclusivo)
           };
         });
 
         const baseParaRota = [...aprovados, ...pedidosConsolidadosComoRota];
 
-        // Agrupa por data de entrega
         const gruposPorData = new Map();
         for (const p of baseParaRota) {
           const dataChave = p.dataPrevisao || "Sem data";
@@ -1264,7 +1301,6 @@
           todosNaoAlocados.push(...naoAlocados);
         }
 
-        // Agora, para cada sugestão de consolidação, tenta encontrar uma rota onde ela poderia ser encaixada
         const sugestoesComRota = sugestoesConsolidacao.map(sug => {
           const rotaSugerida = encontrarRotaSugerida(sug, todasRotas);
           return { ...sug, rotaSugerida: rotaSugerida ? `Rota ${todasRotas.indexOf(rotaSugerida)+1} (${rotaSugerida.veiculo.nome})` : null };
@@ -1500,9 +1536,7 @@
 
     // ==================== INICIALIZAÇÃO ====================
     async function initApp() {
-      // Carrega dados do localStorage primeiro
       carregarDoStorageLocal();
-      // Se houver Supabase configurado, tenta carregar e sobrescrever
       if (supabaseClient) {
         await carregarParametrosDoBanco(true);
       } else {
