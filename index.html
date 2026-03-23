@@ -126,12 +126,12 @@
           <div class="row" style="margin-top: 14px;"><button class="btn btn-green" onclick="addVehicle()">Adicionar veículo</button></div>
 
           <div class="table-wrap">
-             <table>
+              <table>
                 <thead>
-                   <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Altura</th><th>Largura</th><th>Profundidade</th><th>R$/km</th><th>Ação</th></tr>
+                  <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Altura</th><th>Largura</th><th>Profundidade</th><th>R$/km</th><th>Ação</th></tr>
                 </thead>
                 <tbody id="vehicleTableBody"></tbody>
-             </table>
+              </table>
           </div>
           <div id="statusBanco" class="status"></div>
         </div>
@@ -177,7 +177,7 @@
             <div class="field"><label>&nbsp;</label><button class="btn btn-blue" onclick="baixarModeloPedidos()">Baixar modelo CSV</button></div>
           </div>
           <p class="small" style="margin-top: 10px;">Colunas aceitas: OS, COD. DEPOSITANTE, DEPOSITANTE, CNPJ, DESTINATARIO, CEP, LOGRADOURO, NUMERO, BAIRRO, CIDADE, UF, LAT, LNG, JOB, CODIGO PRODUTO, PRODUTO, PESO BRUTO, LARGURA, ALTURA, PROFUNDIDADE, METROCUBICO, DATAPREVISAO, MODALIDADE, OBS.<br>
-          <strong>Carro Exclusivo:</strong> será identificado automaticamente se a coluna MODALIDADE contiver "exclusivo" (ex.: "Carro Exclusivo") – apenas para informação, não influencia o roteirização.</p>
+          <strong>Carro Exclusivo:</strong> será identificado automaticamente se a coluna MODALIDADE contiver "exclusivo" (ex.: "Carro Exclusivo") – apenas para informação, não influencia a roteirização.</p>
         </div>
         <div class="card">
           <h2>Pedidos agrupados por OS</h2>
@@ -945,6 +945,35 @@
       return uf;
     }
 
+    // Função que, para um pedido de sugestão, encontra a rota mais adequada para encaixá-lo
+    function encontrarRotaSugerida(pedidoSugestao, rotasExistentes) {
+      if (!rotasExistentes || rotasExistentes.length === 0) return null;
+      // Filtra rotas com a mesma data de entrega
+      const mesmoDia = rotasExistentes.filter(r => r.dataEntrega === pedidoSugestao.dataPrevisao);
+      if (mesmoDia.length === 0) return null;
+      
+      // Prioriza rotas do mesmo corredor (UF)
+      const mesmoCorredor = mesmoDia.filter(r => r.corredor === corredorUF(pedidoSugestao.uf));
+      let rotasCandidatas = mesmoCorredor.length ? mesmoCorredor : mesmoDia;
+      
+      // Para cada rota, verifica se cabe (capacidade, notas, dimensões)
+      for (const rota of rotasCandidatas) {
+        const v = rota.veiculo;
+        const novoPeso = rota.pesoTotal + pedidoSugestao.pesoTotal;
+        const novoVolume = rota.volumeTotal + pedidoSugestao.volumeTotal;
+        const novasNotas = rota.numNotas + (pedidoSugestao.numNotas || 1);
+        const novaAltura = Math.max(rota.maiorAltura, pedidoSugestao.maiorAltura);
+        const novaLargura = Math.max(rota.maiorLargura, pedidoSugestao.maiorLargura);
+        const novaProfundidade = Math.max(rota.maiorProfundidade, pedidoSugestao.maiorProfundidade);
+        
+        if (novoPeso <= v.pesoMax && novoVolume <= v.volumeMax && novasNotas <= v.notasMax &&
+            novaAltura <= v.alturaMax && novaLargura <= v.larguraMax && novaProfundidade <= v.profundidadeMax) {
+          return rota; // retorna a primeira rota compatível encontrada
+        }
+      }
+      return null;
+    }
+
     async function montarRotasPorCorredor(pedidosBase, frota) {
       const gruposMap = {};
       const naoAlocados = [];
@@ -1211,7 +1240,7 @@
 
         const baseParaRota = [...aprovados, ...pedidosConsolidadosComoRota];
 
-        // Agrupa por data de entrega (sem separar exclusivos)
+        // Agrupa por data de entrega
         const gruposPorData = new Map();
         for (const p of baseParaRota) {
           const dataChave = p.dataPrevisao || "Sem data";
@@ -1231,10 +1260,16 @@
           todosNaoAlocados.push(...naoAlocados);
         }
 
+        // Agora, para cada sugestão de consolidação, tenta encontrar uma rota onde ela poderia ser encaixada
+        const sugestoesComRota = sugestoesConsolidacao.map(sug => {
+          const rotaSugerida = encontrarRotaSugerida(sug, todasRotas);
+          return { ...sug, rotaSugerida: rotaSugerida ? `Rota ${todasRotas.indexOf(rotaSugerida)+1} (${rotaSugerida.veiculo.nome})` : null };
+        });
+
         setStatus("Desenhando rotas no mapa...", "warn");
         ultimoResultado = {
           aprovados,
-          sugestoesConsolidacao,
+          sugestoesConsolidacao: sugestoesComRota,
           gruposConsolidados,
           pedidosParaRota: baseParaRota,
           rotas: todasRotas,
@@ -1416,8 +1451,8 @@
         <h3 style="margin-top:20px;">Sugestões de consolidação</h3>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>OS</th><th>Destinatário</th><th>Motivo</th><th>Horário</th><th>Peso</th><th>Volume</th></tr></thead>
-            <tbody>${sugestoesConsolidacao.length ? sugestoesConsolidacao.map(p=>`<tr><td>${p.os}</td><td>${p.destinatario}</td><td>${p.motivo||"-"}</td><td>${p.horario||"-"}</td><td>${formatNumber(p.pesoTotal)}</td><td>${formatNumber(p.volumeTotal)}</td></tr>`).join("") : `<tr><td colspan="6" class="small">Nenhuma sugestão de consolidação.</td></tr>`}</tbody>
+            <thead><tr><th>OS</th><th>Destinatário</th><th>Motivo</th><th>Horário</th><th>Peso</th><th>Volume</th><th>Rota sugerida</th></tr></thead>
+            <tbody>${sugestoesConsolidacao.length ? sugestoesConsolidacao.map(p=>`<tr><td>${p.os}</td><td>${p.destinatario}</td><td>${p.motivo||"-"}</td><td>${p.horario||"-"}</td><td>${formatNumber(p.pesoTotal)}</td><td>${formatNumber(p.volumeTotal)}</td><td>${p.rotaSugerida || "Nenhuma rota compatível"}</td></tr>`).join("") : `<tr><td colspan="7" class="small">Nenhuma sugestão de consolidação.</td></tr>`}</tbody>
           </table>
         </div>
         <h3 style="margin-top:20px;">Consolidações automáticas</h3>
@@ -1443,6 +1478,11 @@
         r.pedidos.forEach(p => {
           linhas.push([p.os, r.dataEntrega || "", p.destinatario||p.depositante||"-", p.endereco||"-", p.cidade, p.uf, p.lat||"", p.lng||"", p.pesoTotal, p.volumeTotal, fatorDecisorioPedido(p, r.veiculo), `Rota ${String(i+1).padStart(2,"0")}`]);
         });
+      });
+      linhas.push([]);
+      linhas.push(["SUGESTÃO","OS","CLIENTE","MOTIVO","HORARIO","PESO","VOLUME","ROTA_SUGERIDA"]);
+      ultimoResultado.sugestoesConsolidacao.forEach(s => {
+        linhas.push(["Consolidar", s.os, s.destinatario, s.motivo, s.horario, s.pesoTotal, s.volumeTotal, s.rotaSugerida || ""]);
       });
       const csv = Papa.unparse(linhas);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
