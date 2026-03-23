@@ -982,8 +982,20 @@ Object.keys(gruposMap).forEach(chave => {
       lote.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: "Sem veículo compatível" }));
     } else {
     const origemTexto = document.getElementById("depot").value;
-const origem = await geocodeAddress(origemTexto);
+let origem;
+try {
+  origem = await geocodeAddress(origemTexto);
+} catch (e) {
+  console.error("Erro geocode origem:", e);
 
+  const fallbackCidade = document.getElementById("depot").value || "São Paulo/SP";
+
+  try {
+    origem = await geocodeAddress(fallbackCidade);
+  } catch {
+    origem = { lat: -23.5505, lng: -46.6333 };
+  }
+}
       const rota = {
         id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
         corredor: chave,
@@ -1036,7 +1048,7 @@ if (novoPeso > pesoMax || novoVolume > volumeMax) {
     maiorProfundidade = Math.max(maiorProfundidade, p.maiorProfundidade);
   }
 
-  fecharLote();
+  await fecharLote();
 });
       return { rotas, naoAlocados };
     }
