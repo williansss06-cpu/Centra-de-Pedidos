@@ -936,63 +936,59 @@ function ordenarRotaInteligente(pedidos, origem) {
       Object.keys(gruposMap).forEach(chave => {
         const lista = [...gruposMap[chave]].sort((a,b) => (b.volumeTotal + b.pesoTotal/1000) - (a.volumeTotal + a.pesoTotal/1000));
         let lote = [], pesoAtual=0, volumeAtual=0, notasAtual=0, maiorAltura=0, maiorLargura=0, maiorProfundidade=0;
-        const fecharLote = () => {
-          if (!lote.length) return;
-          let melhorVeiculo = null;
-          for (const v of frotaOrdenada) {
-            if (pesoAtual <= v.pesoMax && volumeAtual <= v.volumeMax && notasAtual <= v.notasMax &&
-                maiorAltura <= v.alturaMax && maiorLargura <= v.larguraMax && maiorProfundidade <= v.profundidadeMax) {
-              melhorVeiculo = v; break;
-            }
-          }
-          if (!melhorVeiculo) {
-            lote.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: "Sem veículo compatível" }));
-          } else {
-            const rota = {
-              id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
-              corredor: chave, cidade: lote[0].cidade, uf: lote[0].uf,
-              const origem = { lat: -23.5505, lng: -46.6333 }; // CD (pode melhorar depois)
+const fecharLote = () => {
+  if (!lote.length) return;
 
-const rota = {
-  ...
-  pedidos: ordenarRotaInteligente(lote, origem),
-  pesoTotal: pesoAtual,
-  volumeTotal: volumeAtual,
-  ...
+  let melhorVeiculo = null;
+  for (const v of frotaOrdenada) {
+    if (
+      pesoAtual <= v.pesoMax &&
+      volumeAtual <= v.volumeMax &&
+      notasAtual <= v.notasMax &&
+      maiorAltura <= v.alturaMax &&
+      maiorLargura <= v.larguraMax &&
+      maiorProfundidade <= v.profundidadeMax
+    ) {
+      melhorVeiculo = v;
+      break;
+    }
+  }
+
+  if (!melhorVeiculo) {
+    lote.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: "Sem veículo compatível" }));
+  } else {
+    const origem = { lat: -23.5505, lng: -46.6333 };
+
+    const rota = {
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+      corredor: chave,
+      cidade: lote[0].cidade,
+      uf: lote[0].uf,
+      pedidos: ordenarRotaInteligente(lote, origem),
+      pesoTotal: pesoAtual,
+      volumeTotal: volumeAtual,
+      numNotas: notasAtual,
+      maiorAltura,
+      maiorLargura,
+      maiorProfundidade,
+      veiculo: melhorVeiculo,
+      fatorDecisorio: null,
+      distanciaKm: 0,
+      custoEstimado: 0
+    };
+
+    rota.fatorDecisorio = fatorDecisorioRota(rota, melhorVeiculo);
+    rotas.push(rota);
+  }
+
+  lote = [];
+  pesoAtual = 0;
+  volumeAtual = 0;
+  notasAtual = 0;
+  maiorAltura = 0;
+  maiorLargura = 0;
+  maiorProfundidade = 0;
 };
-              numNotas: notasAtual, maiorAltura, maiorLargura, maiorProfundidade,
-              veiculo: melhorVeiculo, fatorDecisorio: null, distanciaKm: 0, custoEstimado: 0
-            };
-            rota.fatorDecisorio = fatorDecisorioRota(rota, melhorVeiculo);
-            rotas.push(rota);
-          }
-          lote = []; pesoAtual=0; volumeAtual=0; notasAtual=0; maiorAltura=0; maiorLargura=0; maiorProfundidade=0;
-        };
-        lista.forEach(p => {
-          const tentativaPeso = pesoAtual + Number(p.pesoTotal||0);
-          const tentativaVolume = volumeAtual + Number(p.volumeTotal||0);
-          const tentativaNotas = notasAtual + Number(p.numNotas||1);
-          const tentativaAltura = Math.max(maiorAltura, Number(p.maiorAltura||0));
-          const tentativaLargura = Math.max(maiorLargura, Number(p.maiorLargura||0));
-          const tentativaProf = Math.max(maiorProfundidade, Number(p.maiorProfundidade||0));
-          const cabeEmAlgum = frotaOrdenada.some(v =>
-            tentativaPeso <= v.pesoMax && tentativaVolume <= v.volumeMax && tentativaNotas <= v.notasMax &&
-            tentativaAltura <= v.alturaMax && tentativaLargura <= v.larguraMax && tentativaProf <= v.profundidadeMax);
-          if (!cabeEmAlgum && lote.length) fecharLote();
-          const cabeAgora = frotaOrdenada.some(v =>
-            (pesoAtual + Number(p.pesoTotal||0)) <= v.pesoMax && (volumeAtual + Number(p.volumeTotal||0)) <= v.volumeMax &&
-            (notasAtual + Number(p.numNotas||1)) <= v.notasMax &&
-            Math.max(maiorAltura, Number(p.maiorAltura||0)) <= v.alturaMax &&
-            Math.max(maiorLargura, Number(p.maiorLargura||0)) <= v.larguraMax &&
-            Math.max(maiorProfundidade, Number(p.maiorProfundidade||0)) <= v.profundidadeMax);
-          if (!cabeAgora && lote.length) fecharLote();
-          lote.push(p);
-          pesoAtual += Number(p.pesoTotal||0);
-          volumeAtual += Number(p.volumeTotal||0);
-          notasAtual += Number(p.numNotas||1);
-          maiorAltura = Math.max(maiorAltura, Number(p.maiorAltura||0));
-          maiorLargura = Math.max(maiorLargura, Number(p.maiorLargura||0));
-          maiorProfundidade = Math.max(maiorProfundidade, Number(p.maiorProfundidade||0));
         });
         fecharLote();
       });
