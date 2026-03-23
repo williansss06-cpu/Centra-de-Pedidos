@@ -936,7 +936,7 @@ function ordenarRotaInteligente(pedidos, origem) {
       return uf;
     }
 
-    function montarRotasPorCorredor(pedidosBase, frota) {
+    async function montarRotasPorCorredor(pedidosBase, frota) {
       const gruposMap = {}, naoAlocados = [];
       pedidosBase.forEach(p => {
         const chave = corredorUF(p.uf || "");
@@ -1144,7 +1144,7 @@ const origem = await geocodeAddress(origemTexto);
           };
         });
         const baseParaRota = [...aprovados, ...pedidosConsolidadosComoRota];
-        const { rotas, naoAlocados } = montarRotasPorCorredor(baseParaRota, vehicles);
+        const { rotas, naoAlocados } = await montarRotasPorCorredor(baseParaRota, vehicles);
         setStatus("Desenhando rotas no mapa...", "warn");
         ultimoResultado = { aprovados, sugestoesConsolidacao, gruposConsolidados, pedidosParaRota: baseParaRota, rotas, naoAlocados };
         await desenharRotas(ultimoResultado.rotas, origem);
@@ -1364,5 +1364,9 @@ const origem = await geocodeAddress(origemTexto);
 
   // etc...
 </script>
+  // 🔥 AUTO LOAD DO SISTEMA
+  window.addEventListener("load", async () => {
+    await carregarParametrosDoBanco(true);
+    loadGoogleMaps();
 </body>
 </html>
