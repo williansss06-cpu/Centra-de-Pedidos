@@ -933,65 +933,94 @@ function ordenarRotaInteligente(pedidos, origem) {
       });
       const rotas = [];
       const frotaOrdenada = [...frota].sort((a,b) => a.volumeMax - b.volumeMax);
-      Object.keys(gruposMap).forEach(chave => {
-        const lista = [...gruposMap[chave]].sort((a,b) => (b.volumeTotal + b.pesoTotal/1000) - (a.volumeTotal + a.pesoTotal/1000));
-        let lote = [], pesoAtual=0, volumeAtual=0, notasAtual=0, maiorAltura=0, maiorLargura=0, maiorProfundidade=0;
-const fecharLote = () => {
-  if (!lote.length) return;
+Object.keys(gruposMap).forEach(chave => {
+  const lista = [...gruposMap[chave]].sort((a,b) =>
+    (b.volumeTotal + b.pesoTotal/1000) - (a.volumeTotal + a.pesoTotal/1000)
+  );
 
-  let melhorVeiculo = null;
-  for (const v of frotaOrdenada) {
-    if (
-      pesoAtual <= v.pesoMax &&
-      volumeAtual <= v.volumeMax &&
-      notasAtual <= v.notasMax &&
-      maiorAltura <= v.alturaMax &&
-      maiorLargura <= v.larguraMax &&
-      maiorProfundidade <= v.profundidadeMax
-    ) {
-      melhorVeiculo = v;
-      break;
+  let lote = [];
+  let pesoAtual = 0;
+  let volumeAtual = 0;
+  let notasAtual = 0;
+  let maiorAltura = 0;
+  let maiorLargura = 0;
+  let maiorProfundidade = 0;
+
+  const fecharLote = () => {
+    if (!lote.length) return;
+
+    let melhorVeiculo = null;
+
+    for (const v of frotaOrdenada) {
+      if (
+        pesoAtual <= v.pesoMax &&
+        volumeAtual <= v.volumeMax &&
+        notasAtual <= v.notasMax &&
+        maiorAltura <= v.alturaMax &&
+        maiorLargura <= v.larguraMax &&
+        maiorProfundidade <= v.profundidadeMax
+      ) {
+        melhorVeiculo = v;
+        break;
+      }
     }
+
+    if (!melhorVeiculo) {
+      lote.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: "Sem veículo compatível" }));
+    } else {
+      const origem = { lat: -23.5505, lng: -46.6333 };
+
+      const rota = {
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+        corredor: chave,
+        cidade: lote[0].cidade,
+        uf: lote[0].uf,
+        pedidos: ordenarRotaInteligente(lote, origem),
+        pesoTotal: pesoAtual,
+        volumeTotal: volumeAtual,
+        numNotas: notasAtual,
+        maiorAltura,
+        maiorLargura,
+        maiorProfundidade,
+        veiculo: melhorVeiculo,
+        fatorDecisorio: null,
+        distanciaKm: 0,
+        custoEstimado: 0
+      };
+
+      rota.fatorDecisorio = fatorDecisorioRota(rota, melhorVeiculo);
+      rotas.push(rota);
+    }
+
+    lote = [];
+    pesoAtual = 0;
+    volumeAtual = 0;
+    notasAtual = 0;
+    maiorAltura = 0;
+    maiorLargura = 0;
+    maiorProfundidade = 0;
+  };
+
+  // 👉 AQUI ESTAVA FALTANDO TUDO
+  for (const p of lista) {
+    const novoPeso = pesoAtual + p.pesoTotal;
+    const novoVolume = volumeAtual + p.volumeTotal;
+
+    if (novoPeso > 5000 || novoVolume > 20) {
+      fecharLote();
+    }
+
+    lote.push(p);
+    pesoAtual += p.pesoTotal;
+    volumeAtual += p.volumeTotal;
+    notasAtual += 1;
+    maiorAltura = Math.max(maiorAltura, p.maiorAltura);
+    maiorLargura = Math.max(maiorLargura, p.maiorLargura);
+    maiorProfundidade = Math.max(maiorProfundidade, p.maiorProfundidade);
   }
 
-  if (!melhorVeiculo) {
-    lote.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: "Sem veículo compatível" }));
-  } else {
-    const origem = { lat: -23.5505, lng: -46.6333 };
-
-    const rota = {
-      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
-      corredor: chave,
-      cidade: lote[0].cidade,
-      uf: lote[0].uf,
-      pedidos: ordenarRotaInteligente(lote, origem),
-      pesoTotal: pesoAtual,
-      volumeTotal: volumeAtual,
-      numNotas: notasAtual,
-      maiorAltura,
-      maiorLargura,
-      maiorProfundidade,
-      veiculo: melhorVeiculo,
-      fatorDecisorio: null,
-      distanciaKm: 0,
-      custoEstimado: 0
-    };
-
-    rota.fatorDecisorio = fatorDecisorioRota(rota, melhorVeiculo);
-    rotas.push(rota);
-  }
-
-  lote = [];
-  pesoAtual = 0;
-  volumeAtual = 0;
-  notasAtual = 0;
-  maiorAltura = 0;
-  maiorLargura = 0;
-  maiorProfundidade = 0;
-};
-        });
-        fecharLote();
-      });
+  fecharLote();
+});
       return { rotas, naoAlocados };
     }
 
