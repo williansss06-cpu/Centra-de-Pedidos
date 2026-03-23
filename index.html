@@ -126,12 +126,12 @@
           <div class="row" style="margin-top: 14px;"><button class="btn btn-green" onclick="addVehicle()">Adicionar veículo</button></div>
 
           <div class="table-wrap">
-              <table>
+             <table>
                 <thead>
-                  <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Altura</th><th>Largura</th><th>Profundidade</th><th>R$/km</th><th>Ação</th></tr>
+                   <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Altura</th><th>Largura</th><th>Profundidade</th><th>R$/km</th><th>Ação</th></tr>
                 </thead>
                 <tbody id="vehicleTableBody"></tbody>
-              </table>
+             </table>
           </div>
           <div id="statusBanco" class="status"></div>
         </div>
@@ -176,7 +176,8 @@
             <div class="field" style="flex:1; min-width: 320px;"><label>Arquivo CSV</label><input type="file" id="ordersCsvFile" accept=".csv" /></div>
             <div class="field"><label>&nbsp;</label><button class="btn btn-blue" onclick="baixarModeloPedidos()">Baixar modelo CSV</button></div>
           </div>
-          <p class="small" style="margin-top: 10px;">Colunas aceitas: OS, COD. DEPOSITANTE, DEPOSITANTE, CNPJ, DESTINATARIO, CEP, LOGRADOURO, NUMERO, BAIRRO, CIDADE, UF, LAT, LNG, JOB, CODIGO PRODUTO, PRODUTO, PESO BRUTO, LARGURA, ALTURA, PROFUNDIDADE, METROCUBICO, DATAPREVISAO, MODALIDADE, OBS, CARRO_EXCLUSIVO (Sim/Não)</p>
+          <p class="small" style="margin-top: 10px;">Colunas aceitas: OS, COD. DEPOSITANTE, DEPOSITANTE, CNPJ, DESTINATARIO, CEP, LOGRADOURO, NUMERO, BAIRRO, CIDADE, UF, LAT, LNG, JOB, CODIGO PRODUTO, PRODUTO, PESO BRUTO, LARGURA, ALTURA, PROFUNDIDADE, METROCUBICO, DATAPREVISAO, MODALIDADE, OBS.<br>
+          <strong>Carro Exclusivo:</strong> será identificado automaticamente se a coluna MODALIDADE contiver "exclusivo" (ex.: "Carro Exclusivo") – apenas para informação, não influencia o roteirização.</p>
         </div>
         <div class="card">
           <h2>Pedidos agrupados por OS</h2>
@@ -611,9 +612,10 @@
     // ==================== PEDIDOS ====================
     function baixarModeloPedidos() {
       const csv = [
-        "OS,COD. DEPOSITANTE,DEPOSITANTE,CNPJ,DESTINATARIO,CEP,LOGRADOURO,NUMERO,BAIRRO,CIDADE,UF,LAT,LNG,JOB,CODIGO PRODUTO,PRODUTO,PESO BRUTO,LARGURA,ALTURA,PROFUNDIDADE,METROCUBICO,DATAPREVISAO,MODALIDADE,OBS,CARRO_EXCLUSIVO",
-        '1001,1,EMPRESA TESTE,00000000000191,CLIENTE A,07000-000,RUA TESTE,100,CENTRO,GUARULHOS,SP,-23.4543,-46.5333,JOB01,PROD01,DISPLAY,850,2,2.5,1.5,7.5,2026-03-25,Rodoviario,"carga paletizada, entrega com agendamento às 10h",Não',
-        '1002,2,EMPRESA B,00000000000291,CLIENTE B,20000-000,AV TESTE,500,CENTRO,RIO DE JANEIRO,RJ,-22.9068,-43.1729,JOB02,PROD03,PECA,500,1.2,1.0,1.0,1.2,2026-03-26,Rodoviario,"entrega normal",Não'
+        "OS,COD. DEPOSITANTE,DEPOSITANTE,CNPJ,DESTINATARIO,CEP,LOGRADOURO,NUMERO,BAIRRO,CIDADE,UF,LAT,LNG,JOB,CODIGO PRODUTO,PRODUTO,PESO BRUTO,LARGURA,ALTURA,PROFUNDIDADE,METROCUBICO,DATAPREVISAO,MODALIDADE,OBS",
+        '1001,1,EMPRESA TESTE,00000000000191,LOJA DISPLAY ALTO,12245-000,RUA DAS FLORES,100,CENTRO,SAO JOSE DOS CAMPOS,SP,-23.2237,-45.9002,JOB01,PROD01,DISPLAY 2,80M,850,2,2.8,1.5,8.4,24/03/2026,Carro Exclusivo,"carga paletizada, entrega com agendamento às 10h"',
+        '1002,2,EMPRESA B,00000000000291,CLIENTE LEVE,07190-000,RUA ALFA,250,JARDIM TESTE,GUARULHOS,SP,-23.4625,-46.5333,JOB02,PROD03,CAIXA LEVE,300,0.4,0.4,0.4,0.06,23/03/2026,Carro Exclusivo,entrega normal',
+        '1003,3,EMPRESA C,00000000000391,CLIENTE CUBAGEM,13010-000,AVENIDA BETA,500,CENTRO,CAMPINAS,SP,-22.9056,-47.0608,JOB03,PROD04,ISOPOR GRANDE,180,2,1.8,2.2,7.92,25/03/2026,Carro Exclusivo,entrega normal'
       ].join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -669,9 +671,12 @@
         const dataPrevisao = valorColuna(row, ["DATAPREVISAO"]);
         const modalidade = valorColuna(row, ["MODALIDADE"]) || "Rodoviario";
         const obs = valorColuna(row, ["OBS"]) || "";
-        const exclusivoStr = valorColuna(row, ["CARRO_EXCLUSIVO", "CARRO EXCLUSIVO", "EXCLUSIVO"]).toString().trim().toUpperCase();
-        const exclusivo = exclusivoStr === "SIM" || exclusivoStr === "TRUE" || exclusivoStr === "1";
         const leituraObs = analisarObs(obs);
+
+        // Exclusivo apenas para exibição, não será usado para separar rotas
+        const exclusivo = modalidade.toLowerCase().includes("exclusivo") ||
+                           (valorColuna(row, ["CARRO_EXCLUSIVO", "CARRO EXCLUSIVO", "EXCLUSIVO"]).toString().trim().toUpperCase() === "SIM");
+
         const item = { codigoProduto, produto, peso_kg: pesoBruto, largura, altura, profundidade, volume_m3: metroCubico, obs };
         if (!mapa.has(os)) {
           mapa.set(os, {
@@ -1090,10 +1095,6 @@
         await fecharLote();
       }
 
-      // Tentativa de mesclar lotes de baixo volume (apenas para rotas que já foram criadas)
-      // Simplificado: após todas as rotas criadas, podemos tentar combinar rotas com volume abaixo do mínimo com outras rotas da mesma data? 
-      // Por enquanto, apenas registramos o aviso.
-
       return { rotas, naoAlocados };
     }
 
@@ -1204,61 +1205,30 @@
             maiorCubagemItem: Math.max(...grupo.pedidos.map(p=>Number(p.maiorCubagemItem||0))),
             obsConsolidada: grupo.pedidos.map(p=>`${p.os}: ${p.obsConsolidada||"-"}`).join(" | "),
             consolidado: true, qtdPedidosOrigem: grupo.pedidos.length,
-            exclusivo: grupo.pedidos.some(p => p.exclusivo) // se algum pedido for exclusivo, todo o grupo é exclusivo
+            exclusivo: grupo.pedidos.some(p => p.exclusivo) // apenas para informação
           };
         });
 
         const baseParaRota = [...aprovados, ...pedidosConsolidadosComoRota];
 
-        // Separar exclusivos e não exclusivos
-        const exclusivos = baseParaRota.filter(p => p.exclusivo);
-        const naoExclusivos = baseParaRota.filter(p => !p.exclusivo);
-
-        // Agrupar por data
+        // Agrupa por data de entrega (sem separar exclusivos)
         const gruposPorData = new Map();
-        const adicionarAoGrupo = (lista, data) => {
-          if (!gruposPorData.has(data)) gruposPorData.set(data, { exclusivos: [], naoExclusivos: [] });
-          const grupo = gruposPorData.get(data);
-          lista.forEach(p => {
-            if (p.exclusivo) grupo.exclusivos.push(p);
-            else grupo.naoExclusivos.push(p);
-          });
-        };
-
-        adicionarAoGrupo(exclusivos, "Sem data");
-        adicionarAoGrupo(naoExclusivos, "Sem data");
-        // Na verdade, devemos agrupar por data de cada pedido, mas para simplificar, já que data pode ser vazia,
-        // vamos reorganizar com base na dataPrevisao de cada pedido
-        const gruposPorDataReal = new Map();
         for (const p of baseParaRota) {
           const dataChave = p.dataPrevisao || "Sem data";
-          if (!gruposPorDataReal.has(dataChave)) gruposPorDataReal.set(dataChave, { exclusivos: [], naoExclusivos: [] });
-          const grupo = gruposPorDataReal.get(dataChave);
-          if (p.exclusivo) grupo.exclusivos.push(p);
-          else grupo.naoExclusivos.push(p);
+          if (!gruposPorData.has(dataChave)) gruposPorData.set(dataChave, []);
+          gruposPorData.get(dataChave).push(p);
         }
 
         let todasRotas = [];
         let todosNaoAlocados = [];
 
         setStatus("Processando rotas por data...", "warn");
-        for (const [data, { exclusivos: excs, naoExclusivos: naos }] of gruposPorDataReal.entries()) {
-          // Processa exclusivos
-          if (excs.length) {
-            const { rotas, naoAlocados } = await montarRotasPorCorredor(excs, vehicles);
-            rotas.forEach(r => r.dataEntrega = data);
-            naoAlocados.forEach(n => n.dataEntrega = data);
-            todasRotas.push(...rotas);
-            todosNaoAlocados.push(...naoAlocados);
-          }
-          // Processa não exclusivos
-          if (naos.length) {
-            const { rotas, naoAlocados } = await montarRotasPorCorredor(naos, vehicles);
-            rotas.forEach(r => r.dataEntrega = data);
-            naoAlocados.forEach(n => n.dataEntrega = data);
-            todasRotas.push(...rotas);
-            todosNaoAlocados.push(...naoAlocados);
-          }
+        for (const [data, pedidosDoDia] of gruposPorData.entries()) {
+          const { rotas, naoAlocados } = await montarRotasPorCorredor(pedidosDoDia, vehicles);
+          rotas.forEach(r => r.dataEntrega = data);
+          naoAlocados.forEach(n => n.dataEntrega = data);
+          todasRotas.push(...rotas);
+          todosNaoAlocados.push(...naoAlocados);
         }
 
         setStatus("Desenhando rotas no mapa...", "warn");
