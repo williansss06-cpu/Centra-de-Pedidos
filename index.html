@@ -921,7 +921,13 @@
             const rota = {
               id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
               corredor: chave, cidade: lote[0].cidade, uf: lote[0].uf,
-              pedidos: [...lote], pesoTotal: pesoAtual, volumeTotal: volumeAtual,
+              const pedidosOrdenados = [...lote].sort((a, b) => {
+  const da = haversineKm(origem, { lat: a.lat, lng: a.lng });
+  const db = haversineKm(origem, { lat: b.lat, lng: b.lng });
+  return da - db;
+});
+
+pedidos: ordenarRotaInteligente(pedidosOrdenados, origem),
               numNotas: notasAtual, maiorAltura, maiorLargura, maiorProfundidade,
               veiculo: melhorVeiculo, fatorDecisorio: null, distanciaKm: 0, custoEstimado: 0
             };
