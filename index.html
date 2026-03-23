@@ -9,7 +9,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
   <style>
-    /* (mantido o mesmo CSS do original) */
     * { box-sizing: border-box; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: #dfe5ec; color: #0f172a; }
     .app { display: flex; min-height: 100vh; }
@@ -126,12 +125,12 @@
           <div class="row" style="margin-top: 14px;"><button class="btn btn-green" onclick="addVehicle()">Adicionar veículo</button></div>
 
           <div class="table-wrap">
-               <table>
+                <table>
                 <thead>
                   <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Altura</th><th>Largura</th><th>Profundidade</th><th>R$/km</th><th>Ação</th></tr>
                 </thead>
                 <tbody id="vehicleTableBody"></tbody>
-               </table>
+                </table>
           </div>
           <div id="statusBanco" class="status"></div>
         </div>
@@ -145,7 +144,8 @@
             <div class="field"><label>Volume máximo por consolidação (m³)</label><input type="number" id="cfgVolumeMax" value="20" step="0.01" /></div>
           </div>
           <div class="grid grid-4" style="margin-top: 16px;">
-            <div class="field"><label>Desvio máximo do corredor (km)</label><input type="number" id="cfgMaxDesvio" value="50" step="0.1" /></div>
+            <div class="field"><label>Desvio mesmo estado (km)</label><input type="number" id="cfgDesvioMesmoEstado" value="50" step="0.1" /></div>
+            <div class="field"><label>Desvio entre estados (km)</label><input type="number" id="cfgDesvioInterestadual" value="150" step="0.1" /></div>
             <div class="field"><label>Cubagem mínima por veículo (m³)</label><input type="number" id="cfgMinVolume" value="0" step="0.01" /></div>
             <div class="field"><label>Tipo de rota</label>
               <select id="tipoRota">
@@ -176,8 +176,7 @@
             <div class="field" style="flex:1; min-width: 320px;"><label>Arquivo CSV</label><input type="file" id="ordersCsvFile" accept=".csv" /></div>
             <div class="field"><label>&nbsp;</label><button class="btn btn-blue" onclick="baixarModeloPedidos()">Baixar modelo CSV</button></div>
           </div>
-          <p class="small" style="margin-top: 10px;">Colunas aceitas: OS, COD. DEPOSITANTE, DEPOSITANTE, CNPJ, DESTINATARIO, CEP, LOGRADOURO, NUMERO, BAIRRO, CIDADE, UF, LAT, LNG, JOB, CODIGO PRODUTO, PRODUTO, PESO BRUTO, LARGURA, ALTURA, PROFUNDIDADE, METROCUBICO, DATAPREVISAO, MODALIDADE, OBS.<br>
-          <strong>Carro Exclusivo:</strong> será identificado automaticamente se a coluna MODALIDADE contiver "exclusivo" (ex.: "Carro Exclusivo") – apenas para informação, não influencia a roteirização.</p>
+          <p class="small" style="margin-top: 10px;">Colunas aceitas: OS, COD. DEPOSITANTE, DEPOSITANTE, CNPJ, DESTINATARIO, CEP, LOGRADOURO, NUMERO, BAIRRO, CIDADE, UF, LAT, LNG, JOB, CODIGO PRODUTO, PRODUTO, PESO BRUTO, LARGURA, ALTURA, PROFUNDIDADE, METROCUBICO, DATAPREVISAO, MODALIDADE, OBS.</p>
         </div>
         <div class="card">
           <h2>Pedidos agrupados por OS</h2>
@@ -268,7 +267,7 @@
     let ultimoResultado = null;
     let mapMarkers = [];
 
-    // ==================== FUNÇÕES DE PERSISTÊNCIA LOCAL ====================
+    // ==================== PERSISTÊNCIA LOCAL ====================
     function carregarDoStorageLocal() {
       try {
         const savedConfig = JSON.parse(localStorage.getItem(STORAGE_KEYS.parametros) || "null");
@@ -277,7 +276,8 @@
           document.getElementById("cfgRaioKm").value = savedConfig.raio_consolidacao ?? 80;
           document.getElementById("cfgPesoMax").value = savedConfig.peso_max_consolidacao ?? 5000;
           document.getElementById("cfgVolumeMax").value = savedConfig.volume_max_consolidacao ?? 20;
-          document.getElementById("cfgMaxDesvio").value = savedConfig.max_desvio ?? 50;
+          document.getElementById("cfgDesvioMesmoEstado").value = savedConfig.desvio_mesmo_estado ?? 50;
+          document.getElementById("cfgDesvioInterestadual").value = savedConfig.desvio_interestadual ?? 150;
           document.getElementById("cfgMinVolume").value = savedConfig.min_volume ?? 0;
           document.getElementById("regraLeve").checked = savedConfig.regra_leve !== false;
           document.getElementById("regraPaletizado").checked = savedConfig.regra_paletizado !== false;
@@ -289,11 +289,8 @@
         const savedVehicles = JSON.parse(localStorage.getItem(STORAGE_KEYS.veiculos) || "[]");
         if (Array.isArray(savedVehicles) && savedVehicles.length > 0) {
           vehicles = savedVehicles;
-          console.log("Veículos carregados do localStorage:", vehicles);
           renderVehicles();
           atualizarMetricas();
-        } else {
-          console.log("Nenhum veículo encontrado no localStorage.");
         }
       } catch (error) {
         console.error("Erro ao carregar dados locais:", error);
@@ -307,7 +304,8 @@
         raio_consolidacao: Number(document.getElementById("cfgRaioKm").value || 0),
         peso_max_consolidacao: Number(document.getElementById("cfgPesoMax").value || 0),
         volume_max_consolidacao: Number(document.getElementById("cfgVolumeMax").value || 0),
-        max_desvio: Number(document.getElementById("cfgMaxDesvio").value || 0),
+        desvio_mesmo_estado: Number(document.getElementById("cfgDesvioMesmoEstado").value || 0),
+        desvio_interestadual: Number(document.getElementById("cfgDesvioInterestadual").value || 0),
         min_volume: Number(document.getElementById("cfgMinVolume").value || 0),
         regra_leve: document.getElementById("regraLeve").checked,
         regra_paletizado: document.getElementById("regraPaletizado").checked,
@@ -447,7 +445,6 @@
 
     // ==================== VEÍCULOS ====================
     function addVehicle() {
-      console.log("addVehicle chamada");
       const nome = document.getElementById("v_nome").value.trim();
       const volume = parseFloat(document.getElementById("v_volume").value || 0);
       const peso = parseFloat(document.getElementById("v_peso").value || 0);
@@ -481,7 +478,6 @@
       salvarNoStorageLocal();
       renderVehicles();
       atualizarMetricas();
-      console.log("Veículo adicionado:", vehicles);
     }
 
     function removeVehicle(id) {
@@ -494,21 +490,21 @@
     function renderVehicles() {
       const tbody = document.getElementById("vehicleTableBody");
       if (!vehicles.length) {
-        tbody.innerHTML = `<tr><td colspan="9" class="small">Nenhum veículo cadastrado.</td></tr>`;
+        tbody.innerHTML = `发展<td colspan="9" class="small">Nenhum veículo cadastrado.</td>发展的`;
         return;
       }
       tbody.innerHTML = vehicles.map(v => `
-          <tr>
-            <td>${v.nome}</td>
-            <td>${formatNumber(v.volumeMax)}</td>
-            <td>${formatNumber(v.pesoMax)}</td>
-            <td>${v.notasMax}</td>
-            <td>${formatNumber(v.alturaMax)}</td>
-            <td>${formatNumber(v.larguraMax)}</td>
-            <td>${formatNumber(v.profundidadeMax)}</td>
-            <td>${formatCurrency(v.custoKm)}</td>
-            <td><button class="btn btn-red" onclick="removeVehicle('${v.id}')">Excluir</button></td>
-          </tr>
+            <tr>
+              <td>${v.nome}</td>
+              <td>${formatNumber(v.volumeMax)}</td>
+              <td>${formatNumber(v.pesoMax)}</td>
+              <td>${v.notasMax}</td>
+              <td>${formatNumber(v.alturaMax)}</td>
+              <td>${formatNumber(v.larguraMax)}</td>
+              <td>${formatNumber(v.profundidadeMax)}</td>
+              <td>${formatCurrency(v.custoKm)}</td>
+              <td><button class="btn btn-red" onclick="removeVehicle('${v.id}')">Excluir</button></td>
+            </tr>
       `).join("");
     }
 
@@ -516,10 +512,9 @@
     async function salvarParametrosNoBanco() {
       salvarNoStorageLocal();
       if (!supabaseClient) {
-        setStatusBanco("Parâmetros salvos localmente com sucesso. Para salvar no banco, configure APP_CONFIG.SUPABASE_URL e SUPABASE_ANON_KEY.", "ok");
+        setStatusBanco("Parâmetros salvos localmente. Para salvar no banco, configure SUPABASE_URL e SUPABASE_ANON_KEY.", "ok");
         return;
       }
-
       try {
         setStatusBanco("Salvando parâmetros no Supabase...", "warn");
         const configPayload = {
@@ -528,7 +523,8 @@
           raio_consolidacao: Number(document.getElementById("cfgRaioKm").value || 0),
           peso_max_consolidacao: Number(document.getElementById("cfgPesoMax").value || 0),
           volume_max_consolidacao: Number(document.getElementById("cfgVolumeMax").value || 0),
-          max_desvio: Number(document.getElementById("cfgMaxDesvio").value || 0),
+          desvio_mesmo_estado: Number(document.getElementById("cfgDesvioMesmoEstado").value || 0),
+          desvio_interestadual: Number(document.getElementById("cfgDesvioInterestadual").value || 0),
           min_volume: Number(document.getElementById("cfgMinVolume").value || 0),
           regra_leve: document.getElementById("regraLeve").checked,
           regra_paletizado: document.getElementById("regraPaletizado").checked,
@@ -581,7 +577,8 @@
           document.getElementById("cfgRaioKm").value = config.raio_consolidacao ?? 80;
           document.getElementById("cfgPesoMax").value = config.peso_max_consolidacao ?? 5000;
           document.getElementById("cfgVolumeMax").value = config.volume_max_consolidacao ?? 20;
-          document.getElementById("cfgMaxDesvio").value = config.max_desvio ?? 50;
+          document.getElementById("cfgDesvioMesmoEstado").value = config.desvio_mesmo_estado ?? 50;
+          document.getElementById("cfgDesvioInterestadual").value = config.desvio_interestadual ?? 150;
           document.getElementById("cfgMinVolume").value = config.min_volume ?? 0;
           document.getElementById("regraLeve").checked = !!config.regra_leve;
           document.getElementById("regraPaletizado").checked = !!config.regra_paletizado;
@@ -670,14 +667,12 @@
         const largura = parseFloat((valorColuna(row, ["LARGURA"]) || "0").toString().replace(",", ".")) || 0;
         const altura = parseFloat((valorColuna(row, ["ALTURA"]) || "0").toString().replace(",", ".")) || 0;
         const profundidade = parseFloat((valorColuna(row, ["PROFUNDIDADE"]) || "0").toString().replace(",", ".")) || 0;
-        const metroCubico = parseFloat((valorColuna(row, ["METROCUBICO"]) || "0").toString().replace(",", ".")) || 0;
+        const metroCubico = parseFloat((valorColuna(row, ["METROCUBICO"]) || "0").toString().replace(/\./g, "").replace(",", ".")) || 0;
         const dataPrevisao = valorColuna(row, ["DATAPREVISAO"]);
         const modalidade = valorColuna(row, ["MODALIDADE"]) || "Rodoviario";
         const obs = valorColuna(row, ["OBS"]) || "";
         const leituraObs = analisarObs(obs);
-
-        const exclusivo = modalidade.toLowerCase().includes("exclusivo") ||
-                           (valorColuna(row, ["CARRO_EXCLUSIVO", "CARRO EXCLUSIVO", "EXCLUSIVO"]).toString().trim().toUpperCase() === "SIM");
+        const exclusivo = modalidade.toLowerCase().includes("exclusivo");
 
         const item = { codigoProduto, produto, peso_kg: pesoBruto, largura, altura, profundidade, volume_m3: metroCubico, obs };
         if (!mapa.has(os)) {
@@ -841,9 +836,8 @@
       return [...pedidos].sort((a, b) => projetar(a) - projetar(b));
     }
 
-    // ==================== NOVA SELEÇÃO DE VEÍCULO POR CUBAGEM E DIMENSÕES ====================
+    // ==================== SELEÇÃO DE VEÍCULO POR CUBAGEM ====================
     function selecionarVeiculoPorRota(rota, frotaOrdenada) {
-      // Define a curva de tipos e limites de volume
       const limites = [
         { max: 3, tipo: "fiorino", nome: "Fiorino" },
         { max: 7, tipo: "vam", nome: "Vam" },
@@ -854,7 +848,6 @@
       ];
 
       const volumeTotal = rota.volumeTotal;
-      // Encontra o tipo ideal
       let tipoIdeal = null;
       for (let lim of limites) {
         if (volumeTotal <= lim.max) {
@@ -862,14 +855,12 @@
           break;
         }
       }
-      if (!tipoIdeal) tipoIdeal = "carreta"; // acima de 90
+      if (!tipoIdeal) tipoIdeal = "carreta";
 
-      // Lista de tipos em ordem crescente (do ideal para cima)
       const tiposOrdenados = limites.map(l => l.tipo);
       const startIdx = tiposOrdenados.indexOf(tipoIdeal);
       const tiposExpansao = tiposOrdenados.slice(startIdx);
 
-      // Função que testa se o veículo atende a rota
       const atende = (v) => {
         return (
           rota.pesoTotal <= v.pesoMax &&
@@ -881,10 +872,8 @@
         );
       };
 
-      // Para cada tipo na ordem de expansão, procura veículos que atendam
       for (let tipo of tiposExpansao) {
         const candidatos = frotaOrdenada.filter(v => v.nome.toLowerCase().includes(tipo));
-        // Ordena por volume (menor primeiro) para escolher o mais econômico
         candidatos.sort((a, b) => a.volumeMax - b.volumeMax);
         for (let v of candidatos) {
           if (atende(v)) {
@@ -892,7 +881,7 @@
           }
         }
       }
-      return null; // nenhum veículo encontrado
+      return null;
     }
 
     // ==================== REGRAS E CONSOLIDAÇÃO ====================
@@ -1035,7 +1024,8 @@
       const frotaOrdenada = [...frota].sort((a, b) => a.volumeMax - b.volumeMax);
       const pesoMaxConfig = Number(document.getElementById("cfgPesoMax")?.value || 5000);
       const volumeMaxConfig = Number(document.getElementById("cfgVolumeMax")?.value || 20);
-      const maxDesvio = Number(document.getElementById("cfgMaxDesvio")?.value || 50);
+      const desvioMesmoEstado = Number(document.getElementById("cfgDesvioMesmoEstado")?.value || 50);
+      const desvioInterestadual = Number(document.getElementById("cfgDesvioInterestadual")?.value || 150);
       const minVolume = Number(document.getElementById("cfgMinVolume")?.value || 0);
       const origemTexto = document.getElementById("depot")?.value?.trim() || "Guarulhos/SP";
 
@@ -1063,16 +1053,23 @@
         const fecharLote = async () => {
           if (!lote.length) return;
 
+          // Determina ponto de referência (mais a leste)
           const pontoRef = lote.reduce((max, p) => {
             if (p.lng > max.lng || (p.lng === max.lng && p.lat < max.lat)) return p;
             return max;
           }, lote[0]);
 
+          // Verifica se todos os pedidos do lote são do mesmo estado
+          const estadosNoLote = [...new Set(lote.map(p => p.uf))];
+          const mesmoEstado = estadosNoLote.length === 1;
+          const desvioPermitido = mesmoEstado ? desvioMesmoEstado : desvioInterestadual;
+
+          // Filtra pedidos dentro do corredor (desvio <= desvioPermitido)
           const pedidosFiltrados = [];
           const foraCorredor = [];
           for (const p of lote) {
             const dist = distanciaPontoReta(p, origemBase, pontoRef);
-            if (dist <= maxDesvio) {
+            if (dist <= desvioPermitido) {
               pedidosFiltrados.push(p);
             } else {
               foraCorredor.push(p);
@@ -1080,7 +1077,7 @@
           }
 
           if (pedidosFiltrados.length === 0) {
-            foraCorredor.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: `Fora do corredor principal (desvio > ${maxDesvio} km)` }));
+            foraCorredor.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: `Fora do corredor principal (desvio > ${desvioPermitido} km)` }));
             lote = [];
             pesoAtual = 0;
             volumeAtual = 0;
@@ -1091,7 +1088,7 @@
             return;
           }
 
-          foraCorredor.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: `Fora do corredor principal (desvio > ${maxDesvio} km)` }));
+          foraCorredor.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: `Fora do corredor principal (desvio > ${desvioPermitido} km)` }));
 
           const pesoFiltrado = pedidosFiltrados.reduce((s, p) => s + Number(p.pesoTotal || 0), 0);
           const volumeFiltrado = pedidosFiltrados.reduce((s, p) => s + Number(p.volumeTotal || 0), 0);
@@ -1100,7 +1097,6 @@
           const larguraFiltrado = Math.max(...pedidosFiltrados.map(p => Number(p.maiorLargura || 0)), 0);
           const profundidadeFiltrado = Math.max(...pedidosFiltrados.map(p => Number(p.maiorProfundidade || 0)), 0);
 
-          // Cria objeto temporário da rota para seleção de veículo
           const rotaTemp = {
             pesoTotal: pesoFiltrado,
             volumeTotal: volumeFiltrado,
@@ -1469,38 +1465,40 @@
         <div style="height:16px;"></div>
         <h3>Resumo de Rotas</h3>
         <div class="table-wrap">
-          <table>
-            <thead><tr><th>Rota</th><th>Data</th><th>Descrição</th><th>Cubagem Total</th><th>Peso Total</th><th>Veículo</th><th>Fator decisório</th><th>Km estimado</th><th>Custo estimado</th><th>Aviso</th></tr></thead>
+          表 table
+            <thead>?
+              <th>Rota</th><th>Data</th><th>Descrição</th><th>Cubagem Total</th><th>Peso Total</th><th>Veículo</th><th>Fator decisório</th><th>Km estimado</th><th>Custo estimado</th><th>Aviso</th>
+            </thead>
             <tbody>${rotas.length ? rotas.map((r,i)=>`<tr><td>Rota ${String(i+1).padStart(2,"0")}</td><td>${r.dataEntrega || "-"}</td><td>${gerarDescricaoRota(r, origem)}</td><td>${formatNumber(r.volumeTotal)} m³</td><td>${formatNumber(r.pesoTotal)} kg</td><td><strong>${r.veiculo.nome}</strong></td><td>${r.fatorDecisorio}</td><td>${formatNumber(r.distanciaKm)} km</td><td>${formatCurrency(r.custoEstimado)}</td><td>${r.avisoMinVolume ? `<span class="pill pill-red">${r.avisoMinVolume}</span>` : "-"}</td></tr>`).join("") : `<tr><td colspan="10" class="small">Nenhuma rota gerada.</td></tr>`}</tbody>
-          </table>
+          乘
         </div>
         <h3 style="margin-top:20px;">Pedidos não alocados</h3>
         <div class="table-wrap">
-          <table>
+          表
             <thead><tr><th>OS</th><th>Data</th><th>Cliente</th><th>Cidade</th><th>UF</th><th>Peso</th><th>Volume</th><th>Motivo</th></tr></thead>
             <tbody>${naoAlocados.length ? naoAlocados.map(p=>`<tr><td>${p.os}</td><td>${p.dataEntrega || p.dataPrevisao || "-"}</td><td>${p.destinatario||"-"}</td><td>${p.cidade||"-"}</td><td>${p.uf||"-"}</td><td>${formatNumber(p.pesoTotal)}</td><td>${formatNumber(p.volumeTotal)}</td><td>${p.motivoNaoAlocado||"-"}</td></tr>`).join("") : `<tr><td colspan="8" class="small">Todos os pedidos foram alocados.</td></tr>`}</tbody>
-          </table>
+          乘
         </div>
         <h3 style="margin-top:20px;">Pedidos aprovados</h3>
         <div class="table-wrap">
-          <table>
+          表
             <thead><tr><th>OS</th><th>Destinatário</th><th>Peso</th><th>Volume</th><th>Regra aplicada</th></tr></thead>
             <tbody>${aprovados.length ? aprovados.map(p=>`<tr><td>${p.os}</td><td>${p.destinatario}</td><td>${formatNumber(p.pesoTotal)}</td><td>${formatNumber(p.volumeTotal)}</td><td>${p.regra_aplicada||"-"}</td></tr>`).join("") : `<tr><td colspan="5" class="small">Nenhum pedido aprovado diretamente.</td></tr>`}</tbody>
-          </table>
+          乘
         </div>
         <h3 style="margin-top:20px;">Sugestões de consolidação</h3>
         <div class="table-wrap">
-          <table>
+          表
             <thead><tr><th>OS</th><th>Destinatário</th><th>Motivo</th><th>Horário</th><th>Peso</th><th>Volume</th><th>Rota sugerida</th></tr></thead>
             <tbody>${sugestoesConsolidacao.length ? sugestoesConsolidacao.map(p=>`<tr><td>${p.os}</td><td>${p.destinatario}</td><td>${p.motivo||"-"}</td><td>${p.horario||"-"}</td><td>${formatNumber(p.pesoTotal)}</td><td>${formatNumber(p.volumeTotal)}</td><td>${p.rotaSugerida || "Nenhuma rota compatível"}</td></tr>`).join("") : `<tr><td colspan="7" class="small">Nenhuma sugestão de consolidação.</td></tr>`}</tbody>
-          </table>
+          乘
         </div>
         <h3 style="margin-top:20px;">Consolidações automáticas</h3>
         <div class="table-wrap">
-          <table>
+          表
             <thead><tr><th>Grupo</th><th>Qtd. pedidos</th><th>Endereço base</th><th>Peso total</th><th>Volume total</th></tr></thead>
             <tbody>${gruposConsolidados.length ? gruposConsolidados.map((g,i)=>`<tr><td>Consolidação ${i+1}</td><td>${g.pedidos.length}</td><td>${g.enderecoReferencia}</td><td>${formatNumber(g.pesoTotal)}</td><td>${formatNumber(g.volumeTotal)}</td></tr>`).join("") : `<tr><td colspan="5" class="small">Nenhuma consolidação gerada.</td></tr>`}</tbody>
-          </table>
+          乘
         </div>
       `;
     }
@@ -1539,8 +1537,6 @@
       carregarDoStorageLocal();
       if (supabaseClient) {
         await carregarParametrosDoBanco(true);
-      } else {
-        console.log("Supabase não configurado. Usando dados do navegador.");
       }
       renderVehicles();
       renderPedidos();
