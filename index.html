@@ -231,10 +231,10 @@
     // Preencha as chaves abaixo conforme necessário
     const APP_CONFIG = {
       // Chave do Google Maps (obrigatória para o mapa e geocodificação)
-      GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds", // <-- coloque sua chave aqui
+      GOOGLE_API_KEY: "COLOQUE_SUA_NOVA_CHAVE_AQUI", // restrinja por domínio no Google Cloud
       // Configuração do Supabase (opcional)
-      SUPABASE_URL: "",        // ex: "https://xyz.supabase.co"
-      SUPABASE_ANON_KEY: "",   // ex: "eyJhbGciOiJIUzI1NiIs..."
+      SUPABASE_URL: "https://SEU-PROJETO.supabase.co",
+      SUPABASE_ANON_KEY: "SUA_SUPABASE_ANON_KEY",
       CONFIG_NAME: "DEFAULT"
     };
 
@@ -335,15 +335,21 @@
     }
 
     function loadGoogleMaps() {
-      if (!APP_CONFIG.GOOGLE_API_KEY) {
-        initMap(); // apenas exibe a mensagem de erro
+      if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY.includes("COLOQUE_SUA_NOVA_CHAVE_AQUI")) {
+        initMap();
         return;
       }
+      if (window.google && window.google.maps) {
+        initMap();
+        return;
+      }
+      if (document.querySelector('script[data-google-maps="1"]')) return;
       window.initMap = initMap;
       const script = document.createElement("script");
       script.src = `https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places&callback=initMap`;
       script.async = true;
       script.defer = true;
+      script.dataset.googleMaps = "1";
       script.onerror = () => initMap();
       document.head.appendChild(script);
     }
@@ -789,7 +795,37 @@
       const y = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
       return R * y;
     }
+function ordenarRotaInteligente(pedidos, origem) {
+  const rota = [];
+  let atual = origem;
+  const pendentes = [...pedidos];
 
+  while (pendentes.length) {
+    let maisProximo = null;
+    let menorDistancia = Infinity;
+    let index = 0;
+
+    pendentes.forEach((p, i) => {
+      if (!p.lat || !p.lng) return;
+
+      const dist = haversineKm(atual, { lat: p.lat, lng: p.lng });
+
+      if (dist < menorDistancia) {
+        menorDistancia = dist;
+        maisProximo = p;
+        index = i;
+      }
+    });
+
+    if (!maisProximo) break;
+
+    rota.push(maisProximo);
+    atual = { lat: maisProximo.lat, lng: maisProximo.lng };
+    pendentes.splice(index, 1);
+  }
+
+  return rota;
+}
     // ==================== REGRAS E CONSOLIDAÇÃO ====================
     function aplicarRegras(pedidosBase) {
       const aprovados = [], sugestoesConsolidacao = [];
@@ -894,76 +930,115 @@
       return uf;
     }
 
-    function montarRotasPorCorredor(pedidosBase, frota) {
-      const gruposMap = {}, naoAlocados = [];
+    async function montarRotasPorCorredor(pedidosBase, frota) {
+      const gruposMap = {};
+      const naoAlocados = [];
+
       pedidosBase.forEach(p => {
         const chave = corredorUF(p.uf || "");
         if (!gruposMap[chave]) gruposMap[chave] = [];
         gruposMap[chave].push(p);
       });
+
       const rotas = [];
-      const frotaOrdenada = [...frota].sort((a,b) => a.volumeMax - b.volumeMax);
-      Object.keys(gruposMap).forEach(chave => {
-        const lista = [...gruposMap[chave]].sort((a,b) => (b.volumeTotal + b.pesoTotal/1000) - (a.volumeTotal + a.pesoTotal/1000));
-        let lote = [], pesoAtual=0, volumeAtual=0, notasAtual=0, maiorAltura=0, maiorLargura=0, maiorProfundidade=0;
-        const fecharLote = () => {
+      const frotaOrdenada = [...frota].sort((a, b) => a.volumeMax - b.volumeMax);
+      const pesoMaxConfig = Number(document.getElementById("cfgPesoMax")?.value || 5000);
+      const volumeMaxConfig = Number(document.getElementById("cfgVolumeMax")?.value || 20);
+      const origemTexto = document.getElementById("depot")?.value?.trim() || "Guarulhos/SP";
+
+      let origemBase;
+      try {
+        origemBase = await geocodeAddress(origemTexto);
+      } catch (e) {
+        console.error("Erro geocode origem:", e);
+        origemBase = { lat: -23.5505, lng: -46.6333 };
+      }
+
+      for (const chave of Object.keys(gruposMap)) {
+        const lista = [...gruposMap[chave]].sort((a, b) =>
+          (b.volumeTotal + b.pesoTotal / 1000) - (a.volumeTotal + a.pesoTotal / 1000)
+        );
+
+        let lote = [];
+        let pesoAtual = 0;
+        let volumeAtual = 0;
+        let notasAtual = 0;
+        let maiorAltura = 0;
+        let maiorLargura = 0;
+        let maiorProfundidade = 0;
+
+        const fecharLote = async () => {
           if (!lote.length) return;
+
           let melhorVeiculo = null;
           for (const v of frotaOrdenada) {
-            if (pesoAtual <= v.pesoMax && volumeAtual <= v.volumeMax && notasAtual <= v.notasMax &&
-                maiorAltura <= v.alturaMax && maiorLargura <= v.larguraMax && maiorProfundidade <= v.profundidadeMax) {
-              melhorVeiculo = v; break;
+            if (
+              pesoAtual <= v.pesoMax &&
+              volumeAtual <= v.volumeMax &&
+              notasAtual <= v.notasMax &&
+              maiorAltura <= v.alturaMax &&
+              maiorLargura <= v.larguraMax &&
+              maiorProfundidade <= v.profundidadeMax
+            ) {
+              melhorVeiculo = v;
+              break;
             }
           }
+
           if (!melhorVeiculo) {
             lote.forEach(p => naoAlocados.push({ ...p, motivoNaoAlocado: "Sem veículo compatível" }));
           } else {
             const rota = {
               id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
-              corredor: chave, cidade: lote[0].cidade, uf: lote[0].uf,
-              const pedidosOrdenados = [...lote].sort((a, b) => {
-  const da = haversineKm(origem, { lat: a.lat, lng: a.lng });
-  const db = haversineKm(origem, { lat: b.lat, lng: b.lng });
-  return da - db;
-});
-
-pedidos: ordenarRotaInteligente(pedidosOrdenados, origem),
-              numNotas: notasAtual, maiorAltura, maiorLargura, maiorProfundidade,
-              veiculo: melhorVeiculo, fatorDecisorio: null, distanciaKm: 0, custoEstimado: 0
+              corredor: chave,
+              cidade: lote[0].cidade,
+              uf: lote[0].uf,
+              pedidos: ordenarRotaInteligente(lote, origemBase),
+              pesoTotal: pesoAtual,
+              volumeTotal: volumeAtual,
+              numNotas: notasAtual,
+              maiorAltura,
+              maiorLargura,
+              maiorProfundidade,
+              veiculo: melhorVeiculo,
+              fatorDecisorio: null,
+              distanciaKm: 0,
+              custoEstimado: 0
             };
+
             rota.fatorDecisorio = fatorDecisorioRota(rota, melhorVeiculo);
             rotas.push(rota);
           }
-          lote = []; pesoAtual=0; volumeAtual=0; notasAtual=0; maiorAltura=0; maiorLargura=0; maiorProfundidade=0;
+
+          lote = [];
+          pesoAtual = 0;
+          volumeAtual = 0;
+          notasAtual = 0;
+          maiorAltura = 0;
+          maiorLargura = 0;
+          maiorProfundidade = 0;
         };
-        lista.forEach(p => {
-          const tentativaPeso = pesoAtual + Number(p.pesoTotal||0);
-          const tentativaVolume = volumeAtual + Number(p.volumeTotal||0);
-          const tentativaNotas = notasAtual + Number(p.numNotas||1);
-          const tentativaAltura = Math.max(maiorAltura, Number(p.maiorAltura||0));
-          const tentativaLargura = Math.max(maiorLargura, Number(p.maiorLargura||0));
-          const tentativaProf = Math.max(maiorProfundidade, Number(p.maiorProfundidade||0));
-          const cabeEmAlgum = frotaOrdenada.some(v =>
-            tentativaPeso <= v.pesoMax && tentativaVolume <= v.volumeMax && tentativaNotas <= v.notasMax &&
-            tentativaAltura <= v.alturaMax && tentativaLargura <= v.larguraMax && tentativaProf <= v.profundidadeMax);
-          if (!cabeEmAlgum && lote.length) fecharLote();
-          const cabeAgora = frotaOrdenada.some(v =>
-            (pesoAtual + Number(p.pesoTotal||0)) <= v.pesoMax && (volumeAtual + Number(p.volumeTotal||0)) <= v.volumeMax &&
-            (notasAtual + Number(p.numNotas||1)) <= v.notasMax &&
-            Math.max(maiorAltura, Number(p.maiorAltura||0)) <= v.alturaMax &&
-            Math.max(maiorLargura, Number(p.maiorLargura||0)) <= v.larguraMax &&
-            Math.max(maiorProfundidade, Number(p.maiorProfundidade||0)) <= v.profundidadeMax);
-          if (!cabeAgora && lote.length) fecharLote();
+
+        for (const p of lista) {
+          const novoPeso = pesoAtual + Number(p.pesoTotal || 0);
+          const novoVolume = volumeAtual + Number(p.volumeTotal || 0);
+
+          if (lote.length && (novoPeso > pesoMaxConfig || novoVolume > volumeMaxConfig)) {
+            await fecharLote();
+          }
+
           lote.push(p);
-          pesoAtual += Number(p.pesoTotal||0);
-          volumeAtual += Number(p.volumeTotal||0);
-          notasAtual += Number(p.numNotas||1);
-          maiorAltura = Math.max(maiorAltura, Number(p.maiorAltura||0));
-          maiorLargura = Math.max(maiorLargura, Number(p.maiorLargura||0));
-          maiorProfundidade = Math.max(maiorProfundidade, Number(p.maiorProfundidade||0));
-        });
-        fecharLote();
-      });
+          pesoAtual += Number(p.pesoTotal || 0);
+          volumeAtual += Number(p.volumeTotal || 0);
+          notasAtual += Number(p.numNotas || 1);
+          maiorAltura = Math.max(maiorAltura, Number(p.maiorAltura || 0));
+          maiorLargura = Math.max(maiorLargura, Number(p.maiorLargura || 0));
+          maiorProfundidade = Math.max(maiorProfundidade, Number(p.maiorProfundidade || 0));
+        }
+
+        await fecharLote();
+      }
+
       return { rotas, naoAlocados };
     }
 
@@ -1074,7 +1149,7 @@ pedidos: ordenarRotaInteligente(pedidosOrdenados, origem),
           };
         });
         const baseParaRota = [...aprovados, ...pedidosConsolidadosComoRota];
-        const { rotas, naoAlocados } = montarRotasPorCorredor(baseParaRota, vehicles);
+        const { rotas, naoAlocados } = await montarRotasPorCorredor(baseParaRota, vehicles);
         setStatus("Desenhando rotas no mapa...", "warn");
         ultimoResultado = { aprovados, sugestoesConsolidacao, gruposConsolidados, pedidosParaRota: baseParaRota, rotas, naoAlocados };
         await desenharRotas(ultimoResultado.rotas, origem);
@@ -1266,19 +1341,18 @@ pedidos: ordenarRotaInteligente(pedidosOrdenados, origem),
     }
 
     // ==================== INICIALIZAÇÃO ====================
-    function initApp() {
+    async function initApp() {
       carregarDoStorageLocal();
+      renderVehicles();
+      renderPedidos();
+      atualizarMetricas();
       loadGoogleMaps();
       if (supabaseClient) {
-        carregarParametrosDoBanco(true);
+        await carregarParametrosDoBanco(true);
       }
     }
 
-    // Chamada inicial
     document.addEventListener("DOMContentLoaded", initApp);
-    renderVehicles();
-    renderPedidos();
-    atualizarMetricas();
   </script>
 </body>
 </html>
