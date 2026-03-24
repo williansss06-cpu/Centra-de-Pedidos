@@ -1215,10 +1215,15 @@
 
       routeEditorList.innerHTML = ultimoResultado.rotas.length ? ultimoResultado.rotas.map((r, i) => `
         <div class="route-box">
-          <div class="route-title">
-            Rota ${i + 1} - ${r.veiculo?.nome || "Sem veículo"}
-            <span class="corridor-badge">${r.nomeCorredor}</span>
-          </div>
+          div class="route-title">
+  Rota ${i + 1} - ${r.veiculo?.nome || "Sem veículo"}
+  <span class="corridor-badge">${r.nomeCorredor}</span>
+</div>
+
+<div style="margin:8px 0;">
+  <button class="btn btn-blue" onclick="verDetalheRota(${i})">Detalhe</button>
+  <button class="btn btn-green" onclick="abrirNoMapa(${i})">Abrir no mapa</button>
+</div>
           <div class="small">Rodovia: ${r.rodovia} | Data: ${r.dataEntrega || "-"}</div>
           <div class="small">Peso: ${formatNumber(r.pesoTotal)} kg | Volume: ${formatNumber(r.volumeTotal)} m³ | Km: ${formatNumber(r.distanciaKm)}</div>
           <div class="small">Custo: ${formatCurrency(r.custoEstimado)} | Notas: ${r.numNotas}</div>
@@ -1506,8 +1511,39 @@
         }
       });
     });
+<script>
 
-    document.addEventListener("DOMContentLoaded", initApp);
-  </script>
+document.addEventListener("DOMContentLoaded", initApp);
+
+function verDetalheRota(i) {
+  const rota = ultimoResultado.rotas[i];
+
+  let html = `
+    <h2>🚛 Detalhe da Rota</h2>
+    <p><b>Corredor:</b> ${rota.nomeCorredor}</p>
+    <p><b>Veículo:</b> ${rota.veiculo?.nome}</p>
+    <p><b>Peso:</b> ${rota.pesoTotal} kg</p>
+    <p><b>Volume:</b> ${rota.volumeTotal} m³</p>
+    <p><b>Custo:</b> R$ ${rota.custoEstimado.toFixed(2)}</p>
+    <hr>
+  `;
+
+  rota.pedidos.forEach(p => {
+    html += `
+      <div>
+        📦 ${p.os} - ${p.destinatario}<br>
+        📍 ${p.cidade}/${p.uf}<br>
+        ⚖ ${p.pesoTotal} kg | 📦 ${p.volumeTotal} m³
+        <hr>
+      </div>
+    `;
+  });
+
+  const win = window.open("", "_blank");
+  win.document.write(html);
+}
+
+</script>
+
 </body>
 </html>
