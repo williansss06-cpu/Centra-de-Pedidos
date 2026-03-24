@@ -1195,7 +1195,7 @@ async function geocodeAddress(addr) {
     script.onload = () => {
       if (mapEl && window.google && window.google.maps) {
         window.map = new google.maps.Map(mapEl, {
-          center: depotCoords,
+          center: depotCoords || { lat: -23.55, lng: -46.63 },
           zoom: 8,
         });
         window.geocoder = new google.maps.Geocoder();
