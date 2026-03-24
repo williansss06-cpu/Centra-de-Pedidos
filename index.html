@@ -1541,8 +1541,50 @@ function verDetalheRota(i) {
   const win = window.open("", "_blank");
   win.document.write(html);
 }
+function abrirNoMapa(i) {
+  if (!ultimoResultado || !ultimoResultado.rotas[i]) {
+    alert("Rota não encontrada");
+    return;
+  }
 
+  const rota = ultimoResultado.rotas[i];
+
+  const origem = document.getElementById("depot")?.value || "";
+
+  // 🔥 monta endereço inteligente (funciona com qualquer estrutura)
+  const enderecos = rota.pedidos.map(p => {
+
+    // prioridade 1: endereço completo já pronto
+    if (p.enderecoCompleto) return p.enderecoCompleto;
+
+    // prioridade 2: logradouro + número
+    if (p.logradouro && p.numero) {
+      return `${p.logradouro} ${p.numero}, ${p.cidade} ${p.uf}`;
+    }
+
+    // prioridade 3: cidade + UF (fallback)
+    if (p.cidade && p.uf) {
+      return `${p.cidade} ${p.uf}`;
+    }
+
+    // fallback final
+    return "";
+  }).filter(e => e && e.trim() !== "");
+
+  if (!enderecos.length) {
+    alert("Nenhum endereço válido na rota");
+    return;
+  }
+
+  const destino = enderecos[enderecos.length - 1];
+  const waypoints = enderecos.slice(0, -1).join("|");
+
+  const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origem)}&destination=${encodeURIComponent(destino)}&waypoints=${encodeURIComponent(waypoints)}`;
+
+  console.log("🗺️ URL MAPA:", url); // debug
+
+  window.open(url, "_blank");
+}
 </script>
-
 </body>
 </html>
