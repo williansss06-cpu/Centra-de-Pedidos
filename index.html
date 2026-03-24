@@ -225,10 +225,6 @@
             </div>
           </div>
 
-          <div class="inline-alert">
-            Configure no objeto <code>APP_CONFIG</code> a <code>GOOGLE_API_KEY</code>, <code>SUPABASE_URL</code>, <code>SUPABASE_ANON_KEY</code> e, se necessário, o nome da tabela de veículos em <code>DB_CONFIG.vehiclesTable</code>.
-          </div>
-
           <div class="grid grid-5" style="margin-top: 14px;">
             <div class="field"><label>Veículo</label><input type="text" id="v_nome" placeholder="Ex.: Fiorino 01" /></div>
             <div class="field"><label>Total de M³</label><input type="number" id="v_volume" step="0.01" placeholder="Ex.: 12.5" /></div>
@@ -401,7 +397,7 @@
 
   <script>
     const APP_CONFIG = {
-      GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds",
+      GOOGLE_API_KEY: "AIzaSyA6YNz6vagSyIJumrKeY1Ptr_6rTpMMZ_A",
       SUPABASE_URL: "https://gdlgceoliupjinkgunxe.supabase.co",
       SUPABASE_ANON_KEY: "sb_publishable_CG8-Cflr7Wk0QyMJJyKwdw_GmYQ3FFn",
       CONFIG_NAME: "DEFAULT"
@@ -410,7 +406,9 @@
     const DB_CONFIG = {
       vehiclesTable: "veiculos",
       vehicleIdColumn: "id",
-      enabled: true
+      enabled: true,
+      candidateVehicleTables: ["veiculos", "veiculo", "vehicles", "cadastro_veiculos", "tb_veiculos"],
+      candidateSortColumns: ["nome", "tipo", "veiculo", "descricao"]
     };
 
     const STORAGE_KEYS = {
@@ -420,6 +418,7 @@
     };
 
     const supabaseClient = createSupabaseClient();
+    let vehiclesTableResolved = DB_CONFIG.vehiclesTable;
     let vehicles = [];
     let pedidos = [];
     let map = null;
@@ -1010,7 +1009,7 @@
       const el = document.getElementById("map");
       try {
         if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY.includes("SUA_")) {
-          el.innerHTML = '<div style="padding:24px;">Mapa indisponível: configure a chave do Google Maps em APP_CONFIG.GOOGLE_API_KEY.</div>';
+          el.innerHTML = '<div style="padding:24px;">Mapa indisponível no momento. A roteirização continua funcionando sem a visualização do mapa.</div>';
           return;
         }
         geocoder = new google.maps.Geocoder();
@@ -1357,13 +1356,42 @@
       URL.revokeObjectURL(a.href);
     }
 
+
+    async function detectarTabelaVeiculos() {
+      if (!supabaseClient) return null;
+      const tabelas = [DB_CONFIG.vehiclesTable, ...(DB_CONFIG.candidateVehicleTables || [])]
+        .filter(Boolean)
+        .filter((t, i, arr) => arr.indexOf(t) === i);
+
+      for (const tabela of tabelas) {
+        try {
+          const { data, error } = await supabaseClient.from(tabela).select("*").limit(1);
+          if (!error) {
+            vehiclesTableResolved = tabela;
+            return tabela;
+          }
+        } catch (e) {
+          // continua tentando
+        }
+      }
+      return null;
+    }
+
+    function ordenarVeiculosLocalmente(lista) {
+      return [...(lista || [])].sort((a, b) => {
+        const nomeA = normalizarTexto(a.nome || a.tipo || a.veiculo || a.descricao).toLowerCase();
+        const nomeB = normalizarTexto(b.nome || b.tipo || b.veiculo || b.descricao).toLowerCase();
+        return nomeA.localeCompare(nomeB, "pt-BR");
+      });
+    }
+
     function normalizeVehicleRecord(row) {
       return {
         id: row.id || row.vehicle_id || row.uuid || row.codigo || row.nome,
         nome: row.nome || row.veiculo || row.tipo || row.descricao || "",
         volumeMax: parseFloat(row.volumeMax ?? row.volume_max ?? row.m3 ?? row.metrocubico ?? row.volume ?? 0),
         pesoMax: parseFloat(row.pesoMax ?? row.peso_max ?? row.peso ?? row.capacidade_peso ?? 0),
-        notasMax: parseInt(row.notasMax ?? row.notas_max ?? row.notas ?? row.qtd_notas ?? 0, 10),
+        notasMax: parseInt(row.notasMax ?? row.notas_max ?? row.notas ?? row.qtd_notas ?? row.tt_nota_atendida ?? 999, 10),
         alturaMax: parseFloat(row.alturaMax ?? row.altura_max ?? row.altura ?? 0),
         larguraMax: parseFloat(row.larguraMax ?? row.largura_max ?? row.largura ?? 0),
         profundidadeMax: parseFloat(row.profundidadeMax ?? row.profundidade_max ?? row.profundidade ?? row.comprimento ?? 0),
@@ -1374,25 +1402,40 @@
     async function carregarParametrosDoBanco() {
       try {
         if (!supabaseClient) {
-          setStatusBanco("Banco não configurado. Carregado do localStorage.", "warn");
+          setStatusBanco("Banco indisponível. Veículos carregados do navegador.", "warn");
           carregarDoStorageLocal();
           renderVehicles();
           atualizarMetricas();
           return;
         }
 
-        setStatusBanco("Carregando veículos do banco...", "info");
-        const { data, error } = await supabaseClient.from(DB_CONFIG.vehiclesTable).select("*").order("nome", { ascending: true });
+        setStatusBanco("Carregando veículos...", "info");
+        const tabela = await detectarTabelaVeiculos();
+        if (!tabela) {
+          carregarDoStorageLocal();
+          renderVehicles();
+          atualizarMetricas();
+          setStatusBanco("Tabela de veículos não encontrada no banco. Exibindo dados locais.", "warn");
+          return;
+        }
+
+        const { data, error } = await supabaseClient.from(tabela).select("*");
         if (error) throw error;
 
-        vehicles = (data || []).map(normalizeVehicleRecord).filter(v => v.nome && v.volumeMax > 0 && v.pesoMax > 0);
+        vehicles = ordenarVeiculosLocalmente(data || [])
+          .map(normalizeVehicleRecord)
+          .filter(v => v.nome && v.volumeMax > 0 && v.pesoMax > 0);
+
         salvarNoStorageLocal();
         renderVehicles();
         atualizarMetricas();
-        setStatusBanco(`${vehicles.length} veículo(s) carregado(s) do banco.`, "ok");
+        setStatusBanco(`${vehicles.length} veículo(s) carregado(s) automaticamente do banco (${tabela}).`, "ok");
       } catch (error) {
         console.error(error);
-        setStatusBanco(`Erro ao carregar banco: ${error.message || error}`, "err");
+        carregarDoStorageLocal();
+        renderVehicles();
+        atualizarMetricas();
+        setStatusBanco("Falha ao carregar do banco. Exibindo veículos salvos no navegador.", "warn");
       }
     }
 
@@ -1408,7 +1451,8 @@
           return;
         }
 
-        setStatusBanco("Salvando veículos no banco...", "info");
+        const tabela = (await detectarTabelaVeiculos()) || DB_CONFIG.vehiclesTable;
+        setStatusBanco(`Salvando veículos no banco (${tabela})...`, "info");
         const payload = vehicles.map(v => ({
           id: v.id,
           nome: v.nome,
@@ -1422,10 +1466,11 @@
           config_name: APP_CONFIG.CONFIG_NAME
         }));
 
-        const { error } = await supabaseClient.from(DB_CONFIG.vehiclesTable).upsert(payload);
+        const { error } = await supabaseClient.from(tabela).upsert(payload);
         if (error) throw error;
         salvarNoStorageLocal();
-        setStatusBanco("Veículos salvos no banco com sucesso.", "ok");
+        vehiclesTableResolved = tabela;
+        setStatusBanco(`Veículos salvos no banco com sucesso (${tabela}).`, "ok");
       } catch (error) {
         console.error(error);
         setStatusBanco(`Erro ao salvar banco: ${error.message || error}`, "err");
