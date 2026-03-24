@@ -441,7 +441,7 @@
 
 <script>
   const APP_CONFIG = {
-    GOOGLE_API_KEY: "COLE_SUA_CHAVE_GOOGLE_MAPS_AQUI"
+    GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds"
   };
 
   let vehicles = [];
@@ -1363,47 +1363,119 @@
     localStorage.setItem("geo_cache", JSON.stringify(geocodeCache));
   }
   function loadGoogleMaps() {
-    // Placeholder seguro. O arquivo fica pronto para uso mesmo sem Google Maps.
-    // Para ativar o mapa real, injete aqui o script da API e troque a função geocodeAddress.
+  if (window.google && window.google.maps) return;
+
+  const script = document.createElement("script");
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places`;
+  script.async = true;
+  script.defer = true;
+
+<script>
+
+// ================= GOOGLE MAPS =================
+function loadGoogleMaps() {
+  if (window.google && window.google.maps) return;
+
+  const script = document.createElement("script");
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places`;
+  script.async = true;
+  script.defer = true;
+
+  script.onload = () => {
+    console.log("✅ Google Maps carregado");
+
+    const mapDiv = document.getElementById("map");
+
+    if (mapDiv) {
+      window.map = new google.maps.Map(mapDiv, {
+        center: { lat: -23.45, lng: -46.53 }, // Guarulhos
+        zoom: 10,
+      });
+
+      window.geocoder = new google.maps.Geocoder();
+    }
+  };
+
+  script.onerror = () => {
+    console.error("❌ Erro ao carregar Google Maps");
+  };
+
+  document.head.appendChild(script);
+}
+
+// ================= CSV IMPORT =================
+function initCSVImport() {
+  const input = document.getElementById("ordersCsvFile");
+
+  if (!input) {
+    console.warn("⚠️ Input CSV não encontrado");
+    return;
   }
 
-  document.getElementById("ordersCsvFile").addEventListener("change", function(e) {
+  input.addEventListener("change", function (e) {
+
     const file = e.target.files[0];
     if (!file) return;
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+
       complete: (res) => {
-        pedidos = agruparPedidosPorOS(res.data || []);
-        renderPedidos();
-        atualizarMetricas();
-        alert(`${pedidos.length} pedidos importados`);
+        try {
+          pedidos = agruparPedidosPorOS(res.data || []);
+
+          renderPedidos();
+          atualizarMetricas();
+
+          alert(`${pedidos.length} pedidos importados`);
+
+        } catch (err) {
+          console.error(err);
+          alert("Erro ao processar os pedidos.");
+        }
+
         e.target.value = "";
       },
+
       error: (err) => {
         console.error(err);
         alert("Erro ao importar o CSV.");
       }
     });
-  });
 
-  document.addEventListener("DOMContentLoaded", () => {
-    loadLocalCaches();
-    carregarDoStorageLocal();
-    renderVehicles();
-    renderPedidos();
-    atualizarMetricas();
-    loadGoogleMaps();
-
-    if (vehicles.length === 0) {
-      setTimeout(() => {
-        if (confirm("Nenhum veículo cadastrado. Deseja adicionar um veículo leve padrão?")) {
-          adicionarVeiculoPadrao();
-        }
-      }, 300);
-    }
   });
+}
+
+// ================= INIT SISTEMA =================
+document.addEventListener("DOMContentLoaded", () => {
+
+  // caches / storage
+  loadLocalCaches();
+  carregarDoStorageLocal();
+
+  // render inicial
+  renderVehicles();
+  renderPedidos();
+  atualizarMetricas();
+
+  // mapa
+  loadGoogleMaps();
+
+  // CSV
+  initCSVImport();
+
+  // sugestão automática de veículo
+  if (vehicles.length === 0) {
+    setTimeout(() => {
+      if (confirm("Nenhum veículo cadastrado. Deseja adicionar um veículo leve padrão?")) {
+        adicionarVeiculoPadrao();
+      }
+    }, 300);
+  }
+
+});
+
 </script>
 </body>
 </html>
