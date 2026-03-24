@@ -312,7 +312,7 @@
 
 <script>
   // ==================== CONFIGURAÇÕES ====================
-  const APP_CONFIG = { GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds" };
+  const APP_CONFIG = { GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds"};
   let vehicles = [];
   let pedidos = [];
   let map = null, geocoder = null, directionsRenderers = [];
@@ -1169,9 +1169,9 @@ async function geocodeAddress(addr) {
   function loadGoogleMaps() {
     const mapEl = document.getElementById("map");
 
-    if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds") {
-      if (mapEl) {
-        mapEl.innerHTML = "Mapa operacional ativo. Para Google Maps real, preencha APP_CONFIG.GOOGLE_API_KEY.";
+    if (!APP_CONFIG.GOOGLE_API_KEY) {
+  if (mapEl) {
+              mapEl.innerHTML = "Mapa operacional ativo. Para Google Maps real, preencha APP_CONFIG.GOOGLE_API_KEY.";
       }
       return;
     }
