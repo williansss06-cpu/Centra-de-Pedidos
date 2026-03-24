@@ -567,14 +567,22 @@ async function geocodeAddress(addr) {
   });
 }
 
-    if (!rota || !map) return;
-    const bounds = new google.maps.LatLngBounds();
-    bounds.extend(depotCoords);
-    for (let p of rota.pedidos) {
-      if (p.lat && p.lng) bounds.extend({lat: p.lat, lng: p.lng});
+   function focusRouteOnMap(rotaId) {
+  const rota = ultimoResultado.rotas.find(r => r.id === rotaId);
+
+  if (!rota || !map) return;
+
+  const bounds = new google.maps.LatLngBounds();
+  bounds.extend(depotCoords);
+
+  for (let p of rota.pedidos) {
+    if (p.lat && p.lng) {
+      bounds.extend({ lat: p.lat, lng: p.lng });
     }
-    map.fitBounds(bounds);
   }
+
+  map.fitBounds(bounds);
+}
 
   function verDetalheRota(rotaId) {
     const rota = ultimoResultado.rotas.find(r => r.id === rotaId);
