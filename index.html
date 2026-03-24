@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Frete PRO TMS - Drag & Drop + IA</title>
+  <title>Frete PRO TMS - Drag & Drop + IA + Banco</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -148,7 +148,6 @@
       margin-bottom: 16px;
       transition: all 0.2s;
     }
-    .route-box[draggable="true"] { cursor: move; }
     .route-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
     .corridor-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-left: 8px; background: #e0e7ff; color: #3730a3; }
     .map-side-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin-top: 16px; }
@@ -195,7 +194,11 @@
       <div class="card">
         <div class="row" style="justify-content: space-between;">
           <h2>Cadastro de Veículos</h2>
-          <div><button class="btn btn-blue" onclick="adicionarVeiculoPadrao()">+ Adicionar Veículo Leve Padrão</button></div>
+          <div class="toolbar-inline" style="display: flex; gap: 8px;">
+            <button class="btn btn-blue" onclick="carregarParametrosDoBanco()">Carregar banco</button>
+            <button class="btn btn-green" onclick="salvarParametrosNoBanco()">Salvar parâmetros no banco</button>
+            <button class="btn btn-purple" onclick="adicionarVeiculoPadrao()">+ Veículo Leve Padrão</button>
+          </div>
         </div>
         <div class="grid grid-5">
           <div class="field"><label>Veículo</label><input type="text" id="v_nome" placeholder="Ex.: Fiorino 01" /></div>
@@ -210,7 +213,7 @@
           <div class="field"><label>Comprimento (m)</label><input type="number" id="v_profundidade" step="0.01" placeholder="2.50" /></div>
         </div>
         <div class="row"><button class="btn btn-green" onclick="addVehicle()">Adicionar veículo</button></div>
-        <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>R$/km</th><th>Ação</th></tr></thead><tbody id="vehicleTableBody"></tbody></table></div>
+        <div class="table-wrap">\n<table><thead><tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>R$/km</th><th>Ação</th></tr></thead><tbody id="vehicleTableBody"></tbody></table></div>
         <div id="statusBanco" class="status"></div>
       </div>
 
@@ -231,7 +234,8 @@
         <div class="inline-alert">
           🧠 <strong>Drag & Drop:</strong> Arraste pedidos entre rotas ou para "Não Alocados". Solte sobre a rota desejada.<br>
           🤖 <strong>IA de roteirização:</strong> Clique em "Otimizar rota (IA)" em cada rota para reorganizar a ordem das paradas e reduzir distância.<br>
-          📦 <strong>Cubagem Inteligente:</strong> Pedidos com volume 0 recebem estimativa baseada no peso.
+          📦 <strong>Cubagem Inteligente:</strong> Pedidos com volume 0 recebem estimativa baseada no peso.<br>
+          🗄️ <strong>Banco de dados:</strong> Use os botões "Carregar banco" e "Salvar" para sincronizar veículos.
         </div>
       </div>
 
@@ -269,7 +273,7 @@
       </div>
       <div class="card">
         <h2>Pedidos (com cubagem corrigida)</h2>
-        <div class="table-wrap"><table><thead><tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume</th><th>Volume Corrigido</th><th>Data</th><th>Status</th></tr></thead><tbody id="pedidoTableBody"></tbody></table></div>
+        <div class="table-wrap">\n<table><thead><tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume</th><th>Volume Corrigido</th><th>Data</th><th>Status</th></tr></thead><tbody id="pedidoTableBody"></tbody></table></div>
       </div>
     </section>
 
@@ -312,13 +316,28 @@
 
 <script>
   // ==================== CONFIGURAÇÕES ====================
-  const APP_CONFIG = { GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds" };
+  const APP_CONFIG = {
+    GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds",
+    SUPABASE_URL: "https://gdlgceoliupjinkgunxe.supabase.co",
+    SUPABASE_ANON_KEY: "sb_publishable_-lqRUglezPywbZlhKY0e7Q_Loqz2pFu"
+  };
+  let supabaseClient = null;
   let vehicles = [];
   let pedidos = [];
   let map = null, geocoder = null, directionsRenderers = [];
   let geocodeCache = {};
   let ultimoResultado = null;
   let depotCoords = null;
+
+  // Inicializa Supabase
+  function createSupabaseClient() {
+    if (!window.supabase) return null;
+    if (!APP_CONFIG.SUPABASE_URL || APP_CONFIG.SUPABASE_URL.includes("SUA_")) return null;
+    try {
+      return window.supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY);
+    } catch (e) { return null; }
+  }
+  supabaseClient = createSupabaseClient();
 
   // ==================== CORREDORES E REGIÕES ====================
   const REGIOES_SP = {
@@ -530,43 +549,32 @@
     return candidatos[0];
   }
 
-  // ==================== GEOCODE PROFISSIONAL ====================
-async function geocodeAddress(addr) {
-  if (!geocoder) throw new Error("Geocodificador não disponível");
-  if (!addr) throw new Error("Endereço inválido");
-
-  const key = addr.trim().toLowerCase();
-
-  // cache
-  if (geocodeCache[key]) return geocodeCache[key];
-
-  return new Promise((resolve, reject) => {
-    geocoder.geocode({ address: addr }, (results, status) => {
-      if (status === "OK" && results[0]) {
-        const loc = results[0].geometry.location;
-
-        const coords = {
-          lat: loc.lat(),
-          lng: loc.lng()
-        };
-
-        geocodeCache[key] = coords;
-
-        try {
-          localStorage.setItem("geo_cache", JSON.stringify(geocodeCache));
-        } catch (e) {
-          console.warn("Erro ao salvar cache");
-        }
-
-        resolve(coords);
-      } else {
-        console.error("Geocode falhou:", status, addr);
-        reject(new Error(`Falha ao geocodificar: ${addr}`));
-      }
+  // ==================== GEOCÓDIGO E MAPA (CORRIGIDO) ====================
+  async function geocodeAddress(addr){
+    if(!geocoder) throw new Error("Geocodificador não disponível");
+    let key=addr.trim().toLowerCase();
+    if(geocodeCache[key]) return geocodeCache[key];
+    return new Promise((resolve,reject)=>{
+      geocoder.geocode({address: addr}, (res,status)=>{  // <--- CORREÇÃO AQUI: usar {address: addr}
+        if(status==="OK"&&res[0]){
+          let loc=res[0].geometry.location;
+          let coords={lat:loc.lat(),lng:loc.lng()};
+          geocodeCache[key]=coords;
+          localStorage.setItem("geo_cache",JSON.stringify(geocodeCache));
+          resolve(coords);
+        } else reject(new Error(`Falha: ${addr}`));
+      });
     });
-  });
-}
+  }
 
+  function initMap(){ let el=document.getElementById("map"); try{ geocoder=new google.maps.Geocoder(); map=new google.maps.Map(el,{center:{lat:-23.5505,lng:-46.6333},zoom:5}); } catch(e){ el.innerHTML='<div>Mapa indisponível</div>'; } }
+  function loadGoogleMaps(){ if(window.google&&window.google.maps){ initMap(); return; } window.initMap=initMap; let s=document.createElement("script"); s.src=`https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places&callback=initMap`; document.head.appendChild(s); }
+  function clearRoutes(){ directionsRenderers.forEach(r=>r.setMap(null)); directionsRenderers=[]; }
+  function montarEndereco(p){ let partes=[p.logradouro,p.numero,p.bairro,p.cidade,p.uf,p.cep].filter(Boolean); if(partes.length) return partes.join(", "); return [p.destinatario,p.cidade,p.uf].filter(Boolean).join(", "); }
+  function calcularDistancia(lat1,lon1,lat2,lon2){ if([lat1,lon1,lat2,lon2].some(v=>typeof v!=="number"||isNaN(v))) return 999999; let R=6371; let dLat=(lat2-lat1)*Math.PI/180; let dLon=(lon2-lon1)*Math.PI/180; let a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
+
+  function focusRouteOnMap(rotaId) {
+    const rota = ultimoResultado.rotas.find(r => r.id === rotaId);
     if (!rota || !map) return;
     const bounds = new google.maps.LatLngBounds();
     bounds.extend(depotCoords);
@@ -626,7 +634,6 @@ async function geocodeAddress(addr) {
       return;
     }
 
-    // Função para calcular distância total da rota (incluindo CD)
     function distanciaTotal(ordemPedidos) {
       let total = 0;
       let atual = depotCoords;
@@ -645,12 +652,11 @@ async function geocodeAddress(addr) {
       improved = false;
       for (let i = 1; i < melhorOrdem.length - 1; i++) {
         for (let j = i + 1; j < melhorOrdem.length; j++) {
-          // 2-opt swap: inverte o trecho i..j
           let novaOrdem = [...melhorOrdem];
           const reversed = novaOrdem.slice(i, j+1).reverse();
           novaOrdem.splice(i, j-i+1, ...reversed);
           const novaDist = distanciaTotal(novaOrdem);
-          if (novaDist < melhorDist - 0.001) { // tolerância
+          if (novaDist < melhorDist - 0.001) {
             melhorOrdem = novaOrdem;
             melhorDist = novaDist;
             improved = true;
@@ -659,10 +665,8 @@ async function geocodeAddress(addr) {
       }
     }
 
-    // Se houve melhora, aplica
     if (distanciaTotal(rota.pedidos) - melhorDist > 0.001) {
       rota.pedidos = melhorOrdem;
-      // Recalcula distância e custo
       let totalDist = 0;
       let atual = depotCoords;
       for (let p of rota.pedidos) {
@@ -671,7 +675,6 @@ async function geocodeAddress(addr) {
       }
       rota.distanciaKm = totalDist;
       rota.custoEstimado = rota.distanciaKm * (rota.veiculo?.custoKm || 0);
-      // Atualiza interface e mapa
       renderMapControls();
       desenharRotas(ultimoResultado.rotas, document.getElementById("depot").value);
       setStatus(`Rota otimizada por IA! Nova distância: ${formatNumber(rota.distanciaKm)} km`, "ok");
@@ -704,31 +707,23 @@ async function geocodeAddress(addr) {
     const targetRota = ultimoResultado.rotas.find(r => r.id === targetRotaId);
     if (!sourceRota || !targetRota) return;
 
-    // Encontra o pedido na rota de origem
     const pedidoIndex = sourceRota.pedidos.findIndex(p => p.os === draggedPedido);
     if (pedidoIndex === -1) return;
-
     const pedido = sourceRota.pedidos[pedidoIndex];
 
-    // Remove da origem
     sourceRota.pedidos.splice(pedidoIndex, 1);
     sourceRota.pesoTotal -= pedido.pesoTotal;
     sourceRota.volumeTotal -= pedido.volumeTotal;
 
-    // Adiciona ao destino
     targetRota.pedidos.push(pedido);
     targetRota.pesoTotal += pedido.pesoTotal;
     targetRota.volumeTotal += pedido.volumeTotal;
 
-    // Recalcula distância e custo para ambas rotas (simplificado: recria as rotas no mapa)
-    // Na prática, seria melhor recalcular a rota otimizada, mas para demo faremos refresh.
     desenharRotas(ultimoResultado.rotas, document.getElementById("depot").value);
     renderMapControls();
     atualizarMetricas();
-
     setStatus(`Pedido ${draggedPedido} movido da rota ${sourceRota.id.slice(0,4)} para rota ${targetRota.id.slice(0,4)}`, "ok");
 
-    // Reset drag state
     draggedPedido = null;
     draggedSourceRotaId = null;
   }
@@ -744,18 +739,15 @@ async function geocodeAddress(addr) {
     if (pedidoIndex === -1) return;
     const pedido = sourceRota.pedidos[pedidoIndex];
 
-    // Remove da origem
     sourceRota.pedidos.splice(pedidoIndex, 1);
     sourceRota.pesoTotal -= pedido.pesoTotal;
     sourceRota.volumeTotal -= pedido.volumeTotal;
 
-    // Adiciona aos não alocados
     ultimoResultado.naoAlocados.push(pedido);
 
     desenharRotas(ultimoResultado.rotas, document.getElementById("depot").value);
     renderMapControls();
     atualizarMetricas();
-
     setStatus(`Pedido ${draggedPedido} movido para não alocados`, "warn");
     draggedPedido = null;
     draggedSourceRotaId = null;
@@ -1133,6 +1125,77 @@ async function geocodeAddress(addr) {
     let blob=new Blob([csv],{type:"text/csv;charset=utf-8"}); let a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="pedidos_modelo.csv"; a.click(); URL.revokeObjectURL(a.href);
   }
 
+  // ==================== SUPABASE ====================
+  async function carregarParametrosDoBanco() {
+    try {
+      if (!supabaseClient) {
+        setStatusBanco("Banco indisponível. Veículos carregados do navegador.", "warn");
+        carregarDoStorageLocal();
+        renderVehicles();
+        atualizarMetricas();
+        return;
+      }
+      setStatusBanco("Carregando veículos...", "info");
+      const { data, error } = await supabaseClient.from("veiculos").select("*");
+      if (error) throw error;
+      vehicles = (data || []).map(row => ({
+        id: row.id,
+        nome: row.nome,
+        volumeMax: row.volume_max,
+        pesoMax: row.peso_max,
+        notasMax: row.notas_max,
+        alturaMax: row.altura_max || 1,
+        larguraMax: row.largura_max || 1,
+        profundidadeMax: row.profundidade_max || 1,
+        custoKm: row.custo_km || 2.5
+      })).filter(v => v.nome && v.volumeMax > 0);
+      salvarNoStorageLocal();
+      renderVehicles();
+      atualizarMetricas();
+      setStatusBanco(`${vehicles.length} veículo(s) carregado(s) do banco.`, "ok");
+    } catch (error) {
+      console.error(error);
+      setStatusBanco("Falha ao carregar do banco. Exibindo dados locais.", "warn");
+      carregarDoStorageLocal();
+      renderVehicles();
+      atualizarMetricas();
+    }
+  }
+
+  async function salvarParametrosNoBanco() {
+    try {
+      if (!vehicles.length) {
+        setStatusBanco("Não há veículos para salvar.", "warn");
+        return;
+      }
+      if (!supabaseClient) {
+        salvarNoStorageLocal();
+        setStatusBanco("Banco não configurado. Veículos salvos apenas no localStorage.", "warn");
+        return;
+      }
+      setStatusBanco("Salvando veículos no banco...", "info");
+      const payload = vehicles.map(v => ({
+        id: v.id,
+        nome: v.nome,
+        volume_max: v.volumeMax,
+        peso_max: v.pesoMax,
+        notas_max: v.notasMax,
+        altura_max: v.alturaMax,
+        largura_max: v.larguraMax,
+        profundidade_max: v.profundidadeMax,
+        custo_km: v.custoKm,
+        config_name: "DEFAULT"
+      }));
+      const { error } = await supabaseClient.from("veiculos").upsert(payload);
+      if (error) throw error;
+      salvarNoStorageLocal();
+      setStatusBanco(`Veículos salvos no banco com sucesso.`, "ok");
+    } catch (error) {
+      console.error(error);
+      setStatusBanco(`Erro ao salvar: ${error.message}`, "err");
+    }
+  }
+
   function carregarDoStorageLocal(){ try{ let saved=JSON.parse(localStorage.getItem("veiculos")||"[]"); if(Array.isArray(saved)) vehicles=saved; } catch(e){} }
   function salvarNoStorageLocal(){ localStorage.setItem("veiculos",JSON.stringify(vehicles)); }
   function loadLocalCaches(){ try{ geocodeCache=JSON.parse(localStorage.getItem("geo_cache")||"{}"); } catch{} }
@@ -1145,6 +1208,7 @@ async function geocodeAddress(addr) {
 
   document.addEventListener("DOMContentLoaded",()=>{
     loadLocalCaches(); carregarDoStorageLocal(); renderVehicles(); renderPedidos(); atualizarMetricas(); loadGoogleMaps();
+    carregarParametrosDoBanco(); // carrega do banco automaticamente
     if(vehicles.length===0) setTimeout(()=>{ if(confirm("Nenhum veículo cadastrado. Deseja adicionar um veículo leve padrão?")) adicionarVeiculoPadrao(); },500);
   });
 </script>
