@@ -68,7 +68,7 @@
     .checkbox-row input[type="checkbox"] { width: auto; }
     .route-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 16px; }
     .route-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-    .corridor-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-left: 8px; }
+    .corridor-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-left: 8px; background: #e0e7ff; color: #3730a3; }
     .map-toolbar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
     .map-side-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin-top: 16px; }
     .route-editor { background: #fff; border-radius: 14px; padding: 14px; border: 1px solid #e2e8f0; max-height: 520px; overflow: auto; }
@@ -155,14 +155,16 @@
         </div>
 
         <div class="card">
-          <h2>Corredores Rodoviários Pré-definidos</h2>
+          <h2>Corredores Rodoviários</h2>
           <div class="grid grid-2">
-            <div class="field"><label>Corredor Vale do Paraíba</label><input type="text" id="corridor_paraiba" value="Guarulhos,São José dos Campos,Resende,Rio de Janeiro" /></div>
-            <div class="field"><label>Corredor Campinas</label><input type="text" id="corridor_campinas" value="Guarulhos,Campinas,Ribeirão Preto" /></div>
-            <div class="field"><label>Corredor Sul (Curitiba)</label><input type="text" id="corridor_sul" value="Guarulhos,Curitiba,Joinville,Porto Alegre" /></div>
-            <div class="field"><label>Corredor Minas Gerais</label><input type="text" id="corridor_mg" value="Guarulhos,Belo Horizonte,Divinópolis" /></div>
+            <div class="field"><label>Corredor Vale do Paraíba (SP→RJ)</label><input type="text" id="corridor_paraiba" value="Guarulhos,São José dos Campos,Resende,Rio de Janeiro" /></div>
+            <div class="field"><label>Corredor Campinas (SP→Interior)</label><input type="text" id="corridor_campinas" value="Guarulhos,Campinas,Ribeirão Preto" /></div>
+            <div class="field"><label>Corredor Sul (SP→PR→SC→RS)</label><input type="text" id="corridor_sul" value="Guarulhos,Curitiba,Joinville,Florianópolis,Porto Alegre" /></div>
+            <div class="field"><label>Corredor Minas Gerais (SP→MG)</label><input type="text" id="corridor_mg" value="Guarulhos,Varginha,Três Corações,Belo Horizonte" /></div>
+            <div class="field"><label>Corredor Centro-Oeste (SP→GO→DF→MT)</label><input type="text" id="corridor_co" value="Guarulhos,Goiânia,Brasília,Cuiabá" /></div>
+            <div class="field"><label>Corredor Nordeste (SP→BA→PE→CE)</label><input type="text" id="corridor_ne" value="Guarulhos,Salvador,Recife,Fortaleza" /></div>
           </div>
-          <p class="small">Os pedidos serão agrupados pelo corredor logístico que melhor se encaixa na rota.</p>
+          <p class="small">Os pedidos serão agrupados pelo corredor logístico correspondente à UF do destino.</p>
         </div>
 
         <div class="card">
@@ -184,13 +186,13 @@
             <div class="field" style="flex:1; min-width: 320px;"><label>Arquivo CSV</label><input type="file" id="ordersCsvFile" accept=".csv" /></div>
             <div class="field"><label>&nbsp;</label><button class="btn btn-blue" onclick="baixarModeloPedidos()">Baixar modelo CSV</button></div>
           </div>
-          <p class="small">Colunas: OS, DESTINATARIO, CEP, LOGRADOURO, NUMERO, BAIRRO, CIDADE, UF, PESO BRUTO, METROCUBICO, DATAPREVISAO, MODALIDADE, OBS</p>
+          <p class="small">Colunas: OS, DESTINATARIO, CIDADE, UF, PESO BRUTO, METROCUBICO, DATAPREVISAO, MODALIDADE, OBS</p>
         </div>
         <div class="card">
           <h2>Pedidos agrupados por OS</h2>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>OS</th><th>Destinatário</th><th>Cidade</th><th>UF</th><th>Peso</th><th>Volume</th><th>Corredor</th></tr></thead>
+              <thead><tr><th>OS</th><th>Destinatário</th><th>Cidade</th><th>UF</th><th>Peso</th><th>Volume</th><th>Data</th><th>Corredor</th></tr></thead>
               <tbody id="pedidoTableBody"></tbody>
             </table>
           </div>
@@ -239,20 +241,19 @@
   <script>
     // ==================== CONFIGURAÇÕES ====================
     const APP_CONFIG = {
-      GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds",
+      GOOGLE_API_KEY: "minha chave",
       SUPABASE_URL: "",
       SUPABASE_ANON_KEY: "",
       CONFIG_NAME: "DEFAULT"
     };
 
     const STORAGE_KEYS = {
-      parametros: "frete_inteligente_parametros_v2",
-      veiculos: "frete_inteligente_veiculos_v2",
-      geoCache: "frete_inteligente_geo_cache_v2"
+      parametros: "frete_inteligente_parametros_v3",
+      veiculos: "frete_inteligente_veiculos_v3",
+      geoCache: "frete_inteligente_geo_cache_v3"
     };
 
     const supabaseClient = null;
-
     let vehicles = [];
     let pedidos = [];
     let map = null;
@@ -267,58 +268,59 @@
       "VALE_DO_PARAÍBA": {
         nome: "Vale do Paraíba",
         rodovia: "BR-116 (Via Dutra)",
-        cidades: ["Guarulhos", "São José dos Campos", "Jacareí", "Taubaté", "Resende", "Rio de Janeiro"],
         ufs: ["SP", "RJ"],
-        direcao: "leste"
+        direcao: "leste",
+        cidades: ["Guarulhos", "São José dos Campos", "Jacareí", "Taubaté", "Resende", "Rio de Janeiro"]
       },
       "CAMPINAS": {
-        nome: "Campinas",
+        nome: "Campinas / Interior SP",
         rodovia: "SP-330 (Anhanguera)",
-        cidades: ["Guarulhos", "Campinas", "Sumaré", "Hortolândia", "Ribeirão Preto"],
         ufs: ["SP"],
-        direcao: "norte"
+        direcao: "norte",
+        cidades: ["Guarulhos", "Campinas", "Sumaré", "Hortolândia", "Ribeirão Preto", "São José do Rio Preto", "Presidente Prudente", "Bauru"]
       },
       "SUL": {
         nome: "Sul",
-        rodovia: "BR-116 (Regis Bittencourt)",
-        cidades: ["Guarulhos", "Curitiba", "Joinville", "Florianópolis", "Porto Alegre"],
-        ufs: ["SP", "PR", "SC", "RS"],
-        direcao: "sul"
+        rodovia: "BR-116 (Regis Bittencourt) / BR-101",
+        ufs: ["PR", "SC", "RS"],
+        direcao: "sul",
+        cidades: ["Curitiba", "Joinville", "Florianópolis", "Porto Alegre", "Caxias do Sul", "Blumenau", "Itajaí"]
       },
       "MINAS_GERAIS": {
         nome: "Minas Gerais",
-        rodovia: "BR-381 (Fernão Dias)",
-        cidades: ["Guarulhos", "Varginha", "Três Corações", "Belo Horizonte"],
-        ufs: ["SP", "MG"],
-        direcao: "norte"
-      },
-      "NORDESTE": {
-        nome: "Nordeste",
-        rodovia: "BR-116/BR-101",
-        cidades: ["Guarulhos", "Salvador", "Recife", "Fortaleza"],
-        ufs: ["BA", "SE", "AL", "PE", "PB", "RN", "CE"],
-        direcao: "nordeste"
+        rodovia: "BR-381 (Fernão Dias) / BR-040",
+        ufs: ["MG"],
+        direcao: "norte",
+        cidades: ["Varginha", "Três Corações", "Belo Horizonte", "Juiz de Fora", "Uberlândia", "Montes Claros"]
       },
       "CENTRO_OESTE": {
         nome: "Centro-Oeste",
-        rodovia: "BR-040/BR-060",
-        cidades: ["Guarulhos", "Brasília", "Goiânia", "Campo Grande"],
+        rodovia: "BR-040 / BR-060 / BR-070",
         ufs: ["GO", "DF", "MT", "MS"],
-        direcao: "oeste"
+        direcao: "oeste",
+        cidades: ["Goiânia", "Brasília", "Cuiabá", "Campo Grande", "Aparecida de Goiânia"]
+      },
+      "NORDESTE": {
+        nome: "Nordeste",
+        rodovia: "BR-116 / BR-101",
+        ufs: ["BA", "SE", "AL", "PE", "PB", "RN", "CE", "PI", "MA"],
+        direcao: "nordeste",
+        cidades: ["Salvador", "Recife", "Fortaleza", "Teresina", "São Luís", "João Pessoa", "Natal"]
+      },
+      "NORTE": {
+        nome: "Norte",
+        rodovia: "BR-153 / BR-364",
+        ufs: ["AM", "PA", "TO", "RO", "RR", "AC", "AP"],
+        direcao: "norte",
+        cidades: ["Manaus", "Belém", "Palmas", "Porto Velho"]
       }
     };
 
-    function identificarCorredor(cidade, uf) {
-      const cidadeNorm = normalizarTexto(cidade).toLowerCase();
-      const ufNorm = uf.toUpperCase();
-      
+    function identificarCorredor(uf) {
+      const ufUpper = uf.toUpperCase();
       for (const [key, corredor] of Object.entries(CORREDORES)) {
-        if (corredor.ufs.includes(ufNorm)) {
-          for (const cidadeCorredor of corredor.cidades) {
-            if (cidadeNorm.includes(normalizarTexto(cidadeCorredor).toLowerCase())) {
-              return key;
-            }
-          }
+        if (corredor.ufs.includes(ufUpper)) {
+          return key;
         }
       }
       return "OUTROS";
@@ -349,14 +351,14 @@
     // ==================== GOOGLE MAPS ====================
     function initMap() {
       try {
-        if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "minha chave") {
+        if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds") {
           document.getElementById("map").innerHTML = '<div style="padding:24px;">Mapa indisponível: configure a chave do Google Maps.</div>';
           return;
         }
         geocoder = new google.maps.Geocoder();
         map = new google.maps.Map(document.getElementById("map"), {
           center: { lat: -23.5505, lng: -46.6333 },
-          zoom: 6
+          zoom: 5
         });
       } catch (error) {
         console.error("Falha ao iniciar mapa:", error);
@@ -386,12 +388,16 @@
 
     function setStatus(msg, type = "") {
       const el = document.getElementById("statusPlanejamento");
-      el.className = `status ${type}`;
-      el.innerHTML = msg;
+      if (el) { el.className = `status ${type}`; el.innerHTML = msg; }
+    }
+
+    function setStatusBanco(msg, type) {
+      const el = document.getElementById("statusBanco");
+      if (el) { el.className = `status ${type}`; el.innerHTML = msg; }
     }
 
     function formatNumber(value) {
-      if (value === null || value === undefined) return "-";
+      if (value === null || value === undefined || value === "") return "-";
       return Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     }
 
@@ -552,8 +558,7 @@
         const modalidade = valorColuna(row, ["MODALIDADE"]) || "Rodoviario";
         const obs = valorColuna(row, ["OBS"]) || "";
         const leituraObs = analisarObs(obs);
-        
-        const corredor = identificarCorredor(cidade, uf);
+        const corredor = identificarCorredor(uf);
         
         if (!mapa.has(os)) {
           mapa.set(os, {
@@ -590,7 +595,7 @@
     function renderPedidos() {
       const tbody = document.getElementById("pedidoTableBody");
       if (!pedidos.length) {
-        tbody.innerHTML = '发展<td colspan="7">Nenhum pedido importado.发展的';
+        tbody.innerHTML = '发展<td colspan="8">Nenhum pedido importado.发展的';
         return;
       }
       tbody.innerHTML = pedidos.map(p => `
@@ -601,6 +606,7 @@
           <td>${p.uf || "-"}很少
           <td>${formatNumber(p.pesoTotal)} kg很少
           <td>${formatNumber(p.volumeTotal)} m³很少
+          <td>${p.dataPrevisao || "-"}很少
           <td><span class="pill pill-corridor">${getCorredorInfo(p.corredor).nome}</span>很少
          ?
       `).join("");
@@ -643,24 +649,16 @@
       return null;
     }
 
-    // ==================== FORMAÇÃO DE ROTAS POR CORREDOR ====================
+    // ==================== FORMAÇÃO DE ROTAS POR CORREDOR (SEM FILTRO DE DESVIO) ====================
     async function montarRotasPorCorredor(pedidosBase, frota) {
       const rotas = [];
       const naoAlocados = [];
       
-      // Agrupa por corredor
+      // Agrupa por corredor (já definido pela UF)
       const gruposCorredor = new Map();
       for (const p of pedidosBase) {
         if (!gruposCorredor.has(p.corredor)) gruposCorredor.set(p.corredor, []);
         gruposCorredor.get(p.corredor).push(p);
-      }
-      
-      const origemTexto = document.getElementById("depot").value.trim();
-      let origemBase;
-      try {
-        origemBase = await geocodeAddress(origemTexto);
-      } catch(e) {
-        origemBase = { lat: -23.5505, lng: -46.6333 };
       }
       
       const pesoMaxConfig = Number(document.getElementById("cfgPesoMax").value || 5000);
@@ -669,12 +667,13 @@
       
       for (const [corredorKey, pedidosDoCorredor] of gruposCorredor.entries()) {
         const corredorInfo = getCorredorInfo(corredorKey);
+        
         if (corredorKey === "OUTROS") {
-          pedidosDoCorredor.forEach(p => naoAlocados.push({ ...p, motivo: "Fora dos corredores definidos" }));
+          pedidosDoCorredor.forEach(p => naoAlocados.push({ ...p, motivo: "UF não mapeada em nenhum corredor" }));
           continue;
         }
         
-        // Ordena por data
+        // Agrupa por data de entrega dentro do corredor
         const agrupadoPorData = new Map();
         for (const p of pedidosDoCorredor) {
           const data = p.dataPrevisao || "Sem data";
@@ -690,14 +689,10 @@
           const fecharLote = async () => {
             if (!lote.length) return;
             
-            const pontoRef = lote.reduce((max, p) => {
-              if (p.lng > max.lng) return p;
-              return max;
-            }, lote[0]);
-            
+            // Ordena os pedidos por proximidade à origem (geocodificada)
             const pedidosOrdenados = [...lote].sort((a, b) => {
-              const distA = Math.abs(a.lng - origemBase.lng);
-              const distB = Math.abs(b.lng - origemBase.lng);
+              const distA = Math.abs(a.lng - (-46.6333));
+              const distB = Math.abs(b.lng - (-46.6333));
               return distA - distB;
             });
             
@@ -763,7 +758,8 @@
       const originCoords = await geocodeAddress(origem);
       const bounds = new google.maps.LatLngBounds();
       bounds.extend(originCoords);
-      const colors = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#d97706", "#0891b2"];
+      const colors = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#d97706", "#0891b2", "#be123c", "#4f46e8"];
+      const tipoRota = document.getElementById("tipoRota").value;
       
       for (let idx = 0; idx < rotas.length; idx++) {
         const rota = rotas[idx];
@@ -795,7 +791,8 @@
             origin: originCoords,
             destination: destination,
             waypoints: waypoints,
-            travelMode: google.maps.TravelMode.DRIVING
+            travelMode: google.maps.TravelMode.DRIVING,
+            optimizeWaypoints: true
           }, (result, status) => {
             if (status === "OK") {
               const renderer = new google.maps.DirectionsRenderer({
@@ -840,13 +837,32 @@
           } catch(e) { console.warn(`Erro geocode ${p.os}:`, e); }
         }
         
-        const { rotas, naoAlocados } = await montarRotasPorCorredor(pedidos, vehicles);
+        // Aplica regras de negócio
+        const aprovados = [];
+        const sugestoesConsolidacao = [];
+        for (const p of pedidos) {
+          const isRod = normalizarTexto(p.modalidade).toLowerCase() === "rodoviario";
+          const peso = p.pesoTotal;
+          if (document.getElementById("regraPaletizado").checked && p.paletizado) {
+            sugestoesConsolidacao.push(p);
+          } else if (document.getElementById("regraAgendamento").checked && p.agendamento) {
+            sugestoesConsolidacao.push(p);
+          } else if (document.getElementById("regraLeve").checked && isRod && peso <= 1000) {
+            aprovados.push(p);
+          } else if (document.getElementById("regraPesado").checked && isRod && peso > 1000) {
+            aprovados.push(p);
+          } else {
+            aprovados.push(p);
+          }
+        }
+        
+        const { rotas, naoAlocados } = await montarRotasPorCorredor(aprovados, vehicles);
         
         setStatus("Desenhando rotas no mapa...", "warn");
         const origem = document.getElementById("depot").value;
         await desenharRotas(rotas, origem);
         
-        ultimoResultado = { rotas, naoAlocados, pedidos, aprovados: pedidos };
+        ultimoResultado = { rotas, naoAlocados, aprovados, sugestoesConsolidacao };
         atualizarMetricas();
         renderResumoOperacional();
         renderMapControls();
@@ -878,10 +894,10 @@
         <div class="route-box">
           <div class="route-title">
             Rota ${i+1} - ${r.veiculo.nome}
-            <span class="corridor-badge" style="background:#e0e7ff;">${r.nomeCorredor}</span>
+            <span class="corridor-badge">${r.nomeCorredor}</span>
           </div>
           <div class="small">Rodovia: ${r.rodovia} | Data: ${r.dataEntrega || "-"}</div>
-          <div class="small">Peso: ${formatNumber(r.pesoTotal)} kg | Volume: ${formatNumber(r.volumeTotal)} m³</div>
+          <div class="small">Peso: ${formatNumber(r.pesoTotal)} kg | Volume: ${formatNumber(r.volumeTotal)} m³ | Km: ${formatNumber(r.distanciaKm)}</div>
           ${r.avisoMinVolume ? `<div class="small" style="color:#b45309;">⚠️ ${r.avisoMinVolume}</div>` : ''}
           ${r.pedidos.map(p => `
             <div class="pedido-chip">
@@ -893,14 +909,14 @@
       `).join("");
       
       unallocatedEditorList.innerHTML = ultimoResultado.naoAlocados.length ?
-        ultimoResultado.naoAlocados.map(p => `<div class="pedido-chip"><strong>${p.os} - ${p.destinatario||"-"}</strong> ${p.cidade}/${p.uf}<br>Motivo: ${p.motivo}</div>`).join("") :
+        ultimoResultado.naoAlocados.map(p => `<div class="pedido-chip"><strong>${p.os} - ${p.destinatario||"-"}</strong> ${p.cidade}/${p.uf}<br>Peso: ${formatNumber(p.pesoTotal)} kg | Volume: ${formatNumber(p.volumeTotal)} m³<br>Motivo: ${p.motivo || "Não alocado"}</div>`).join("") :
         `<div class="small">Não há pedidos não alocados.</div>`;
     }
 
     function renderResumoOperacional() {
       const el = document.getElementById("resumoOperacional");
       if (!ultimoResultado) { el.innerHTML = '<p class="small">Nenhum planejamento executado.</p>'; return; }
-      const { rotas, naoAlocados } = ultimoResultado;
+      const { rotas, naoAlocados, aprovados, sugestoesConsolidacao } = ultimoResultado;
       
       // Agrupa rotas por corredor
       const porCorredor = new Map();
@@ -912,18 +928,43 @@
       el.innerHTML = `
         <div class="grid grid-3">
           <div class="metric"><div class="label">Total de Rotas</div><div class="value">${rotas.length}</div></div>
-          <div class="metric"><div class="label">Pedidos Alocados</div><div class="value">${pedidos.length - naoAlocados.length}</div></div>
+          <div class="metric"><div class="label">Pedidos Alocados</div><div class="value">${aprovados.length - naoAlocados.length}</div></div>
           <div class="metric"><div class="label">Pedidos Não Alocados</div><div class="value">${naoAlocados.length}</div></div>
         </div>
+        <div style="height:16px;"></div>
         <h3>Resumo por Corredor Logístico</h3>
         <div class="table-wrap">
-          <table><thead><tr><th>Corredor</th><th>Rodovia</th><th>Rotas</th><th>Peso Total</th><th>Volume Total</th></tr></thead>
-          <tbody>${Array.from(porCorredor.entries()).map(([nome, rotasCorr]) => {
-            const pesoTotal = rotasCorr.reduce((s,r)=>s+r.pesoTotal,0);
-            const volumeTotal = rotasCorr.reduce((s,r)=>s+r.volumeTotal,0);
-            return `<tr><td><strong>${nome}</strong></td><td>${rotasCorr[0]?.rodovia || "-"}</td><td>${rotasCorr.length}</td><td>${formatNumber(pesoTotal)} kg</td><td>${formatNumber(volumeTotal)} m³</td></tr>`;
-          }).join("")}</tbody>
-          </table>
+          表
+            <thead>?
+              <th>Corredor</th><th>Rodovia</th><th>Rotas</th><th>Peso Total</th><th>Volume Total</th><th>Custo Total</th>
+            </thead>
+            <tbody>${Array.from(porCorredor.entries()).map(([nome, rotasCorr]) => {
+              const pesoTotal = rotasCorr.reduce((s,r)=>s+r.pesoTotal,0);
+              const volumeTotal = rotasCorr.reduce((s,r)=>s+r.volumeTotal,0);
+              const custoTotal = rotasCorr.reduce((s,r)=>s+(r.custoEstimado||0),0);
+              return `?
+                <td><strong>${nome}</strong></td>
+                <td>${rotasCorr[0]?.rodovia || "-"}</td>
+                <td>${rotasCorr.length}</td>
+                <td>${formatNumber(pesoTotal)} kg</td>
+                <td>${formatNumber(volumeTotal)} m³</td>
+                <td>${formatCurrency(custoTotal)}</td>
+              ?`;
+            }).join("")}</tbody>
+          乘
+        </div>
+        <h3 style="margin-top:20px;">Sugestões de Consolidação (${sugestoesConsolidacao.length})</h3>
+        <div class="table-wrap">
+          表
+            <thead>?
+              <th>OS</th><th>Destinatário</th><th>Cidade</th><th>UF</th><th>Peso</th><th>Volume</th><th>Motivo</th>
+            </thead>
+            <tbody>${sugestoesConsolidacao.length ? sugestoesConsolidacao.map(p=>`?
+              <td>${p.os}</td><td>${p.destinatario}</td><td>${p.cidade}</td><td>${p.uf}</td>
+              <td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td>
+              <td>Carga ${p.paletizado ? 'paletizada' : ''}${p.agendamento ? ' com agendamento' : ''}</td>
+            ?`).join("") : '<tr><td colspan="7">Nenhuma sugestão</td></tr>'}</tbody>
+          乘
         </div>
       `;
     }
@@ -945,7 +986,6 @@
 
     async function carregarParametrosDoBanco() { setStatusBanco("Função disponível apenas com Supabase configurado.", "warn"); }
     async function salvarParametrosNoBanco() { setStatusBanco("Função disponível apenas com Supabase configurado.", "warn"); }
-    function setStatusBanco(msg, type) { const el = document.getElementById("statusBanco"); if(el){ el.className = `status ${type}`; el.innerHTML = msg; } }
 
     // ==================== INICIALIZAÇÃO ====================
     async function initApp() {
