@@ -199,6 +199,12 @@ let geocodeCache = {};
 let ultimoResultado = null;
 let depotCoords = null;
 
+// Função segura para atualizar texto de elementos que podem não existir
+function setTextSafe(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
 const REGIOES_SP = {
   "VALE_DO_PARAIBA": { nome: "Vale do Paraíba", cidades: ["SAO JOSE DOS CAMPOS","TAUBATE","JACAREI"], integracaoCorredor: "VALE_DO_PARAIBA" },
   "CAMPINAS": { nome: "Região Campinas", cidades: ["CAMPINAS","JUNDIAI","SUMARE"], integracaoCorredor: "MINAS_GERAIS" },
@@ -212,7 +218,13 @@ function normalizarTexto(t) { return (t||"").toString().normalize("NFD").replace
 function formatNumber(v) { return v || v===0 ? Number(v).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:2}) : "-"; }
 function formatCurrency(v) { return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
 function parseNumero(v) { if(v===null||v===undefined||v==="") return 0; let s=v.toString().trim(); let cleaned=s.includes(",")?s.replace(/\./g,"").replace(",", "."):s; return parseFloat(cleaned)||0; }
-function showTab(tabId,btn=null){ document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active")); document.getElementById(tabId).classList.add("active"); document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active")); if(btn) btn.classList.add("active"); }
+function showTab(tabId,btn=null){ 
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active")); 
+  document.getElementById(tabId).classList.add("active"); 
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active")); 
+  if(btn) btn.classList.add("active");
+  if (tabId === "resultado") atualizarMetricas(); // só atualiza quando a aba existe
+}
 function setStatus(msg,type=""){ let el=document.getElementById("statusPlanejamento"); if(el){ el.className=`status ${type}`; el.innerHTML=msg; } }
 function setStatusBanco(msg,type=""){ let el=document.getElementById("statusBanco"); if(el){ el.className=`status ${type}`; el.innerHTML=msg; } }
 
@@ -367,7 +379,7 @@ function renderPedidosSeparados() {
   lightTable.innerHTML = leves.map(p => `<tr><td><input type="checkbox" class="lightCheckbox" value="${p.os}"></td><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
   heavyTable.innerHTML = pesados.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
   exclusivosTable.innerHTML = exclusivos.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
-  document.getElementById("mPedidos").textContent = pedidos.length;
+  setTextSafe("mPedidos", pedidos.length);
 }
 
 function toggleSelectAllLight() {
@@ -789,20 +801,124 @@ function renderMapControls() {
   }
 }
 
-function renderResumo(){ let el=document.getElementById("resumoOperacional"); if(!ultimoResultado){ el.innerHTML="<p>Nenhum planejamento</p>"; return; } let {rotas,naoAlocados,holdList,aguardandoDefinicao}=ultimoResultado; let porCorredor=new Map(); for(let r of rotas){ if(!porCorredor.has(r.nomeCorredor)) porCorredor.set(r.nomeCorredor,[]); porCorredor.get(r.nomeCorredor).push(r); } el.innerHTML=`<div class="grid grid-2"><div class="metric"><div class="label">Rotas</div><div class="value">${rotas.length}</div></div><div class="metric"><div class="label">Não Alocados</div><div class="value">${naoAlocados.length}</div></div><div class="metric"><div class="label">Aguardando (Hold)</div><div class="value">${holdList.length}</div></div><div class="metric"><div class="label">Aguardando Definição</div><div class="value">${aguardandoDefinicao.length}</div></div></div><h3>Por Corredor</h3><div class="table-wrap" style="padding:12px;">${Array.from(porCorredor.entries()).map(([nome,rs])=>`<div><strong>${nome}</strong>: ${rs.length} rotas, ${formatNumber(rs.reduce((s,r)=>s+r.pesoTotal,0))} kg, ${formatCurrency(rs.reduce((s,r)=>s+r.custoEstimado,0))}</div>`).join("") || "<div>Sem corredores</div>"}</div>`; }
-function atualizarMetricas(){ document.getElementById("mPedidos").textContent=pedidos.length; document.getElementById("mAlocados").textContent=ultimoResultado?.aprovados?.length||0; document.getElementById("mNaoAlocados").textContent=ultimoResultado?.naoAlocados?.length||0; document.getElementById("mHold").textContent=ultimoResultado?.holdList?.length||0; document.getElementById("mAguardandoDefinicao").textContent=ultimoResultado?.aguardandoDefinicao?.length||0; document.getElementById("mRotas").textContent=ultimoResultado?.rotas?.length||0; document.getElementById("mCustoTotal").textContent=formatCurrency(ultimoResultado?.rotas?.reduce((s,r)=>s+(r.custoEstimado||0),0)||0); }
+function renderResumo(){ 
+  let el=document.getElementById("resumoOperacional"); 
+  if(!ultimoResultado){ 
+    if(el) el.innerHTML="<p>Nenhum planejamento</p>"; 
+    return; 
+  } 
+  let {rotas,naoAlocados,holdList,aguardandoDefinicao}=ultimoResultado; 
+  let porCorredor=new Map(); 
+  for(let r of rotas){ 
+    if(!porCorredor.has(r.nomeCorredor)) porCorredor.set(r.nomeCorredor,[]); 
+    porCorredor.get(r.nomeCorredor).push(r); 
+  } 
+  if(el) el.innerHTML=`<div class="grid grid-2"><div class="metric"><div class="label">Rotas</div><div class="value">${rotas.length}</div></div><div class="metric"><div class="label">Não Alocados</div><div class="value">${naoAlocados.length}</div></div><div class="metric"><div class="label">Aguardando (Hold)</div><div class="value">${holdList.length}</div></div><div class="metric"><div class="label">Aguardando Definição</div><div class="value">${aguardandoDefinicao.length}</div></div></div><h3>Por Corredor</h3><div class="table-wrap" style="padding:12px;">${Array.from(porCorredor.entries()).map(([nome,rs])=>`<div><strong>${nome}</strong>: ${rs.length} rotas, ${formatNumber(rs.reduce((s,r)=>s+r.pesoTotal,0))} kg, ${formatCurrency(rs.reduce((s,r)=>s+r.custoEstimado,0))}</div>`).join("") || "<div>Sem corredores</div>"}</div>`; 
+}
 
-async function executarPlanejamento(){ try{ carregarCorredoresDaUI(); if(!vehicles.length){ setStatus("Cadastre veículos","err"); return; } if(!pedidos.length){ setStatus("Importe pedidos","err"); return; } if(!geocoder){ setStatus("Aguarde carregamento do mapa","warn"); return; } setStatus("Geocodificando...","warn"); depotCoords=await geocodeAddress(document.getElementById("depot").value); let cubagemAutoCount = 0; for(let p of pedidos){ try{ let coord=await geocodeAddress(montarEndereco(p)); p.lat=coord.lat; p.lng=coord.lng; if(p.cubagemAuto) cubagemAutoCount++; }catch(e){ console.warn(`Erro geocode ${p.os}`); } } let aprovados=[], restricoes=[], aguardandoDefinicao=[]; for(let p of pedidos){ if(p.exclusivo && document.getElementById("regraExclusivo").checked){ aprovados.push(p); continue; } if(p.paletizado || p.agendamento){ aguardandoDefinicao.push(p); continue; } let isRod=normalizarTexto(p.modalidade).toLowerCase()==="rodoviario"; if(document.getElementById("regraLeve").checked && isRod && p.pesoTotal<=1000) aprovados.push(p); else if(document.getElementById("regraPesado").checked && isRod && p.pesoTotal>1000) aprovados.push(p); else aprovados.push(p); } aprovados = aprovados.map(p => ({ ...p, grupoConsolidado: obterChaveAgrupamento(p) })); let {rotas,naoAlocados,holdList}=await montarRotasInteligentes(aprovados); setStatus("Desenhando rotas...","warn"); await desenharRotas(rotas,document.getElementById("depot").value); ultimoResultado={rotas,naoAlocados,aprovados,restricoes,holdList,aguardandoDefinicao,cubagemAutoCount}; atualizarMetricas(); renderResumo(); renderMapControls(); showTab("resultado", document.querySelectorAll(".nav-btn")[3]); setStatus(`✅ ${rotas.length} rotas | ${naoAlocados.length} não alocados | ${holdList.length} aguardando | ${aguardandoDefinicao.length} aguardando definição`,"ok"); }catch(err){ console.error(err); setStatus(`Erro: ${err.message}`,"err"); } }
-function replanejarRotas() { if (pedidos.length === 0) { alert("Nenhum pedido importado. Importe um CSV primeiro."); showTab("pedidos"); return; } if (vehicles.length === 0) { alert("Nenhum veículo cadastrado. Adicione veículos na aba Parâmetros."); showTab("parametros"); return; } setStatus("Replanejando com IA...", "warn"); clearRoutes(); ultimoResultado = null; atualizarMetricas(); document.getElementById("resumoOperacional").innerHTML = ""; document.getElementById("routeEditorList").innerHTML = ""; document.getElementById("unallocatedEditorList").innerHTML = ""; document.getElementById("holdList").innerHTML = ""; document.getElementById("aguardandoDefinicaoList").innerHTML = ""; executarPlanejamento(); }
-function exportarRelatorioCSV(){ if(!ultimoResultado){ alert("Execute o planejamento"); return; } let linhas=[["ROTA","CORREDOR","DATA","VEICULO","PESO","VOLUME","KM","CUSTO","FATOR_DECISORIO","REGRAS","PEDIDOS"]]; ultimoResultado.rotas.forEach((r,i)=>{ linhas.push([`Rota ${i+1}`,r.nomeCorredor,r.dataEntrega,r.veiculo?.nome||"",r.pesoTotal,r.volumeTotal,r.distanciaKm?.toFixed(1)||0,r.custoEstimado?.toFixed(2)||0,r.fatorDecisorio,(r.decisao?.regrasAplicadas||[]).join(" | "),r.pedidos.map(p=>p.os).join(";")]); }); let csv=Papa.unparse(linhas); let blob=new Blob([csv],{type:"text/csv;charset=utf-8"}); let a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="rotas.csv"; a.click(); URL.revokeObjectURL(a.href); }
-function baixarModeloPedidos(){ let csv=`OS,DESTINATARIO,CEP,CIDADE,UF,PESO BRUTO,METROCUBICO,DATAPREVISAO,OBS,CODIGO PRODUTO,PRODUTO,FOTO_URL,ALTURA,LARGURA,PROFUNDIDADE,LOGRADOURO,NUMERO,BAIRRO
+function atualizarMetricas(){ 
+  setTextSafe("mPedidos", pedidos.length);
+  setTextSafe("mAlocados", ultimoResultado?.aprovados?.length || 0);
+  setTextSafe("mNaoAlocados", ultimoResultado?.naoAlocados?.length || 0);
+  setTextSafe("mHold", ultimoResultado?.holdList?.length || 0);
+  setTextSafe("mAguardandoDefinicao", ultimoResultado?.aguardandoDefinicao?.length || 0);
+  setTextSafe("mRotas", ultimoResultado?.rotas?.length || 0);
+  setTextSafe("mCustoTotal", formatCurrency(ultimoResultado?.rotas?.reduce((s,r)=>s+(r.custoEstimado||0),0)||0));
+}
+
+async function executarPlanejamento(){ 
+  try{ 
+    carregarCorredoresDaUI(); 
+    if(!vehicles.length){ setStatus("Cadastre veículos","err"); return; } 
+    if(!pedidos.length){ setStatus("Importe pedidos","err"); return; } 
+    if(!geocoder){ setStatus("Aguarde carregamento do mapa","warn"); return; } 
+    setStatus("Geocodificando...","warn"); 
+    depotCoords=await geocodeAddress(document.getElementById("depot").value); 
+    let cubagemAutoCount = 0; 
+    for(let p of pedidos){ 
+      try{ 
+        let coord=await geocodeAddress(montarEndereco(p)); 
+        p.lat=coord.lat; 
+        p.lng=coord.lng; 
+        if(p.cubagemAuto) cubagemAutoCount++; 
+      }catch(e){ console.warn(`Erro geocode ${p.os}`); } 
+    } 
+    let aprovados=[], restricoes=[], aguardandoDefinicao=[]; 
+    for(let p of pedidos){ 
+      if(p.exclusivo && document.getElementById("regraExclusivo").checked){ 
+        aprovados.push(p); 
+        continue; 
+      } 
+      if(p.paletizado || p.agendamento){ 
+        aguardandoDefinicao.push(p); 
+        continue; 
+      } 
+      let isRod=normalizarTexto(p.modalidade).toLowerCase()==="rodoviario"; 
+      if(document.getElementById("regraLeve").checked && isRod && p.pesoTotal<=1000) aprovados.push(p); 
+      else if(document.getElementById("regraPesado").checked && isRod && p.pesoTotal>1000) aprovados.push(p); 
+      else aprovados.push(p); 
+    } 
+    aprovados = aprovados.map(p => ({ ...p, grupoConsolidado: obterChaveAgrupamento(p) })); 
+    let {rotas,naoAlocados,holdList}=await montarRotasInteligentes(aprovados); 
+    setStatus("Desenhando rotas...","warn"); 
+    await desenharRotas(rotas,document.getElementById("depot").value); 
+    ultimoResultado={rotas,naoAlocados,aprovados,restricoes,holdList,aguardandoDefinicao,cubagemAutoCount}; 
+    atualizarMetricas(); 
+    renderResumo(); 
+    renderMapControls(); 
+    showTab("resultado", document.querySelectorAll(".nav-btn")[3]); 
+    setStatus(`✅ ${rotas.length} rotas | ${naoAlocados.length} não alocados | ${holdList.length} aguardando | ${aguardandoDefinicao.length} aguardando definição`,"ok"); 
+  }catch(err){ 
+    console.error(err); 
+    setStatus(`Erro: ${err.message}`,"err"); 
+  } 
+}
+function replanejarRotas() { 
+  if (pedidos.length === 0) { alert("Nenhum pedido importado. Importe um CSV primeiro."); showTab("pedidos"); return; } 
+  if (vehicles.length === 0) { alert("Nenhum veículo cadastrado. Adicione veículos na aba Parâmetros."); showTab("parametros"); return; } 
+  setStatus("Replanejando com IA...", "warn"); 
+  clearRoutes(); 
+  ultimoResultado = null; 
+  atualizarMetricas(); 
+  document.getElementById("resumoOperacional").innerHTML = ""; 
+  document.getElementById("routeEditorList").innerHTML = ""; 
+  document.getElementById("unallocatedEditorList").innerHTML = ""; 
+  document.getElementById("holdList").innerHTML = ""; 
+  document.getElementById("aguardandoDefinicaoList").innerHTML = ""; 
+  executarPlanejamento(); 
+}
+function exportarRelatorioCSV(){ 
+  if(!ultimoResultado){ alert("Execute o planejamento"); return; } 
+  let linhas=[["ROTA","CORREDOR","DATA","VEICULO","PESO","VOLUME","KM","CUSTO","FATOR_DECISORIO","REGRAS","PEDIDOS"]]; 
+  ultimoResultado.rotas.forEach((r,i)=>{ 
+    linhas.push([`Rota ${i+1}`,r.nomeCorredor,r.dataEntrega,r.veiculo?.nome||"",r.pesoTotal,r.volumeTotal,r.distanciaKm?.toFixed(1)||0,r.custoEstimado?.toFixed(2)||0,r.fatorDecisorio,(r.decisao?.regrasAplicadas||[]).join(" | "),r.pedidos.map(p=>p.os).join(";")]); 
+  }); 
+  let csv=Papa.unparse(linhas); 
+  let blob=new Blob([csv],{type:"text/csv;charset=utf-8"}); 
+  let a=document.createElement("a"); 
+  a.href=URL.createObjectURL(blob); 
+  a.download="rotas.csv"; 
+  a.click(); 
+  URL.revokeObjectURL(a.href); 
+}
+function baixarModeloPedidos(){ 
+  let csv=`OS,DESTINATARIO,CEP,CIDADE,UF,PESO BRUTO,METROCUBICO,DATAPREVISAO,OBS,CODIGO PRODUTO,PRODUTO,FOTO_URL,ALTURA,LARGURA,PROFUNDIDADE,LOGRADOURO,NUMERO,BAIRRO
 5035441,COSTAZUL ALIMENTOS LTDA,24800-000,ITABORAI,RJ,36,,25/03/2026,,12345,CAIXA LEVE,,0.40,0.30,0.35,RUA A,100,CENTRO
 1001,CLIENTE TESTE,13000-000,CAMPINAS,SP,450,3.2,25/03/2026,,789,PAINEL ELETRÔNICO,https://placehold.co/60x60?text=Painel,1.50,1.20,2.80,RUA B,200,DISTRITO
 1002,CLIENTE LEVE,07190-000,GUARULHOS,SP,85,,24/03/2026,,101,CAIXA PEQUENA,,0.30,0.25,0.20,RUA C,50,CENTRO
 1003,EXCLUSIVO,40000-000,SALVADOR,BA,2500,15.0,26/03/2026,"CARRO EXCLUSIVO",202,MOTOR GRANDE,https://placehold.co/60x60?text=Motor,2.40,1.80,4.20,AV D,500,INDUSTRIAL
 1004,FEIRA SANTANA,44000-000,FEIRA DE SANTANA,BA,320,2.5,25/03/2026,,303,ELETRODOMÉSTICO,,1.20,0.90,1.10,RUA E,45,CENTRO
-1005,SALVADOR OUTRO,40000-000,SALVADOR,BA,180,1.2,25/03/2026,"AGENDAMENTO 10:00",404,ACESSÓRIO,,0.70,0.60,0.90,RUA F,10,CENTRO`; let blob=new Blob([csv],{type:"text/csv;charset=utf-8"}); let a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="pedidos_modelo.csv"; a.click(); URL.revokeObjectURL(a.href); }
-function carregarDoStorageLocal() { try { const saved = JSON.parse(localStorage.getItem("veiculos") || "[]"); if (Array.isArray(saved)) vehicles = saved; } catch (e) { vehicles = []; } }
+1005,SALVADOR OUTRO,40000-000,SALVADOR,BA,180,1.2,25/03/2026,"AGENDAMENTO 10:00",404,ACESSÓRIO,,0.70,0.60,0.90,RUA F,10,CENTRO`; 
+  let blob=new Blob([csv],{type:"text/csv;charset=utf-8"}); 
+  let a=document.createElement("a"); 
+  a.href=URL.createObjectURL(blob); 
+  a.download="pedidos_modelo.csv"; 
+  a.click(); 
+  URL.revokeObjectURL(a.href); 
+}
+function carregarDoStorageLocal() { 
+  try { const saved = JSON.parse(localStorage.getItem("veiculos") || "[]"); if (Array.isArray(saved)) vehicles = saved; } catch (e) { vehicles = []; } 
+}
 function salvarNoStorageLocal() { localStorage.setItem("veiculos", JSON.stringify(vehicles)); }
 function loadLocalCaches() { try { geocodeCache = JSON.parse(localStorage.getItem("geo_cache") || "{}"); } catch (e) { geocodeCache = {}; } }
 function salvarCacheGeo() { localStorage.setItem("geo_cache", JSON.stringify(geocodeCache)); }
@@ -837,8 +953,47 @@ function loadGoogleMaps() {
   script.onerror = () => { if (mapEl) mapEl.innerHTML = "Erro ao carregar Google Maps. Verifique a chave e as APIs ativadas."; };
   document.head.appendChild(script);
 }
-function initCSVImport() { const input = document.getElementById("ordersCsvFile"); if (!input) return; input.addEventListener("change", function (e) { const file = e.target.files[0]; if (!file) return; Papa.parse(file, { header: true, skipEmptyLines: true, complete: (res) => { try { pedidos = agruparPedidosPorOS(res.data || []); renderPedidosSeparados(); renderOperacaoLeveList(); atualizarMetricas(); alert(`${pedidos.length} pedidos importados`); } catch (err) { console.error(err); alert("Erro ao processar os pedidos."); } e.target.value = ""; }, error: (err) => { console.error(err); alert("Erro ao importar o CSV."); } }); }); }
-document.addEventListener("DOMContentLoaded", () => { carregarCorredoresDaUI(); loadLocalCaches(); carregarDoStorageLocal(); renderVehicles(); renderPedidosSeparados(); renderOperacaoLeveList(); atualizarMetricas(); loadGoogleMaps(); initCSVImport(); if (vehicles.length === 0) adicionarVeiculoPadrao(); });
+function initCSVImport() { 
+  const input = document.getElementById("ordersCsvFile"); 
+  if (!input) return; 
+  input.addEventListener("change", function (e) { 
+    const file = e.target.files[0]; 
+    if (!file) return; 
+    Papa.parse(file, { 
+      header: true, 
+      skipEmptyLines: true, 
+      complete: (res) => { 
+        try { 
+          pedidos = agruparPedidosPorOS(res.data || []); 
+          renderPedidosSeparados(); 
+          renderOperacaoLeveList(); 
+          atualizarMetricas(); 
+          alert(`${pedidos.length} pedidos importados`); 
+        } catch (err) { 
+          console.error(err); 
+          alert("Erro ao processar os pedidos."); 
+        } 
+        e.target.value = ""; 
+      }, 
+      error: (err) => { 
+        console.error(err); 
+        alert("Erro ao importar o CSV."); 
+      } 
+    }); 
+  }); 
+}
+document.addEventListener("DOMContentLoaded", () => { 
+  carregarCorredoresDaUI(); 
+  loadLocalCaches(); 
+  carregarDoStorageLocal(); 
+  renderVehicles(); 
+  renderPedidosSeparados(); 
+  renderOperacaoLeveList(); 
+  atualizarMetricas(); 
+  loadGoogleMaps(); 
+  initCSVImport(); 
+  if (vehicles.length === 0) adicionarVeiculoPadrao(); 
+});
 </script>
 </body>
 </html>
