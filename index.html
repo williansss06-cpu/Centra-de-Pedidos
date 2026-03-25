@@ -371,28 +371,56 @@ function renderPedidosSeparados() {
   const lightTable = document.getElementById("lightRodoviariosTable");
   const heavyTable = document.getElementById("heavyRodoviariosTable");
   const exclusivosTable = document.getElementById("exclusivosTable");
-  const agendadosTable = document.getElementById("agendadosTable");
-  if (!lightTable || !heavyTable || !exclusivosTable || !agendadosTable) return;
+  
+  // Verifica se os elementos existem
+  if (!lightTable || !heavyTable || !exclusivosTable) {
+    console.error("Tabelas não encontradas no DOM");
+    return;
+  }
 
-  // Separar agendados/paletizados (não entram no planejamento)
-  const agendadosList = pedidos.filter(p => p.agendamento || p.paletizado);
-  agendados.length = 0;
-  agendados.push(...agendadosList);
-
-  const normais = pedidos.filter(p => !p.agendamento && !p.paletizado);
-  const rodoviarios = normais.filter(p => normalizarTexto(p.modalidade).toLowerCase() === "rodoviario");
-  const exclusivos = normais.filter(p => p.exclusivo === true);
+  // Filtra apenas rodoviários (ignora maiúsculas/minúsculas e acentos)
+  const rodoviarios = pedidos.filter(p => normalizarTexto(p.modalidade).toLowerCase() === "rodoviario");
+  const exclusivos = pedidos.filter(p => p.exclusivo === true);
   const naoExclusivosRod = rodoviarios.filter(p => !p.exclusivo);
 
   const leves = naoExclusivosRod.filter(p => p.pesoTotal <= 1000);
   const pesados = naoExclusivosRod.filter(p => p.pesoTotal > 1000);
 
-  lightTable.innerHTML = leves.map(p => `<tr><td><input type="checkbox" class="lightCheckbox" value="${p.os}"></td><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
-  heavyTable.innerHTML = pesados.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
-  exclusivosTable.innerHTML = exclusivos.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
-  
-  // Tabela de agendados (com sugestão de rota que será preenchida após planejamento)
-  agendadosTable.innerHTML = agendados.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${p.paletizado ? 'Paletizado' : ''}${p.agendamento ? 'Agendamento' : ''}</td><td class="sugestao-rota-${p.os}">Aguardando planejamento</td></tr>`).join("");
+  console.log(`Render: ${leves.length} leves, ${pesados.length} pesados, ${exclusivos.length} exclusivos`);
+
+  lightTable.innerHTML = leves.map(p => `
+    <tr>
+      <td><input type="checkbox" class="lightCheckbox" value="${p.os}"></td>
+      <td>${p.os}</td>
+      <td>${p.destinatario?.substring(0,25)||"-"}</td>
+      <td>${p.cidade}/${p.uf}</td>
+      <td>${formatNumber(p.pesoTotal)} kg</td>
+      <td>${formatNumber(p.volumeTotal)} m³</td>
+      <td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td>
+    </tr>
+  `).join("");
+
+  heavyTable.innerHTML = pesados.map(p => `
+    <tr>
+      <td>${p.os}</td>
+      <td>${p.destinatario?.substring(0,25)||"-"}</td>
+      <td>${p.cidade}/${p.uf}</td>
+      <td>${formatNumber(p.pesoTotal)} kg</td>
+      <td>${formatNumber(p.volumeTotal)} m³</td>
+      <td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td>
+    </tr>
+  `).join("");
+
+  exclusivosTable.innerHTML = exclusivos.map(p => `
+    <tr>
+      <td>${p.os}</td>
+      <td>${p.destinatario?.substring(0,25)||"-"}</td>
+      <td>${p.cidade}/${p.uf}</td>
+      <td>${formatNumber(p.pesoTotal)} kg</td>
+      <td>${formatNumber(p.volumeTotal)} m³</td>
+      <td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td>
+    </tr>
+  `).join("");
 
   document.getElementById("mPedidos").textContent = pedidos.length;
 }
