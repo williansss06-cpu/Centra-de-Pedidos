@@ -150,6 +150,16 @@
           </table>
         </div>
       </div>
+      <div class="card">
+        <h2>Pedidos com Agendamento / Paletização <span class="pill pill-yellow">Aguardam definição</span></h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume</th><th>Restrição</th><th>Sugestão de rota</th></tr></thead>
+            <tbody id="agendadosTable"></tbody>
+          </table>
+        </div>
+        <p class="small">📌 Estes pedidos não entram automaticamente nas rotas. Após o planejamento, você pode movê-los para a rota sugerida usando os botões na aba Resultado.</p>
+      </div>
     </section>
 
     <section id="planejamento" class="tab">
@@ -174,7 +184,7 @@
         <div class="metric"><div class="label">Custo Total</div><div class="value" id="mCustoTotal">R$ 0</div></div>
       </div>
       <div class="card"><h2>Mapa</h2><div id="map">Mapa operacional local. Preencha a chave do Google para modo real.</div>
-        <div class="map-side-grid"><div class="route-editor"><h4>Rotas</h4><div id="routeEditorList"></div></div><div class="route-editor"><h4>Pedidos com Restrição</h4><div id="restricoesList"></div><h4 style="margin-top:12px;">Não Alocados</h4><div id="unallocatedEditorList"></div><h4 style="margin-top:12px;">Aguardando (Hold)</h4><div id="holdList"></div><h4 style="margin-top:12px;">Operação Leve</h4><div id="operacaoLeveList"></div></div></div>
+        <div class="map-side-grid"><div class="route-editor"><h4>Rotas</h4><div id="routeEditorList"></div></div><div class="route-editor"><h4>Pedidos com Restrição</h4><div id="restricoesList"></div><h4 style="margin-top:12px;">Não Alocados</h4><div id="unallocatedEditorList"></div><h4 style="margin-top:12px;">Aguardando (Hold)</h4><div id="holdList"></div><h4 style="margin-top:12px;">Operação Leve</h4><div id="operacaoLeveList"></div><h4 style="margin-top:12px;">Aguardando Definição</h4><div id="aguardandoDefinicaoList"></div></div></div>
       </div>
       <div class="card"><h2>Resumo</h2><div id="resumoOperacional"></div></div>
     </section>
@@ -193,8 +203,9 @@ const APP_CONFIG = { GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds" }
 let vehicles = [];
 let pedidos = [];
 let operacaoLeve = []; // pedidos rodoviários leves enviados para operação
+let agendados = [];    // pedidos com agendamento/paletização (não entram no planejamento)
 let map = null, geocoder = null;
-let directionsRenderers = []; // guarda { id, renderer }
+let directionsRenderers = [];
 let geocodeCache = {};
 let ultimoResultado = null;
 let depotCoords = null;
@@ -216,7 +227,6 @@ function showTab(tabId,btn=null){ document.querySelectorAll(".tab").forEach(t=>t
 function setStatus(msg,type=""){ let el=document.getElementById("statusPlanejamento"); if(el){ el.className=`status ${type}`; el.innerHTML=msg; } }
 function setStatusBanco(msg,type=""){ let el=document.getElementById("statusBanco"); if(el){ el.className=`status ${type}`; el.innerHTML=msg; } }
 
-/* ==================== CORREÇÃO 1 — CORREDOR NACIONAL MELHORADO ==================== */
 function identificarCorredor(uf,cidade) {
   let u = normalizarTexto(uf).toUpperCase();
   let c = normalizarTexto(cidade).toUpperCase();
@@ -231,7 +241,6 @@ function identificarCorredor(uf,cidade) {
   return MAPA_UF[u] || "OUTROS";
 }
 
-/* ==================== CORREÇÃO 2 — VEÍCULO PROFISSIONAL COM DIMENSÃO ==================== */
 function escolherVeiculoParaCarga(pedidosDaCarga) {
   if (!pedidosDaCarga.length) return null;
   const pesoTotal = pedidosDaCarga.reduce((s,p)=>s+p.pesoTotal,0);
@@ -246,7 +255,6 @@ function escolherVeiculoParaCarga(pedidosDaCarga) {
   return null;
 }
 
-/* ==================== CORREÇÃO 3 — CONSOLIDAÇÃO INTELIGENTE ==================== */
 function podeConsolidar(p1, p2) {
   if (p1.grupoConsolidado === "LITORAL_SP" || p2.grupoConsolidado === "LITORAL_SP") {
     return p1.grupoConsolidado === p2.grupoConsolidado;
@@ -259,7 +267,6 @@ function podeConsolidar(p1, p2) {
   return identificarCorredor(p1.uf, p1.cidade) === identificarCorredor(p2.uf, p2.cidade);
 }
 
-/* ==================== CORREÇÃO 4 — MOTIVO DE NÃO ALOCAÇÃO CLARO ==================== */
 function motivoNaoAlocadoCarga(lote) {
   if (!lote.length) return "Carga vazia";
   const peso = lote.reduce((s,p)=>s+p.pesoTotal,0);
@@ -313,7 +320,14 @@ function removeVehicle(id){ vehicles=vehicles.filter(v=>String(v.id)!==String(id
 function renderVehicles(){ let tbody=document.getElementById("vehicleTableBody"); if(!vehicles.length){ tbody.innerHTML='<tr><td colspan="7">Nenhum veículo. Clique em "Adicionar Veículo Leve Padrão"</td></tr>'; return; } tbody.innerHTML=vehicles.map(v=>`<tr><td>${v.nome}</td><td>${formatNumber(v.volumeMax)}</td><td>${formatNumber(v.pesoMax)} kg</td><td>${v.notasMax}</td><td>${formatNumber(v.alturaMax)} x ${formatNumber(v.larguraMax)} x ${formatNumber(v.profundidadeMax)} m</td><td>${formatCurrency(v.custoKm)}</td><td><button class="btn btn-red" onclick="removeVehicle('${String(v.id).replace(/'/g,"\\'")}')">X</button></td></tr>`).join(""); }
 
 function valorColuna(row,names){ for(let key of Object.keys(row||{})){ let cleanKey=normalizarTexto(key).toUpperCase().replace(/\./g,"").replace(/\s+/g," "); for(let name of names){ let cleanName=normalizarTexto(name).toUpperCase().replace(/\./g,"").replace(/\s+/g," "); if(cleanKey===cleanName) return row[key]; } } return ""; }
-function analisarObs(obs){ let t=normalizarTexto(obs).toLowerCase(); return { exclusivo:t.includes("exclusivo")||t.includes("carro exclusivo"), paletizado:t.includes("palet"), agendamento:t.includes("agend") }; }
+function analisarObs(obs){ 
+  let t=normalizarTexto(obs).toLowerCase(); 
+  return { 
+    exclusivo: t.includes("exclusivo")||t.includes("carro exclusivo"), 
+    paletizado: t.includes("palet"), 
+    agendamento: t.includes("agend") || t.includes("horario") || t.includes("programada")
+  }; 
+}
 function getMaiorItemDoPedido(pedido){ let maior = null; (pedido.items||[]).forEach(item => { const dimCritica = Math.max(item.altura||0, item.largura||0, item.profundidade||0); if (!maior || dimCritica > maior.dimCritica) maior = { ...item, dimCritica }; }); return maior || { altura:0, largura:0, profundidade:0, dimCritica:0 }; }
 function getMaiorItemDaCarga(pedidosDaCarga) { let maior = null; pedidosDaCarga.forEach(p => { const item = getMaiorItemDoPedido(p); if (!maior || (item.dimCritica||0) > (maior.dimCritica||0)) maior = item; }); return maior || { altura:0, largura:0, profundidade:0, dimCritica:0 }; }
 function cabeNoVeiculoPorDimensao(item, veiculo) { return (item.altura||0) <= (veiculo.alturaMax||0) && (item.largura||0) <= (veiculo.larguraMax||0) && (item.profundidade||0) <= (veiculo.profundidadeMax||0); }
@@ -332,11 +346,17 @@ function renderPedidosSeparados() {
   const lightTable = document.getElementById("lightRodoviariosTable");
   const heavyTable = document.getElementById("heavyRodoviariosTable");
   const exclusivosTable = document.getElementById("exclusivosTable");
-  if (!lightTable || !heavyTable || !exclusivosTable) return;
+  const agendadosTable = document.getElementById("agendadosTable");
+  if (!lightTable || !heavyTable || !exclusivosTable || !agendadosTable) return;
 
-  // Filtrar apenas rodoviários
-  const rodoviarios = pedidos.filter(p => normalizarTexto(p.modalidade).toLowerCase() === "rodoviario");
-  const exclusivos = pedidos.filter(p => p.exclusivo === true);
+  // Separar agendados/paletizados (não entram no planejamento)
+  const agendadosList = pedidos.filter(p => p.agendamento || p.paletizado);
+  agendados.length = 0;
+  agendados.push(...agendadosList);
+
+  const normais = pedidos.filter(p => !p.agendamento && !p.paletizado);
+  const rodoviarios = normais.filter(p => normalizarTexto(p.modalidade).toLowerCase() === "rodoviario");
+  const exclusivos = normais.filter(p => p.exclusivo === true);
   const naoExclusivosRod = rodoviarios.filter(p => !p.exclusivo);
 
   const leves = naoExclusivosRod.filter(p => p.pesoTotal <= 1000);
@@ -345,6 +365,9 @@ function renderPedidosSeparados() {
   lightTable.innerHTML = leves.map(p => `<tr><td><input type="checkbox" class="lightCheckbox" value="${p.os}"></td><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
   heavyTable.innerHTML = pesados.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
   exclusivosTable.innerHTML = exclusivos.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
+  
+  // Tabela de agendados (com sugestão de rota que será preenchida após planejamento)
+  agendadosTable.innerHTML = agendados.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${p.paletizado ? 'Paletizado' : ''}${p.agendamento ? 'Agendamento' : ''}</td><td class="sugestao-rota-${p.os}">Aguardando planejamento</td></tr>`).join("");
 
   document.getElementById("mPedidos").textContent = pedidos.length;
 }
@@ -687,7 +710,42 @@ function renderMapControls() {
   let unalloc = document.getElementById("unallocatedEditorList");
   let restricoesDiv = document.getElementById("restricoesList");
   let holdDiv = document.getElementById("holdList");
+  let aguardandoDiv = document.getElementById("aguardandoDefinicaoList");
   if (!ultimoResultado) return;
+  
+  // Mapeia sugestão de rota para agendados
+  if (ultimoResultado.rotas.length > 0 && agendados.length) {
+    for (let ag of agendados) {
+      let melhorRota = null;
+      let menorDist = Infinity;
+      for (let rota of ultimoResultado.rotas) {
+        // Sugere rota baseada no corredor e data
+        if (ag.dataPrevisao && rota.dataEntrega !== ag.dataPrevisao) continue;
+        const corredorAg = obterChaveAgrupamento(ag);
+        if (rota.corredor === corredorAg) {
+          // Se tiver coordenadas, calcula distância
+          if (ag.lat && ag.lng && rota.pedidos.length) {
+            let distMin = Math.min(...rota.pedidos.map(p => calcularDistancia(p.lat, p.lng, ag.lat, ag.lng)));
+            if (distMin < menorDist) {
+              menorDist = distMin;
+              melhorRota = rota;
+            }
+          } else {
+            melhorRota = rota;
+            break;
+          }
+        }
+      }
+      if (melhorRota) {
+        const cell = document.querySelector(`.sugestao-rota-${ag.os}`);
+        if (cell) cell.innerHTML = `Rota ${ultimoResultado.rotas.findIndex(r=>r.id===melhorRota.id)+1} - ${melhorRota.nomeCorredor}`;
+      } else {
+        const cell = document.querySelector(`.sugestao-rota-${ag.os}`);
+        if (cell) cell.innerHTML = "Nenhuma rota compatível";
+      }
+    }
+  }
+  
   editor.innerHTML = ultimoResultado.rotas.map((r, i) => {
     const outrasRotas = ultimoResultado.rotas.filter(ro => ro.id !== r.id);
     const moveOptions = outrasRotas.length ? `<select id="destSelect_${r.id}" style="font-size:12px; padding:4px;">${outrasRotas.map(ro => `<option value="${ro.id}">Rota ${ultimoResultado.rotas.findIndex(rr=>rr.id===ro.id)+1} - ${ro.nomeCorredor}</option>`).join('')}</select>` : '<span>Sem outras rotas</span>';
@@ -708,16 +766,94 @@ function renderMapControls() {
       ${outrasRotas.length ? `<div style="margin-top:8px;"><label style="font-size:12px;">Mover para rota:</label> ${moveOptions}</div>` : ''}
     </div>`;
   }).join("") || "<div>Nenhuma rota</div>";
+  
   restricoesDiv.innerHTML = ultimoResultado.restricoes.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³ <span class="pill pill-yellow">⚠️ ${p.paletizado?'Paletizado':''} ${p.agendamento?'Agendamento':''}</span></div>`).join("")||"<div>Nenhum pedido com restrição</div>";
   unalloc.innerHTML = ultimoResultado.naoAlocados.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<br><span class="pill pill-yellow">${p.motivo||"Sem alocação"}</span></div>`).join("")||"<div>Todos alocados ✓</div>";
   holdDiv.innerHTML = ultimoResultado.holdList.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<br><span class="pill pill-blue">${p.motivo||"Aguardando consolidação"}</span></div>`).join("")||"<div>Nenhum pedido em espera</div>";
+  aguardandoDiv.innerHTML = agendados.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<br>${p.paletizado ? '🔄 Paletizado' : ''} ${p.agendamento ? '⏰ Agendamento' : ''}<br><span class="pill pill-purple">Sugestão: ${document.querySelector(`.sugestao-rota-${p.os}`)?.innerHTML || 'Nenhuma rota'}</span><br><button class="btn btn-small btn-blue" style="margin-top:5px; padding:4px 8px; font-size:11px;" onclick="moverAgendadoParaRota('${p.os}')">➡️ Mover para rota sugerida</button></div>`).join("")||"<div>Nenhum pedido aguardando definição</div>";
+}
+
+function moverAgendadoParaRota(os) {
+  const sugestaoCell = document.querySelector(`.sugestao-rota-${os}`);
+  if (!sugestaoCell || sugestaoCell.innerText === "Nenhuma rota compatível" || sugestaoCell.innerText === "Aguardando planejamento") {
+    alert("Nenhuma rota sugerida para este pedido. Execute o planejamento primeiro.");
+    return;
+  }
+  const rotaTexto = sugestaoCell.innerText;
+  const rotaNum = parseInt(rotaTexto.match(/\d+/)[0]);
+  if (isNaN(rotaNum)) { alert("Erro ao identificar rota."); return; }
+  const rotaDestino = ultimoResultado.rotas[rotaNum-1];
+  if (!rotaDestino) { alert("Rota não encontrada."); return; }
+  const pedido = agendados.find(p => p.os === os);
+  if (!pedido) return;
+  // Remover da lista de agendados
+  const idx = agendados.findIndex(p => p.os === os);
+  if (idx !== -1) agendados.splice(idx, 1);
+  // Adicionar à rota
+  rotaDestino.pedidos.push(pedido);
+  rotaDestino.pesoTotal = rotaDestino.pedidos.reduce((s,p)=>s+p.pesoTotal,0);
+  rotaDestino.volumeTotal = rotaDestino.pedidos.reduce((s,p)=>s+p.volumeTotal,0);
+  rotaDestino.numNotas = rotaDestino.pedidos.reduce((s,p)=>s+p.numNotas,0);
+  const novoVeiculo = escolherVeiculoParaCarga(rotaDestino.pedidos);
+  if (novoVeiculo) {
+    rotaDestino.veiculo = novoVeiculo;
+    const novaDecisao = gerarFatorDecisorio(rotaDestino.pedidos, novoVeiculo, rotaDestino.grupoChave);
+    rotaDestino.fatorDecisorio = novaDecisao.motivoDimensao;
+    rotaDestino.decisao = novaDecisao;
+    rotaDestino.maiorItem = novaDecisao.maiorItem;
+    rotaDestino.itemCritico = { item: novaDecisao.maiorItem };
+  }
+  // Atualizar interface
+  atualizarMetricas();
+  renderMapControls();
+  renderResumo();
+  if (map && geocoder) desenharRotas(ultimoResultado.rotas, document.getElementById("depot").value);
+  setStatus(`Pedido ${os} movido para rota ${rotaNum}.`, "ok");
 }
 
 function renderResumo(){ let el=document.getElementById("resumoOperacional"); if(!ultimoResultado){ el.innerHTML="<p>Nenhum planejamento</p>"; return; } let {rotas,naoAlocados,holdList}=ultimoResultado; let porCorredor=new Map(); for(let r of rotas){ if(!porCorredor.has(r.nomeCorredor)) porCorredor.set(r.nomeCorredor,[]); porCorredor.get(r.nomeCorredor).push(r); } el.innerHTML=`<div class="grid grid-2"><div class="metric"><div class="label">Rotas</div><div class="value">${rotas.length}</div></div><div class="metric"><div class="label">Não Alocados</div><div class="value">${naoAlocados.length}</div></div><div class="metric"><div class="label">Aguardando (Hold)</div><div class="value">${holdList.length}</div></div></div><h3>Por Corredor</h3><div class="table-wrap" style="padding:12px;">${Array.from(porCorredor.entries()).map(([nome,rs])=>`<div><strong>${nome}</strong>: ${rs.length} rotas, ${formatNumber(rs.reduce((s,r)=>s+r.pesoTotal,0))} kg, ${formatCurrency(rs.reduce((s,r)=>s+r.custoEstimado,0))}</div>`).join("") || "<div>Sem corredores</div>"}</div>`; }
 function atualizarMetricas(){ document.getElementById("mPedidos").textContent=pedidos.length; document.getElementById("mAlocados").textContent=ultimoResultado?.aprovados?.length||0; document.getElementById("mNaoAlocados").textContent=ultimoResultado?.naoAlocados?.length||0; document.getElementById("mHold").textContent=ultimoResultado?.holdList?.length||0; document.getElementById("mRotas").textContent=ultimoResultado?.rotas?.length||0; document.getElementById("mCustoTotal").textContent=formatCurrency(ultimoResultado?.rotas?.reduce((s,r)=>s+(r.custoEstimado||0),0)||0); }
 
-async function executarPlanejamento(){ try{ carregarCorredoresDaUI(); if(!vehicles.length){ setStatus("Cadastre veículos","err"); return; } if(!pedidos.length){ setStatus("Importe pedidos","err"); return; } if(!geocoder){ setStatus("Aguarde carregamento do mapa","warn"); return; } setStatus("Geocodificando...","warn"); depotCoords=await geocodeAddress(document.getElementById("depot").value); let cubagemAutoCount = 0; for(let p of pedidos){ try{ let coord=await geocodeAddress(montarEndereco(p)); p.lat=coord.lat; p.lng=coord.lng; if(p.cubagemAuto) cubagemAutoCount++; }catch(e){ console.warn(`Erro geocode ${p.os}`); } } let aprovados=[], restricoes=[]; for(let p of pedidos){ let isRod=normalizarTexto(p.modalidade).toLowerCase()==="rodoviario"; if(p.exclusivo && document.getElementById("regraExclusivo").checked){ aprovados.push(p); continue; } if(p.paletizado || p.agendamento){ restricoes.push(p); continue; } if(document.getElementById("regraLeve").checked && isRod && p.pesoTotal<=1000) aprovados.push(p); else if(document.getElementById("regraPesado").checked && isRod && p.pesoTotal>1000) aprovados.push(p); else aprovados.push(p); } aprovados = aprovados.map(p => ({ ...p, grupoConsolidado: obterChaveAgrupamento(p) })); let {rotas,naoAlocados,holdList}=await montarRotasInteligentes(aprovados); setStatus("Desenhando rotas...","warn"); await desenharRotas(rotas,document.getElementById("depot").value); ultimoResultado={rotas,naoAlocados,aprovados,restricoes,holdList,cubagemAutoCount}; atualizarMetricas(); renderResumo(); renderMapControls(); showTab("resultado", document.querySelectorAll(".nav-btn")[3]); setStatus(`✅ ${rotas.length} rotas | ${naoAlocados.length} não alocados | ${holdList.length} aguardando | ${restricoes.length} restrições`,"ok"); }catch(err){ console.error(err); setStatus(`Erro: ${err.message}`,"err"); } }
-function replanejarRotas() { if (pedidos.length === 0) { alert("Nenhum pedido importado. Importe um CSV primeiro."); showTab("pedidos"); return; } if (vehicles.length === 0) { alert("Nenhum veículo cadastrado. Adicione veículos na aba Parâmetros."); showTab("parametros"); return; } setStatus("Replanejando com IA...", "warn"); clearRoutes(); ultimoResultado = null; atualizarMetricas(); document.getElementById("resumoOperacional").innerHTML = ""; document.getElementById("routeEditorList").innerHTML = ""; document.getElementById("unallocatedEditorList").innerHTML = ""; document.getElementById("restricoesList").innerHTML = ""; document.getElementById("holdList").innerHTML = ""; executarPlanejamento(); }
+async function executarPlanejamento(){ try{ carregarCorredoresDaUI(); if(!vehicles.length){ setStatus("Cadastre veículos","err"); return; } 
+  // Filtra pedidos que vão para planejamento (exclui agendados/paletizados)
+  const pedidosPlanejamento = pedidos.filter(p => !p.agendamento && !p.paletizado);
+  if(!pedidosPlanejamento.length){ setStatus("Nenhum pedido apto para planejamento (todos são agendados ou paletizados)","warn"); return; }
+  if(!geocoder){ setStatus("Aguarde carregamento do mapa","warn"); return; }
+  setStatus("Geocodificando...","warn"); 
+  depotCoords=await geocodeAddress(document.getElementById("depot").value); 
+  let cubagemAutoCount = 0; 
+  for(let p of pedidosPlanejamento){ 
+    try{ 
+      let coord=await geocodeAddress(montarEndereco(p)); 
+      p.lat=coord.lat; p.lng=coord.lng; 
+      if(p.cubagemAuto) cubagemAutoCount++; 
+    }catch(e){ console.warn(`Erro geocode ${p.os}`); } 
+  } 
+  let aprovados=[], restricoes=[]; 
+  for(let p of pedidosPlanejamento){ 
+    let isRod=normalizarTexto(p.modalidade).toLowerCase()==="rodoviario"; 
+    if(p.exclusivo && document.getElementById("regraExclusivo").checked){ 
+      aprovados.push(p); continue; 
+    } 
+    if(p.paletizado || p.agendamento){ 
+      restricoes.push(p); continue; 
+    } 
+    if(document.getElementById("regraLeve").checked && isRod && p.pesoTotal<=1000) aprovados.push(p); 
+    else if(document.getElementById("regraPesado").checked && isRod && p.pesoTotal>1000) aprovados.push(p); 
+    else aprovados.push(p); 
+  } 
+  aprovados = aprovados.map(p => ({ ...p, grupoConsolidado: obterChaveAgrupamento(p) })); 
+  let {rotas,naoAlocados,holdList}=await montarRotasInteligentes(aprovados); 
+  setStatus("Desenhando rotas...","warn"); 
+  await desenharRotas(rotas,document.getElementById("depot").value); 
+  ultimoResultado={rotas,naoAlocados,aprovados,restricoes,holdList,cubagemAutoCount}; 
+  atualizarMetricas(); 
+  renderResumo(); 
+  renderMapControls(); 
+  showTab("resultado", document.querySelectorAll(".nav-btn")[3]); 
+  setStatus(`✅ ${rotas.length} rotas | ${naoAlocados.length} não alocados | ${holdList.length} aguardando | ${restricoes.length} restrições`,"ok"); 
+}catch(err){ console.error(err); setStatus(`Erro: ${err.message}`,"err"); } }
+function replanejarRotas() { if (pedidos.length === 0) { alert("Nenhum pedido importado. Importe um CSV primeiro."); showTab("pedidos"); return; } if (vehicles.length === 0) { alert("Nenhum veículo cadastrado. Adicione veículos na aba Parâmetros."); showTab("parametros"); return; } setStatus("Replanejando com IA...", "warn"); clearRoutes(); ultimoResultado = null; atualizarMetricas(); document.getElementById("resumoOperacional").innerHTML = ""; document.getElementById("routeEditorList").innerHTML = ""; document.getElementById("unallocatedEditorList").innerHTML = ""; document.getElementById("restricoesList").innerHTML = ""; document.getElementById("holdList").innerHTML = ""; document.getElementById("aguardandoDefinicaoList").innerHTML = ""; executarPlanejamento(); }
 function exportarRelatorioCSV(){ if(!ultimoResultado){ alert("Execute o planejamento"); return; } let linhas=[["ROTA","CORREDOR","DATA","VEICULO","PESO","VOLUME","KM","CUSTO","FATOR_DECISORIO","REGRAS","PEDIDOS"]]; ultimoResultado.rotas.forEach((r,i)=>{ linhas.push([`Rota ${i+1}`,r.nomeCorredor,r.dataEntrega,r.veiculo?.nome||"",r.pesoTotal,r.volumeTotal,r.distanciaKm?.toFixed(1)||0,r.custoEstimado?.toFixed(2)||0,r.fatorDecisorio,(r.decisao?.regrasAplicadas||[]).join(" | "),r.pedidos.map(p=>p.os).join(";")]); }); let csv=Papa.unparse(linhas); let blob=new Blob([csv],{type:"text/csv;charset=utf-8"}); let a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="rotas.csv"; a.click(); URL.revokeObjectURL(a.href); }
 function baixarModeloPedidos(){ let csv=`OS,DESTINATARIO,CEP,CIDADE,UF,PESO BRUTO,METROCUBICO,DATAPREVISAO,OBS,CODIGO PRODUTO,PRODUTO,FOTO_URL,ALTURA,LARGURA,PROFUNDIDADE,LOGRADOURO,NUMERO,BAIRRO
 5035441,COSTAZUL ALIMENTOS LTDA,24800-000,ITABORAI,RJ,36,,25/03/2026,,12345,CAIXA LEVE,,0.40,0.30,0.35,RUA A,100,CENTRO
