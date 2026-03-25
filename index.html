@@ -269,18 +269,43 @@ function podeConsolidar(p1, p2) {
 
 function motivoNaoAlocadoCarga(lote) {
   if (!lote.length) return "Carga vazia";
-  const peso = lote.reduce((s,p)=>s+p.pesoTotal,0);
-  const m3 = lote.reduce((s,p)=>s+p.volumeTotal,0);
-  const notas = lote.reduce((s,p)=>s+p.numNotas,0);
+  const pesoTotal = lote.reduce((s,p)=>s+p.pesoTotal,0);
+  const volumeTotal = lote.reduce((s,p)=>s+p.volumeTotal,0);
+  const notasTotal = lote.reduce((s,p)=>s+p.numNotas,0);
   const maiorItem = getMaiorItemDaCarga(lote);
-  const veiculoTest = escolherVeiculoParaCarga(lote);
-  if (!veiculoTest) {
-    if (maiorItem && maiorItem.dimCritica > 0) {
-      return `Item crítico (${formatNumber(maiorItem.altura)}x${formatNumber(maiorItem.largura)}x${formatNumber(maiorItem.profundidade)}m) excede dimensões dos veículos disponíveis`;
+
+  // Tenta encontrar o menor veículo que atenderia, para identificar qual restrição falha
+  const veiculosOrdenados = [...vehicles].sort((a,b) => a.volumeMax - b.volumeMax || a.pesoMax - b.pesoMax);
+  
+  for (let v of veiculosOrdenados) {
+    // Verifica dimensões primeiro
+    if (!cabeNoVeiculoPorDimensao(maiorItem, v)) {
+      return `Item crítico (${formatNumber(maiorItem.altura)}x${formatNumber(maiorItem.largura)}x${formatNumber(maiorItem.profundidade)}m) excede dimensões do veículo ${v.nome}`;
     }
-    return `Excede capacidade (${formatNumber(peso)}kg / ${formatNumber(m3)}m³ / ${notas} notas)`;
+    if (pesoTotal > v.pesoMax) {
+      return `Peso total ${formatNumber(pesoTotal)} kg excede capacidade do veículo ${v.nome} (máx ${formatNumber(v.pesoMax)} kg)`;
+    }
+    if (volumeTotal > v.volumeMax) {
+      return `Volume total ${formatNumber(volumeTotal)} m³ excede capacidade do veículo ${v.nome} (máx ${formatNumber(v.volumeMax)} m³)`;
+    }
+    if (notasTotal > v.notasMax) {
+      return `Número de notas ${notasTotal} excede limite do veículo ${v.nome} (máx ${v.notasMax} notas)`;
+    }
+    // Se passou em tudo, este veículo seria compatível – mas não foi escolhido porque não está no laço? (caso raro)
+    // Nesse caso, continuamos procurando um menor ainda que atenda.
   }
-  return `Não foi possível alocar: verifique restrições de consolidação ou capacidade`;
+
+  // Se chegou aqui, nenhum veículo atende a pelo menos uma das restrições. Monta mensagem genérica com a pior restrição.
+  let motivos = [];
+  const maxPeso = Math.max(...veiculosOrdenados.map(v => v.pesoMax));
+  const maxVolume = Math.max(...veiculosOrdenados.map(v => v.volumeMax));
+  const maxNotas = Math.max(...veiculosOrdenados.map(v => v.notasMax));
+  if (pesoTotal > maxPeso) motivos.push(`peso (${formatNumber(pesoTotal)} kg > ${formatNumber(maxPeso)} kg)`);
+  if (volumeTotal > maxVolume) motivos.push(`volume (${formatNumber(volumeTotal)} m³ > ${formatNumber(maxVolume)} m³)`);
+  if (notasTotal > maxNotas) motivos.push(`notas (${notasTotal} > ${maxNotas})`);
+  if (motivos.length) return `Carga excede ${motivos.join(' e ')} mesmo nos maiores veículos disponíveis.`;
+  
+  return `Não foi possível alocar: verifique restrições de consolidação ou capacidade.`;
 }
 
 function carregarCorredoresDaUI() {
