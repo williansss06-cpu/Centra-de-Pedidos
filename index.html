@@ -26,7 +26,7 @@
     .pill{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700}.pill-green{background:#dcfce7;color:#166534}.pill-yellow{background:#fef3c7;color:#92400e}.pill-purple{background:#ede9fe;color:#6d28d9}.pill-blue{background:#dbeafe;color:#1d4ed8}
     .inline-alert{padding:12px 14px;border-radius:10px;background:#eef6ff;border:1px solid #bfdbfe;color:#1e3a8a;margin-top:12px;font-size:13px}.map-side-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:16px}.route-editor{background:#fff;border-radius:14px;padding:14px;border:1px solid var(--line);max-height:520px;overflow:auto}
     .pedido-chip{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#f8fafc;position:relative}.btn-icon{position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer}.decision-box{margin-top:10px;padding:10px;background:#f8fafc;border-left:4px solid var(--blue);border-radius:10px;font-size:13px}.critical-item{background:#fff3e0;border-left:4px solid var(--orange);padding:8px;margin-top:8px;border-radius:8px}
-    .modal{display:none;position:fixed;z-index:1000;inset:0;overflow:auto;background-color:rgba(0,0,0,.5)}.modal-content{background-color:#fefefe;margin:5% auto;padding:20px;border:1px solid #888;width:80%;max-width:900px;border-radius:16px}.close{color:#aaa;float:right;font-size:28px;font-weight:bold;cursor:pointer}.close:hover{color:black}
+    .modal{display:none;position:fixed;z-index:1000;inset:0;overflow:auto;background-color:rgba(0,0,0,.5)}.modal-content{background-color:#fefefe;margin:5% auto;padding:20px;border:1px solid #888;width:80%;max-width:900px;border-radius:16px;max-height:80vh;overflow-y:auto}.close{color:#aaa;float:right;font-size:28px;font-weight:bold;cursor:pointer}.close:hover{color:black}
     @media (max-width:1200px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-5,.grid-4,.grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}.map-side-grid{grid-template-columns:1fr}}
     @media (max-width:768px){.app{flex-direction:column}.sidebar{width:100%;height:auto;position:relative}.metrics,.grid-2,.grid-3,.grid-4,.grid-5,.grid-6{grid-template-columns:1fr}}
   </style>
@@ -61,7 +61,7 @@
           <div class="field"><label>Comprimento (m)</label><input type="number" id="v_profundidade" step="0.01" placeholder="2.50" /></div>
         </div>
         <div class="row"><button class="btn btn-green" onclick="addVehicle()">Adicionar veículo</button></div>
-        <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Dimensões</th><th>R$/km</th><th>Ação</th></tr></thead><tbody id="vehicleTableBody"></tbody></table></div>
+        <div class="table-wrap">\n<table>\n<thead>\n<tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Dimensões</th><th>R$/km</th><th>Ação</th></tr>\n</thead>\n<tbody id="vehicleTableBody"></tbody>\n</table>\n</div>
         <div id="statusBanco" class="status"></div>
       </div>
 
@@ -121,7 +121,7 @@
       </div>
       <div class="card">
         <h2>Pedidos (com cubagem corrigida)</h2>
-        <div class="table-wrap"><table><thead><tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume</th><th>Volume Corrigido</th><th>Maior item</th><th>Status</th></tr></thead><tbody id="pedidoTableBody"></tbody></table></div>
+        <div class="table-wrap">\n<table>\n<thead>\n<tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume</th><th>Volume Corrigido</th><th>Maior item</th><th>Status</th></tr>\n</thead>\n<tbody id="pedidoTableBody"></tbody>\n</table>\n</div>
       </div>
     </section>
 
@@ -165,7 +165,8 @@
 const APP_CONFIG = { GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds" };
 let vehicles = [];
 let pedidos = [];
-let map = null, geocoder = null, directionsRenderers = [];
+let map = null, geocoder = null;
+let directionsRenderers = []; // agora guarda { id, renderer }
 let geocodeCache = {};
 let ultimoResultado = null;
 let depotCoords = null;
@@ -192,86 +193,43 @@ function identificarCorredor(uf,cidade) {
   let u = normalizarTexto(uf).toUpperCase();
   let c = normalizarTexto(cidade).toUpperCase();
 
-  // prioridade: cidades configuradas nos corredores
   for (let [k, corredor] of Object.entries(CORREDORES)) {
     if (corredor.cidades.includes(c)) return k;
   }
 
-  // fallback nacional com mapeamento completo de UF
   const MAPA_UF = {
-    SP:"CAMPINAS",
-    RJ:"VALE_DO_PARAIBA",
-    MG:"MINAS_GERAIS",
-    ES:"VALE_DO_PARAIBA",
-    PR:"SUL",
-    SC:"SUL",
-    RS:"SUL",
-    GO:"CENTRO_OESTE",
-    DF:"CENTRO_OESTE",
-    MT:"CENTRO_OESTE",
-    MS:"CENTRO_OESTE",
-    BA:"NORDESTE",
-    SE:"NORDESTE",
-    AL:"NORDESTE",
-    PE:"NORDESTE",
-    CE:"NORDESTE",
-    PB:"NORDESTE",
-    RN:"NORDESTE",
-    PI:"NORDESTE",
-    MA:"NORDESTE"
+    SP:"CAMPINAS", RJ:"VALE_DO_PARAIBA", MG:"MINAS_GERAIS", ES:"VALE_DO_PARAIBA",
+    PR:"SUL", SC:"SUL", RS:"SUL", GO:"CENTRO_OESTE", DF:"CENTRO_OESTE", MT:"CENTRO_OESTE", MS:"CENTRO_OESTE",
+    BA:"NORDESTE", SE:"NORDESTE", AL:"NORDESTE", PE:"NORDESTE", CE:"NORDESTE", PB:"NORDESTE", RN:"NORDESTE", PI:"NORDESTE", MA:"NORDESTE"
   };
-
   return MAPA_UF[u] || "OUTROS";
 }
 
 /* ==================== CORREÇÃO 2 — VEÍCULO PROFISSIONAL COM DIMENSÃO ==================== */
 function escolherVeiculoParaCarga(pedidosDaCarga) {
   if (!pedidosDaCarga.length) return null;
-
   const pesoTotal = pedidosDaCarga.reduce((s,p)=>s+p.pesoTotal,0);
   const volumeTotal = pedidosDaCarga.reduce((s,p)=>s+p.volumeTotal,0);
   const notasTotal = pedidosDaCarga.reduce((s,p)=>s+p.numNotas,0);
   const maiorItem = getMaiorItemDaCarga(pedidosDaCarga);
-
-  const ordenados = [...vehicles].sort((a,b) =>
-    a.volumeMax - b.volumeMax || a.pesoMax - b.pesoMax
-  );
-
+  const ordenados = [...vehicles].sort((a,b)=> a.volumeMax - b.volumeMax || a.pesoMax - b.pesoMax);
   for (let v of ordenados) {
-    // validação de dimensão - item crítico deve caber
     if (!cabeNoVeiculoPorDimensao(maiorItem, v)) continue;
-
-    if (
-      pesoTotal <= v.pesoMax &&
-      volumeTotal <= v.volumeMax &&
-      notasTotal <= v.notasMax
-    ) {
-      return v;
-    }
+    if (pesoTotal <= v.pesoMax && volumeTotal <= v.volumeMax && notasTotal <= v.notasMax) return v;
   }
-
   return null;
 }
 
 /* ==================== CORREÇÃO 3 — CONSOLIDAÇÃO INTELIGENTE ==================== */
 function podeConsolidar(p1, p2) {
-  // Litoral SP isola completamente
   if (p1.grupoConsolidado === "LITORAL_SP" || p2.grupoConsolidado === "LITORAL_SP") {
     return p1.grupoConsolidado === p2.grupoConsolidado;
   }
-
-  // mesmo grupo consolidado
   if (p1.grupoConsolidado === p2.grupoConsolidado) return true;
-
-  // Capital com interior próximo (checkbox)
-  if (
-    document.getElementById("regraCapitalFlex")?.checked &&
-    (p1.grupoConsolidado === "SP_CAPITAL" || p2.grupoConsolidado === "SP_CAPITAL")
-  ) {
+  if (document.getElementById("regraCapitalFlex")?.checked &&
+      (p1.grupoConsolidado === "SP_CAPITAL" || p2.grupoConsolidado === "SP_CAPITAL")) {
     return true;
   }
-
-  // fallback inteligente por corredor (antes travava)
   return identificarCorredor(p1.uf, p1.cidade) === identificarCorredor(p2.uf, p2.cidade);
 }
 
@@ -282,7 +240,6 @@ function motivoNaoAlocadoCarga(lote) {
   const m3 = lote.reduce((s,p)=>s+p.volumeTotal,0);
   const notas = lote.reduce((s,p)=>s+p.numNotas,0);
   const maiorItem = getMaiorItemDaCarga(lote);
-  
   const veiculoTest = escolherVeiculoParaCarga(lote);
   if (!veiculoTest) {
     if (maiorItem && maiorItem.dimCritica > 0) {
@@ -352,7 +309,7 @@ function gerarFatorDecisorio(pedidosDaCarga, veiculo, grupoChave) { const maiorI
 function montarEndereco(p){ return [p.logradouro,p.numero,p.bairro,p.cidade,p.uf,p.cep].filter(Boolean).join(", "); }
 
 async function geocodeAddress(addr) { if (!geocoder) throw new Error("Geocodificador não disponível"); if (!addr) throw new Error("Endereço inválido"); const key = addr.trim().toLowerCase(); if (geocodeCache[key]) return geocodeCache[key]; return new Promise((resolve, reject) => { geocoder.geocode({ address: addr }, (results, status) => { if (status === "OK" && results[0]) { const loc = results[0].geometry.location, coords = { lat: loc.lat(), lng: loc.lng() }; geocodeCache[key] = coords; salvarCacheGeo(); resolve(coords); } else reject(new Error(`Falha ao geocodificar: ${addr}`)); }); }); }
-function clearRoutes() { if (directionsRenderers && directionsRenderers.length) directionsRenderers.forEach(r => r.setMap(null)); directionsRenderers = []; }
+function clearRoutes() { if (directionsRenderers && directionsRenderers.length) directionsRenderers.forEach(item => item.renderer.setMap(null)); directionsRenderers = []; }
 
 async function montarRotasInteligentes(pedidosBase) {
   const rotas = [], naoAlocados = [], pesoMaxCfg = Number(document.getElementById("cfgPesoMax").value||5000), volumeMaxCfg = Number(document.getElementById("cfgVolumeMax").value||20), maxParadas = Number(document.getElementById("cfgMaxParadas").value||12), raioKm = Number(document.getElementById("cfgRaioKm").value||80);
@@ -388,11 +345,41 @@ async function desenharRotas(rotas, origem){
     let rota=rotas[idx]; if(!rota.pedidos.length) continue; let pontos=[];
     for(let p of rota.pedidos){ try{ let coord = p.lat && p.lng ? {lat:p.lat,lng:p.lng} : await geocodeAddress(montarEndereco(p)); pontos.push({pedido:p,coord}); bounds.extend(coord); new google.maps.Marker({position:coord,map,title:`${p.os} - ${p.destinatario||""}`,label:String(pontos.length),icon:{path:google.maps.SymbolPath.CIRCLE,scale:8,fillColor:colors[idx%colors.length],fillOpacity:1,strokeColor:"#fff",strokeWeight:1}}); }catch(e){ console.warn("Erro geocode",p.os); } }
     if(!pontos.length) continue; let service = new google.maps.DirectionsService(); let destination = pontos[pontos.length - 1].coord; let waypoints = pontos.slice(0, -1).map(p => ({ location: p.coord, stopover: true }));
-    await new Promise(resolve => { service.route({ origin, destination, waypoints, travelMode: google.maps.TravelMode.DRIVING, optimizeWaypoints: true }, (res,status)=>{ if(status==="OK"){ let renderer=new google.maps.DirectionsRenderer({map,preserveViewport:true,suppressMarkers:true,polylineOptions:{strokeColor:colors[idx%colors.length],strokeWeight:5}}); renderer.setDirections(res); directionsRenderers.push(renderer); let dist=0; res.routes[0].legs.forEach(l=>{dist+=l.distance?.value||0;}); rota.distanciaKm=dist/1000; rota.custoEstimado=rota.distanciaKm*(rota.veiculo?.custoKm||0); } else console.warn("Directions falhou:", status); resolve(); }); });
+    await new Promise(resolve => { service.route({ origin, destination, waypoints, travelMode: google.maps.TravelMode.DRIVING, optimizeWaypoints: true }, (res,status)=>{ if(status==="OK"){ let renderer=new google.maps.DirectionsRenderer({map,preserveViewport:true,suppressMarkers:true,polylineOptions:{strokeColor:colors[idx%colors.length],strokeWeight:5}}); renderer.setDirections(res); directionsRenderers.push({ id: rota.id, renderer }); let dist=0; res.routes[0].legs.forEach(l=>{dist+=l.distance?.value||0;}); rota.distanciaKm=dist/1000; rota.custoEstimado=rota.distanciaKm*(rota.veiculo?.custoKm||0); } else console.warn("Directions falhou:", status); resolve(); }); });
   }
   if(!bounds.isEmpty()) map.fitBounds(bounds);
 }
-function focusRouteOnMap(rotaId) { const rota = ultimoResultado?.rotas?.find(r => r.id === rotaId); if (!rota || !map || !depotCoords) return; const bounds = new google.maps.LatLngBounds(); bounds.extend(depotCoords); for (let p of rota.pedidos) if (p.lat && p.lng) bounds.extend({ lat:p.lat, lng:p.lng }); map.fitBounds(bounds); }
+
+// Funções para destacar rota
+function resetAllRouteStyles() {
+  directionsRenderers.forEach(item => {
+    if (item.renderer && item.renderer.setOptions) {
+      item.renderer.setOptions({
+        polylineOptions: { strokeWeight: 5, strokeColor: "#2563eb" } // azul padrão
+      });
+    }
+  });
+}
+function highlightRouteById(routeId) {
+  const found = directionsRenderers.find(item => item.id === routeId);
+  if (found && found.renderer) {
+    found.renderer.setOptions({
+      polylineOptions: { strokeWeight: 8, strokeColor: "#ff0000" } // vermelho grossa
+    });
+  }
+}
+
+function focusRouteOnMap(rotaId) {
+  const rota = ultimoResultado?.rotas?.find(r => r.id === rotaId);
+  if (!rota || !map || !depotCoords) return;
+  resetAllRouteStyles();
+  highlightRouteById(rotaId);
+  const bounds = new google.maps.LatLngBounds();
+  bounds.extend(depotCoords);
+  for (let p of rota.pedidos) if (p.lat && p.lng) bounds.extend({ lat:p.lat, lng:p.lng });
+  map.fitBounds(bounds);
+}
+
 function verDetalheRota(rotaId) { const rota = ultimoResultado?.rotas?.find(r => r.id === rotaId); if (!rota) return; let html = `<h3>Detalhes da Rota</h3><p><strong>Corredor:</strong> ${rota.nomeCorredor} (${rota.rodovia})</p><p><strong>Data de Entrega:</strong> ${rota.dataEntrega}</p><p><strong>Veículo:</strong> ${rota.veiculo?.nome} (${formatNumber(rota.veiculo?.volumeMax)} m³, ${formatNumber(rota.veiculo?.pesoMax)} kg)</p><p><strong>Fator Decisório:</strong> ${rota.fatorDecisorio}</p><div class="decision-box"><strong>Resumo decisório</strong><br>${rota.decisao?.motivoDimensao || "-"}<br>Corredor/Regra: ${rota.decisao?.corredor || "-"}<br>Regras aplicadas: ${(rota.decisao?.regrasAplicadas||[]).join(" | ")}<br>Observações: ${(rota.decisao?.observacoes||[]).join(" | ")}</div><p><strong>Totais:</strong> ${formatNumber(rota.pesoTotal)} kg, ${formatNumber(rota.volumeTotal)} m³, ${rota.numNotas} notas, ${formatNumber(rota.distanciaKm)} km, ${formatCurrency(rota.custoEstimado)}</p>`; if (rota.itemCritico?.item) { const it = rota.itemCritico.item; html += `<div class="critical-item"><strong>🎯 Item crítico que definiu o veículo</strong><br>Código: ${it.codigo || '-'}<br>Descrição: ${it.descricao || '-'}<br>Dimensões: ${formatNumber(it.altura||0)} x ${formatNumber(it.largura||0)} x ${formatNumber(it.profundidade||0)} m<br>Peso: ${formatNumber(it.peso||0)} kg | Volume: ${formatNumber(it.volume||0)} m³</div>`; } html += `<h4>Pedidos na rota:</h4>`; for (let p of rota.pedidos) { html += `<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<details><summary>Itens</summary>`; for (let item of p.items) html += `<div style="margin:5px 0; padding-left:10px; border-left:2px solid #ccc;"><strong>${item.codigo || '-'}</strong> - ${item.descricao || '-'}<br>Dimensões: ${formatNumber(item.altura||0)} x ${formatNumber(item.largura||0)} x ${formatNumber(item.profundidade||0)} m | ${formatNumber(item.peso||0)} kg | ${formatNumber(item.volume||0)} m³</div>`; html += `</details></div>`; } document.getElementById("modalContent").innerHTML = html; document.getElementById("routeModal").style.display = "block"; }
 function renderResumo(){ let el=document.getElementById("resumoOperacional"); if(!ultimoResultado){ el.innerHTML="<p>Nenhum planejamento</p>"; return; } let {rotas,naoAlocados}=ultimoResultado; let porCorredor=new Map(); for(let r of rotas){ if(!porCorredor.has(r.nomeCorredor)) porCorredor.set(r.nomeCorredor,[]); porCorredor.get(r.nomeCorredor).push(r); } el.innerHTML=`<div class="grid grid-2"><div class="metric"><div class="label">Rotas</div><div class="value">${rotas.length}</div></div><div class="metric"><div class="label">Não Alocados</div><div class="value">${naoAlocados.length}</div></div></div><h3>Por Corredor</h3><div class="table-wrap" style="padding:12px;">${Array.from(porCorredor.entries()).map(([nome,rs])=>`<div><strong>${nome}</strong>: ${rs.length} rotas, ${formatNumber(rs.reduce((s,r)=>s+r.pesoTotal,0))} kg, ${formatCurrency(rs.reduce((s,r)=>s+r.custoEstimado,0))}</div>`).join("") || "<div>Sem corredores</div>"}</div>`; }
 function renderMapControls(){ let editor=document.getElementById("routeEditorList"), unalloc=document.getElementById("unallocatedEditorList"), restricoesDiv=document.getElementById("restricoesList"); if(!ultimoResultado) return; editor.innerHTML=ultimoResultado.rotas.map((r,i)=>`<div class="route-box"><div class="route-title">Rota ${i+1} - ${r.veiculo?.nome}<span class="corridor-badge">${r.nomeCorredor}</span>${r.exclusivo?'<span class="pill pill-purple">🔒 Exclusivo</span>':''}<button class="btn btn-blue" style="float:right; margin-left:8px;" onclick="verDetalheRota('${r.id}')">📋 Detalhe</button><button class="btn btn-green" style="float:right;" onclick="focusRouteOnMap('${r.id}')">🗺️ Foco</button></div><div class="small">${r.rodovia} | 📅 ${r.dataEntrega} | ${formatNumber(r.pesoTotal)} kg | ${formatNumber(r.volumeTotal)} m³ | ${formatNumber(r.distanciaKm)} km | ${formatCurrency(r.custoEstimado)}</div><div class="decision-box"><strong>Fator decisório:</strong> ${r.fatorDecisorio}<br><strong>Regras:</strong> ${(r.decisao?.regrasAplicadas||[]).join(" | ")}</div>${r.pedidos.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf} | ⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³${p.cubagemAuto?'<span class="pill pill-purple"> 🤖 Auto</span>':''}</div>`).join("")}</div>`).join("")||"<div>Nenhuma rota</div>"; restricoesDiv.innerHTML=ultimoResultado.restricoes.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³ <span class="pill pill-yellow">⚠️ ${p.paletizado?'Paletizado':''} ${p.agendamento?'Agendamento':''}</span></div>`).join("")||"<div>Nenhum pedido com restrição</div>"; unalloc.innerHTML=ultimoResultado.naoAlocados.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<br><span class="pill pill-yellow">${p.motivo||"Sem alocação"}</span></div>`).join("")||"<div>Todos alocados ✓</div>"; }
