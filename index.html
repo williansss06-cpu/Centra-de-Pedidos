@@ -130,7 +130,7 @@
         <h2>Executar Planejamento</h2>
         <div class="row">
           <button class="btn btn-green" onclick="executarPlanejamento()">Calcular rotas</button>
-          <button class="btn btn-orange" onclick="replanejarRotas()">Replanejar</button>
+          <button class="btn btn-orange" onclick="replanejarRotas()">Replanejar (IA)</button>
           <button class="btn btn-blue" onclick="exportarRelatorioCSV()">Exportar</button>
         </div>
         <div id="statusPlanejamento" class="status"></div>
@@ -166,7 +166,7 @@ const APP_CONFIG = { GOOGLE_API_KEY: "COLE_SUA_CHAVE_AQUI" };
 let vehicles = [];
 let pedidos = [];
 let map = null, geocoder = null;
-let directionsRenderers = []; // agora guarda { id, renderer }
+let directionsRenderers = []; // guarda { id, renderer }
 let geocodeCache = {};
 let ultimoResultado = null;
 let depotCoords = null;
@@ -192,11 +192,9 @@ function setStatusBanco(msg,type=""){ let el=document.getElementById("statusBanc
 function identificarCorredor(uf,cidade) {
   let u = normalizarTexto(uf).toUpperCase();
   let c = normalizarTexto(cidade).toUpperCase();
-
   for (let [k, corredor] of Object.entries(CORREDORES)) {
     if (corredor.cidades.includes(c)) return k;
   }
-
   const MAPA_UF = {
     SP:"CAMPINAS", RJ:"VALE_DO_PARAIBA", MG:"MINAS_GERAIS", ES:"VALE_DO_PARAIBA",
     PR:"SUL", SC:"SUL", RS:"SUL", GO:"CENTRO_OESTE", DF:"CENTRO_OESTE", MT:"CENTRO_OESTE", MS:"CENTRO_OESTE",
@@ -318,7 +316,6 @@ function gerarFatorDecisorio(pedidosDaCarga, veiculo, grupoChave) {
   if (pedidosDaCarga.length > 1) regras.push("Consolidação entre pedidos compatíveis");
   if (pedidosDaCarga.some(p=>p.cubagemAuto)) regras.push("Cubagem automática considerada");
 
-  // Calcular percentuais de uso
   const pctPeso = (peso / veiculo.pesoMax) * 100;
   const pctVolume = (m3 / veiculo.volumeMax) * 100;
   const pctNotas = (notas / veiculo.notasMax) * 100;
@@ -334,7 +331,6 @@ function gerarFatorDecisorio(pedidosDaCarga, veiculo, grupoChave) {
 
   const motivoDimensao = `Maior item ${formatNumber(maiorItem.altura)} x ${formatNumber(maiorItem.largura)} x ${formatNumber(maiorItem.profundidade)} m → veículo mínimo ${veiculo?.nome||"não encontrado"}`;
 
-  // Texto final: "Veículo escolhido devido à [motivoPrincipal]"
   const textoFinal = `Veículo escolhido devido à ${motivoPrincipal}. ${motivoDimensao}`;
 
   return {
@@ -352,6 +348,35 @@ function montarEndereco(p){ return [p.logradouro,p.numero,p.bairro,p.cidade,p.uf
 async function geocodeAddress(addr) { if (!geocoder) throw new Error("Geocodificador não disponível"); if (!addr) throw new Error("Endereço inválido"); const key = addr.trim().toLowerCase(); if (geocodeCache[key]) return geocodeCache[key]; return new Promise((resolve, reject) => { geocoder.geocode({ address: addr }, (results, status) => { if (status === "OK" && results[0]) { const loc = results[0].geometry.location, coords = { lat: loc.lat(), lng: loc.lng() }; geocodeCache[key] = coords; salvarCacheGeo(); resolve(coords); } else reject(new Error(`Falha ao geocodificar: ${addr}`)); }); }); }
 function clearRoutes() { if (directionsRenderers && directionsRenderers.length) directionsRenderers.forEach(item => item.renderer.setMap(null)); directionsRenderers = []; }
 
+// ========== OTIMIZAÇÃO DE ROTA (IA) ==========
+function calcularDistanciaEntrePontos(p1, p2) {
+  return calcularDistancia(p1.lat, p1.lng, p2.lat, p2.lng);
+}
+function otimizarOrdemRota(pedidos, origemCoords) {
+  if (pedidos.length <= 1) return pedidos;
+  // Algoritmo do vizinho mais próximo a partir do CD
+  const naoVisitados = [...pedidos];
+  const rotaOtimizada = [];
+  let atual = { lat: origemCoords.lat, lng: origemCoords.lng };
+  while (naoVisitados.length > 0) {
+    let menorDist = Infinity;
+    let idxMenor = -1;
+    for (let i = 0; i < naoVisitados.length; i++) {
+      const dist = calcularDistanciaEntrePontos(atual, naoVisitados[i]);
+      if (dist < menorDist) {
+        menorDist = dist;
+        idxMenor = i;
+      }
+    }
+    const prox = naoVisitados[idxMenor];
+    rotaOtimizada.push(prox);
+    atual = prox;
+    naoVisitados.splice(idxMenor, 1);
+  }
+  return rotaOtimizada;
+}
+// ===========================================
+
 async function montarRotasInteligentes(pedidosBase) {
   const rotas = [], naoAlocados = [], pesoMaxCfg = Number(document.getElementById("cfgPesoMax").value||5000), volumeMaxCfg = Number(document.getElementById("cfgVolumeMax").value||20), maxParadas = Number(document.getElementById("cfgMaxParadas").value||12), raioKm = Number(document.getElementById("cfgRaioKm").value||80);
   const grupos = new Map(); for (const p of pedidosBase) { const chave = p.grupoConsolidado || obterChaveAgrupamento(p); if (!grupos.has(chave)) grupos.set(chave, []); grupos.get(chave).push(p); }
@@ -360,9 +385,12 @@ async function montarRotasInteligentes(pedidosBase) {
     for (const [data, pedidosData] of gruposData.entries()) {
       const ordenados = [...pedidosData].sort((a,b) => calcularDistancia(a.lat,a.lng,depotCoords?.lat,depotCoords?.lng) - calcularDistancia(b.lat,b.lng,depotCoords?.lat,depotCoords?.lng)); let lote = [];
       const fecharLote = () => {
-        if (!lote.length) return; const veiculo = escolherVeiculoParaCarga(lote);
-        if (!veiculo) lote.forEach(p => naoAlocados.push({ ...p, motivo: motivoNaoAlocadoCarga(lote) }));
-        else { const decisao = gerarFatorDecisorio(lote, veiculo, chave); rotas.push({ id: crypto.randomUUID?.() || Date.now()+"_"+Math.random(), corredor: chave, nomeCorredor: corredorInfo.nome || chave, rodovia: corredorInfo.rodovia || "-", dataEntrega: data, pedidos: [...lote], pesoTotal: lote.reduce((s,p)=>s+p.pesoTotal,0), volumeTotal: lote.reduce((s,p)=>s+p.volumeTotal,0), numNotas: lote.reduce((s,p)=>s+p.numNotas,0), veiculo, distanciaKm: 0, custoEstimado: 0, exclusivo: lote.some(p => p.exclusivo), fatorDecisorio: decisao.motivoDimensao, decisao, grupoChave: chave, maiorItem: decisao.maiorItem, itemCritico: { item: decisao.maiorItem } }); }
+        if (!lote.length) return; 
+        // Aplica otimização de rota (vizinho mais próximo) antes de fixar a rota
+        const loteOtimizado = otimizarOrdemRota(lote, depotCoords);
+        const veiculo = escolherVeiculoParaCarga(loteOtimizado);
+        if (!veiculo) loteOtimizado.forEach(p => naoAlocados.push({ ...p, motivo: motivoNaoAlocadoCarga(loteOtimizado) }));
+        else { const decisao = gerarFatorDecisorio(loteOtimizado, veiculo, chave); rotas.push({ id: crypto.randomUUID?.() || Date.now()+"_"+Math.random(), corredor: chave, nomeCorredor: corredorInfo.nome || chave, rodovia: corredorInfo.rodovia || "-", dataEntrega: data, pedidos: [...loteOtimizado], pesoTotal: loteOtimizado.reduce((s,p)=>s+p.pesoTotal,0), volumeTotal: loteOtimizado.reduce((s,p)=>s+p.volumeTotal,0), numNotas: loteOtimizado.reduce((s,p)=>s+p.numNotas,0), veiculo, distanciaKm: 0, custoEstimado: 0, exclusivo: loteOtimizado.some(p => p.exclusivo), fatorDecisorio: decisao.motivoDimensao, decisao, grupoChave: chave, maiorItem: decisao.maiorItem, itemCritico: { item: decisao.maiorItem } }); }
         lote = [];
       };
       for (const p of ordenados) {
@@ -396,7 +424,7 @@ function resetAllRouteStyles() {
   directionsRenderers.forEach(item => {
     if (item.renderer && item.renderer.setOptions) {
       item.renderer.setOptions({
-        polylineOptions: { strokeWeight: 5, strokeColor: "#2563eb" } // azul padrão
+        polylineOptions: { strokeWeight: 5, strokeColor: "#2563eb" }
       });
     }
   });
@@ -405,7 +433,7 @@ function highlightRouteById(routeId) {
   const found = directionsRenderers.find(item => item.id === routeId);
   if (found && found.renderer) {
     found.renderer.setOptions({
-      polylineOptions: { strokeWeight: 8, strokeColor: "#ff0000" } // vermelho grossa
+      polylineOptions: { strokeWeight: 8, strokeColor: "#ff0000" }
     });
   }
 }
@@ -427,8 +455,23 @@ function renderMapControls(){ let editor=document.getElementById("routeEditorLis
 function atualizarMetricas(){ document.getElementById("mPedidos").textContent=pedidos.length; document.getElementById("mAlocados").textContent=ultimoResultado?.aprovados?.length||0; document.getElementById("mNaoAlocados").textContent=ultimoResultado?.naoAlocados?.length||0; document.getElementById("mRotas").textContent=ultimoResultado?.rotas?.length||0; document.getElementById("mRestricoes").textContent=ultimoResultado?.restricoes?.length||0; document.getElementById("mCustoTotal").textContent=formatCurrency(ultimoResultado?.rotas?.reduce((s,r)=>s+(r.custoEstimado||0),0)||0); }
 
 async function executarPlanejamento(){ try{ carregarCorredoresDaUI(); if(!vehicles.length){ setStatus("Cadastre veículos","err"); return; } if(!pedidos.length){ setStatus("Importe pedidos","err"); return; } if(!geocoder){ setStatus("Aguarde carregamento do mapa","warn"); return; } setStatus("Geocodificando...","warn"); depotCoords=await geocodeAddress(document.getElementById("depot").value); let cubagemAutoCount = 0; for(let p of pedidos){ try{ let coord=await geocodeAddress(montarEndereco(p)); p.lat=coord.lat; p.lng=coord.lng; if(p.cubagemAuto) cubagemAutoCount++; }catch(e){ console.warn(`Erro geocode ${p.os}`); } } let aprovados=[], restricoes=[]; for(let p of pedidos){ let isRod=normalizarTexto(p.modalidade).toLowerCase()==="rodoviario"; if(p.exclusivo && document.getElementById("regraExclusivo").checked){ aprovados.push(p); continue; } if(p.paletizado || p.agendamento){ restricoes.push(p); continue; } if(document.getElementById("regraLeve").checked && isRod && p.pesoTotal<=1000) aprovados.push(p); else if(document.getElementById("regraPesado").checked && isRod && p.pesoTotal>1000) aprovados.push(p); else aprovados.push(p); } aprovados = aprovados.map(p => ({ ...p, grupoConsolidado: obterChaveAgrupamento(p) })); let {rotas,naoAlocados}=await montarRotasInteligentes(aprovados); setStatus("Desenhando rotas...","warn"); await desenharRotas(rotas,document.getElementById("depot").value); ultimoResultado={rotas,naoAlocados,aprovados,restricoes,cubagemAutoCount}; atualizarMetricas(); renderResumo(); renderMapControls(); showTab("resultado", document.querySelectorAll(".nav-btn")[3]); setStatus(`✅ ${rotas.length} rotas | ${naoAlocados.length} não alocados | ${restricoes.length} com restrição | ${cubagemAutoCount} com cubagem automática`,"ok"); }catch(err){ console.error(err); setStatus(`Erro: ${err.message}`,"err"); } }
+
+function replanejarRotas() { 
+  if (pedidos.length === 0) { alert("Nenhum pedido importado. Importe um CSV primeiro."); showTab("pedidos"); return; }
+  if (vehicles.length === 0) { alert("Nenhum veículo cadastrado. Adicione veículos na aba Parâmetros."); showTab("parametros"); return; }
+  setStatus("Replanejando com IA...", "warn");
+  // Limpa visual anterior
+  clearRoutes();
+  ultimoResultado = null;
+  atualizarMetricas();
+  document.getElementById("resumoOperacional").innerHTML = "";
+  document.getElementById("routeEditorList").innerHTML = "";
+  document.getElementById("unallocatedEditorList").innerHTML = "";
+  document.getElementById("restricoesList").innerHTML = "";
+  // Executa novo planejamento
+  executarPlanejamento();
+}
 function exportarRelatorioCSV(){ if(!ultimoResultado){ alert("Execute o planejamento"); return; } let linhas=[["ROTA","CORREDOR","DATA","VEICULO","PESO","VOLUME","KM","CUSTO","FATOR_DECISORIO","REGRAS","PEDIDOS"]]; ultimoResultado.rotas.forEach((r,i)=>{ linhas.push([`Rota ${i+1}`,r.nomeCorredor,r.dataEntrega,r.veiculo?.nome||"",r.pesoTotal,r.volumeTotal,r.distanciaKm?.toFixed(1)||0,r.custoEstimado?.toFixed(2)||0,r.fatorDecisorio,(r.decisao?.regrasAplicadas||[]).join(" | "),r.pedidos.map(p=>p.os).join(";")]); }); let csv=Papa.unparse(linhas); let blob=new Blob([csv],{type:"text/csv;charset=utf-8"}); let a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="rotas.csv"; a.click(); URL.revokeObjectURL(a.href); }
-function replanejarRotas(){ clearRoutes(); ultimoResultado=null; atualizarMetricas(); document.getElementById("resumoOperacional").innerHTML=""; document.getElementById("routeEditorList").innerHTML=""; document.getElementById("unallocatedEditorList").innerHTML=""; document.getElementById("restricoesList").innerHTML=""; setStatus("Replanejamento liberado","warn"); showTab("planejamento", document.querySelectorAll(".nav-btn")[2]); }
 function baixarModeloPedidos(){ let csv=`OS,DESTINATARIO,CEP,CIDADE,UF,PESO BRUTO,METROCUBICO,DATAPREVISAO,OBS,CODIGO PRODUTO,PRODUTO,FOTO_URL,ALTURA,LARGURA,PROFUNDIDADE,LOGRADOURO,NUMERO,BAIRRO
 5035441,COSTAZUL ALIMENTOS LTDA,24800-000,ITABORAI,RJ,36,,25/03/2026,,12345,CAIXA LEVE,,0.40,0.30,0.35,RUA A,100,CENTRO
 1001,CLIENTE TESTE,13000-000,CAMPINAS,SP,450,3.2,25/03/2026,,789,PAINEL ELETRÔNICO,https://placehold.co/60x60?text=Painel,1.50,1.20,2.80,RUA B,200,DISTRITO
