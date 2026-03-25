@@ -934,8 +934,12 @@ async function geocodeAddress(addr) {
       }
       if(!pontos.length) continue;
       let service=new google.maps.DirectionsService();
-      let destination=pontos[pontos.length-1].coord;
-      let waypoints=pontos.slice(0,-1).map(p=>({location:p.coord,stopover:true}));
+      let destination = origin;
+
+let waypoints = pontos.map(p => ({
+  location: p.coord,
+  stopover: true
+}));
       await new Promise(resolve=>{
         service.route({origin,destination,waypoints,travelMode:google.maps.TravelMode.DRIVING,optimizeWaypoints:true},(res,status)=>{
           if(status==="OK"){
