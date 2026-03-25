@@ -121,11 +121,11 @@
         <p class="small">Colunas: OS, DESTINATARIO, CIDADE, UF, PESO BRUTO, METROCUBICO, DATAPREVISAO, OBS, CEP, CODIGO PRODUTO, PRODUTO, FOTO_URL, ALTURA, LARGURA, PROFUNDIDADE, LOGRADOURO, NUMERO, BAIRRO</p>
       </div>
       <div class="card">
-        <h2>Pedidos Leves (≤ 1000kg) <span class="pill pill-green">Prontos para operação</span></h2>
+        <h2>Pedidos Rodoviários Leves (≤ 1000kg) <span class="pill pill-green">Prontos para operação</span></h2>
         <div class="table-wrap">
           <table>
             <thead><tr><th style="width:30px"><input type="checkbox" id="selectAllLight" onchange="toggleSelectAllLight()"></th><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th></tr></thead>
-            <tbody id="lightPedidosTable"></tbody>
+            <tbody id="lightRodoviariosTable"></tbody>
           </table>
         </div>
         <div class="row" style="margin-top:12px;">
@@ -133,11 +133,20 @@
         </div>
       </div>
       <div class="card">
-        <h2>Pedidos Pesados (> 1000kg)</h2>
+        <h2>Pedidos Rodoviários Pesados (> 1000kg)</h2>
         <div class="table-wrap">
           <table>
             <thead><tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th></tr></thead>
-            <tbody id="heavyPedidosTable"></tbody>
+            <tbody id="heavyRodoviariosTable"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Pedidos Exclusivos <span class="pill pill-purple">Seguem para consolidação</span></h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th></tr></thead>
+            <tbody id="exclusivosTable"></tbody>
           </table>
         </div>
       </div>
@@ -183,7 +192,7 @@
 const APP_CONFIG = { GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds" };
 let vehicles = [];
 let pedidos = [];
-let operacaoLeve = []; // pedidos leves enviados para operação
+let operacaoLeve = []; // pedidos rodoviários leves enviados para operação
 let map = null, geocoder = null;
 let directionsRenderers = []; // guarda { id, renderer }
 let geocodeCache = {};
@@ -320,13 +329,23 @@ function agruparPedidosPorOS(linhas){
 }
 
 function renderPedidosSeparados() {
-  const lightTable = document.getElementById("lightPedidosTable");
-  const heavyTable = document.getElementById("heavyPedidosTable");
-  if (!lightTable || !heavyTable) return;
-  const light = pedidos.filter(p => p.pesoTotal <= 1000);
-  const heavy = pedidos.filter(p => p.pesoTotal > 1000);
-  lightTable.innerHTML = light.map(p => `<tr><td><input type="checkbox" class="lightCheckbox" value="${p.os}"></td><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
-  heavyTable.innerHTML = heavy.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
+  const lightTable = document.getElementById("lightRodoviariosTable");
+  const heavyTable = document.getElementById("heavyRodoviariosTable");
+  const exclusivosTable = document.getElementById("exclusivosTable");
+  if (!lightTable || !heavyTable || !exclusivosTable) return;
+
+  // Filtrar apenas rodoviários
+  const rodoviarios = pedidos.filter(p => normalizarTexto(p.modalidade).toLowerCase() === "rodoviario");
+  const exclusivos = pedidos.filter(p => p.exclusivo === true);
+  const naoExclusivosRod = rodoviarios.filter(p => !p.exclusivo);
+
+  const leves = naoExclusivosRod.filter(p => p.pesoTotal <= 1000);
+  const pesados = naoExclusivosRod.filter(p => p.pesoTotal > 1000);
+
+  lightTable.innerHTML = leves.map(p => `<tr><td><input type="checkbox" class="lightCheckbox" value="${p.os}"></td><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
+  heavyTable.innerHTML = pesados.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
+  exclusivosTable.innerHTML = exclusivos.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
+
   document.getElementById("mPedidos").textContent = pedidos.length;
 }
 
@@ -339,15 +358,14 @@ function toggleSelectAllLight() {
 function enviarLevesParaOperacao() {
   const checkboxes = document.querySelectorAll(".lightCheckbox:checked");
   const osSelecionados = Array.from(checkboxes).map(cb => cb.value);
-  if (osSelecionados.length === 0) { alert("Selecione ao menos um pedido leve para enviar à operação."); return; }
-  const novosLeves = pedidos.filter(p => osSelecionados.includes(p.os));
+  if (osSelecionados.length === 0) { alert("Selecione ao menos um pedido rodoviário leve para enviar à operação."); return; }
+  const novosLeves = pedidos.filter(p => osSelecionados.includes(p.os) && !p.exclusivo && normalizarTexto(p.modalidade).toLowerCase() === "rodoviario" && p.pesoTotal <= 1000);
   operacaoLeve.push(...novosLeves);
   pedidos = pedidos.filter(p => !osSelecionados.includes(p.os));
   renderPedidosSeparados();
   renderOperacaoLeveList();
   atualizarMetricas();
   alert(`${novosLeves.length} pedidos leves enviados para operação.`);
-  // Opcional: limpar seleção master
   document.getElementById("selectAllLight").checked = false;
 }
 
