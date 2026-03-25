@@ -150,16 +150,6 @@
           </table>
         </div>
       </div>
-      <div class="card">
-        <h2>Pedidos com Agendamento / Paletização <span class="pill pill-yellow">Aguardam definição</span></h2>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume</th><th>Restrição</th><th>Sugestão de rota</th></tr></thead>
-            <tbody id="agendadosTable"></tbody>
-          </table>
-        </div>
-        <p class="small">📌 Estes pedidos não entram automaticamente nas rotas. Após o planejamento, você pode movê-los para a rota sugerida usando os botões na aba Resultado.</p>
-      </div>
     </section>
 
     <section id="planejamento" class="tab">
@@ -180,11 +170,11 @@
         <div class="metric"><div class="label">Alocados</div><div class="value" id="mAlocados">0</div></div>
         <div class="metric"><div class="label">Não Alocados</div><div class="value" id="mNaoAlocados">0</div></div>
         <div class="metric"><div class="label">Aguardando (Hold)</div><div class="value" id="mHold">0</div></div>
+        <div class="metric"><div class="label">Aguardando Definição</div><div class="value" id="mAguardandoDefinicao">0</div></div>
         <div class="metric"><div class="label">Rotas</div><div class="value" id="mRotas">0</div></div>
-        <div class="metric"><div class="label">Custo Total</div><div class="value" id="mCustoTotal">R$ 0</div></div>
       </div>
-      <div class="card"><h2>Mapa</h2><div id="map">Mapa operacional local. Preencha a chave do Google para modo real.</div>
-        <div class="map-side-grid"><div class="route-editor"><h4>Rotas</h4><div id="routeEditorList"></div></div><div class="route-editor"><h4>Pedidos com Restrição</h4><div id="restricoesList"></div><h4 style="margin-top:12px;">Não Alocados</h4><div id="unallocatedEditorList"></div><h4 style="margin-top:12px;">Aguardando (Hold)</h4><div id="holdList"></div><h4 style="margin-top:12px;">Operação Leve</h4><div id="operacaoLeveList"></div><h4 style="margin-top:12px;">Aguardando Definição</h4><div id="aguardandoDefinicaoList"></div></div></div>
+      <div class="card"><h2>Mapa</h2><div id="map">Carregando mapa...</div>
+        <div class="map-side-grid"><div class="route-editor"><h4>Rotas</h4><div id="routeEditorList"></div></div><div class="route-editor"><h4 style="margin-top:0;">Aguardando Definição</h4><div id="aguardandoDefinicaoList"></div><h4 style="margin-top:12px;">Não Alocados</h4><div id="unallocatedEditorList"></div><h4 style="margin-top:12px;">Aguardando (Hold)</h4><div id="holdList"></div><h4 style="margin-top:12px;">Operação Leve</h4><div id="operacaoLeveList"></div></div></div>
       </div>
       <div class="card"><h2>Resumo</h2><div id="resumoOperacional"></div></div>
     </section>
@@ -202,8 +192,7 @@
 const APP_CONFIG = { GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds" };
 let vehicles = [];
 let pedidos = [];
-let operacaoLeve = []; // pedidos rodoviários leves enviados para operação
-let agendados = [];    // pedidos com agendamento/paletização (não entram no planejamento)
+let operacaoLeve = [];
 let map = null, geocoder = null;
 let directionsRenderers = [];
 let geocodeCache = {};
@@ -273,12 +262,9 @@ function motivoNaoAlocadoCarga(lote) {
   const volumeTotal = lote.reduce((s,p)=>s+p.volumeTotal,0);
   const notasTotal = lote.reduce((s,p)=>s+p.numNotas,0);
   const maiorItem = getMaiorItemDaCarga(lote);
-
-  // Tenta encontrar o menor veículo que atenderia, para identificar qual restrição falha
   const veiculosOrdenados = [...vehicles].sort((a,b) => a.volumeMax - b.volumeMax || a.pesoMax - b.pesoMax);
   
   for (let v of veiculosOrdenados) {
-    // Verifica dimensões primeiro
     if (!cabeNoVeiculoPorDimensao(maiorItem, v)) {
       return `Item crítico (${formatNumber(maiorItem.altura)}x${formatNumber(maiorItem.largura)}x${formatNumber(maiorItem.profundidade)}m) excede dimensões do veículo ${v.nome}`;
     }
@@ -291,11 +277,8 @@ function motivoNaoAlocadoCarga(lote) {
     if (notasTotal > v.notasMax) {
       return `Número de notas ${notasTotal} excede limite do veículo ${v.nome} (máx ${v.notasMax} notas)`;
     }
-    // Se passou em tudo, este veículo seria compatível – mas não foi escolhido porque não está no laço? (caso raro)
-    // Nesse caso, continuamos procurando um menor ainda que atenda.
   }
-
-  // Se chegou aqui, nenhum veículo atende a pelo menos uma das restrições. Monta mensagem genérica com a pior restrição.
+  
   let motivos = [];
   const maxPeso = Math.max(...veiculosOrdenados.map(v => v.pesoMax));
   const maxVolume = Math.max(...veiculosOrdenados.map(v => v.volumeMax));
@@ -346,11 +329,11 @@ function renderVehicles(){ let tbody=document.getElementById("vehicleTableBody")
 
 function valorColuna(row,names){ for(let key of Object.keys(row||{})){ let cleanKey=normalizarTexto(key).toUpperCase().replace(/\./g,"").replace(/\s+/g," "); for(let name of names){ let cleanName=normalizarTexto(name).toUpperCase().replace(/\./g,"").replace(/\s+/g," "); if(cleanKey===cleanName) return row[key]; } } return ""; }
 function analisarObs(obs){ 
-  let t=normalizarTexto(obs).toLowerCase(); 
+  let t = normalizarTexto(obs).toLowerCase(); 
   return { 
-    exclusivo: t.includes("exclusivo")||t.includes("carro exclusivo"), 
-    paletizado: t.includes("palet"), 
-    agendamento: t.includes("agend") || t.includes("horario") || t.includes("programada")
+    exclusivo: t.includes("exclusivo") || t.includes("carro exclusivo"),
+    paletizado: t.includes("palet") || t.includes("pallet"),
+    agendamento: t.includes("agend") || t.includes("horario") || t.includes("programada") || t.includes("hora marcada")
   }; 
 }
 function getMaiorItemDoPedido(pedido){ let maior = null; (pedido.items||[]).forEach(item => { const dimCritica = Math.max(item.altura||0, item.largura||0, item.profundidade||0); if (!maior || dimCritica > maior.dimCritica) maior = { ...item, dimCritica }; }); return maior || { altura:0, largura:0, profundidade:0, dimCritica:0 }; }
@@ -371,57 +354,19 @@ function renderPedidosSeparados() {
   const lightTable = document.getElementById("lightRodoviariosTable");
   const heavyTable = document.getElementById("heavyRodoviariosTable");
   const exclusivosTable = document.getElementById("exclusivosTable");
-  
-  // Verifica se os elementos existem
   if (!lightTable || !heavyTable || !exclusivosTable) {
     console.error("Tabelas não encontradas no DOM");
     return;
   }
-
-  // Filtra apenas rodoviários (ignora maiúsculas/minúsculas e acentos)
   const rodoviarios = pedidos.filter(p => normalizarTexto(p.modalidade).toLowerCase() === "rodoviario");
   const exclusivos = pedidos.filter(p => p.exclusivo === true);
   const naoExclusivosRod = rodoviarios.filter(p => !p.exclusivo);
-
   const leves = naoExclusivosRod.filter(p => p.pesoTotal <= 1000);
   const pesados = naoExclusivosRod.filter(p => p.pesoTotal > 1000);
-
   console.log(`Render: ${leves.length} leves, ${pesados.length} pesados, ${exclusivos.length} exclusivos`);
-
-  lightTable.innerHTML = leves.map(p => `
-    <tr>
-      <td><input type="checkbox" class="lightCheckbox" value="${p.os}"></td>
-      <td>${p.os}</td>
-      <td>${p.destinatario?.substring(0,25)||"-"}</td>
-      <td>${p.cidade}/${p.uf}</td>
-      <td>${formatNumber(p.pesoTotal)} kg</td>
-      <td>${formatNumber(p.volumeTotal)} m³</td>
-      <td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td>
-    </tr>
-  `).join("");
-
-  heavyTable.innerHTML = pesados.map(p => `
-    <tr>
-      <td>${p.os}</td>
-      <td>${p.destinatario?.substring(0,25)||"-"}</td>
-      <td>${p.cidade}/${p.uf}</td>
-      <td>${formatNumber(p.pesoTotal)} kg</td>
-      <td>${formatNumber(p.volumeTotal)} m³</td>
-      <td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td>
-    </tr>
-  `).join("");
-
-  exclusivosTable.innerHTML = exclusivos.map(p => `
-    <tr>
-      <td>${p.os}</td>
-      <td>${p.destinatario?.substring(0,25)||"-"}</td>
-      <td>${p.cidade}/${p.uf}</td>
-      <td>${formatNumber(p.pesoTotal)} kg</td>
-      <td>${formatNumber(p.volumeTotal)} m³</td>
-      <td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td>
-    </tr>
-  `).join("");
-
+  lightTable.innerHTML = leves.map(p => `<tr><td><input type="checkbox" class="lightCheckbox" value="${p.os}"></td><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
+  heavyTable.innerHTML = pesados.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
+  exclusivosTable.innerHTML = exclusivos.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
   document.getElementById("mPedidos").textContent = pedidos.length;
 }
 
@@ -430,7 +375,6 @@ function toggleSelectAllLight() {
   const checkboxes = document.querySelectorAll(".lightCheckbox");
   checkboxes.forEach(cb => cb.checked = chk.checked);
 }
-
 function enviarLevesParaOperacao() {
   const checkboxes = document.querySelectorAll(".lightCheckbox:checked");
   const osSelecionados = Array.from(checkboxes).map(cb => cb.value);
@@ -444,7 +388,6 @@ function enviarLevesParaOperacao() {
   alert(`${novosLeves.length} pedidos leves enviados para operação.`);
   document.getElementById("selectAllLight").checked = false;
 }
-
 function renderOperacaoLeveList() {
   const div = document.getElementById("operacaoLeveList");
   if (!div) return;
@@ -665,7 +608,6 @@ function verDetalheRota(rotaId) {
   document.getElementById("routeModal").style.display = "block"; 
 }
 
-// ==================== FUNÇÕES PARA MOVER/EXCLUIR PEDIDOS ====================
 function removerPedidoDaRota(rotaId, pedidoOs) {
   if (!ultimoResultado) return;
   const rotaIndex = ultimoResultado.rotas.findIndex(r => r.id === rotaId);
@@ -756,48 +698,52 @@ function moverPedidoParaRota(rotaOrigemId, pedidoOs, rotaDestinoId) {
   if (map && geocoder) desenharRotas(ultimoResultado.rotas, document.getElementById("depot").value);
   setStatus(`Pedido ${pedido.os} movido para rota ${rotaDestino.nomeCorredor}.`, "ok");
 }
-// ===================================================
+
+function moverAguardandoParaRota(pedidoOs, rotaId) {
+  if (!ultimoResultado || !rotaId) return;
+  const pedidoIndex = ultimoResultado.aguardandoDefinicao.findIndex(p => p.os === pedidoOs);
+  if (pedidoIndex === -1) return;
+  const pedido = ultimoResultado.aguardandoDefinicao[pedidoIndex];
+  const rota = ultimoResultado.rotas.find(r => r.id === rotaId);
+  if (!rota) return;
+
+  if (!podeConsolidar(rota.pedidos[0], pedido)) {
+    alert("Pedido não é compatível com a rota selecionada (corredor/data).");
+    return;
+  }
+  const teste = [...rota.pedidos, pedido];
+  const veiculoTest = escolherVeiculoParaCarga(teste);
+  if (!veiculoTest) {
+    alert("Não cabe na rota (capacidade de peso, volume ou notas excedida).");
+    return;
+  }
+
+  rota.pedidos.push(pedido);
+  rota.pesoTotal = rota.pedidos.reduce((s,p)=>s+p.pesoTotal,0);
+  rota.volumeTotal = rota.pedidos.reduce((s,p)=>s+p.volumeTotal,0);
+  rota.numNotas = rota.pedidos.reduce((s,p)=>s+p.numNotas,0);
+  rota.veiculo = veiculoTest;
+  const novaDecisao = gerarFatorDecisorio(rota.pedidos, veiculoTest, rota.grupoChave);
+  rota.fatorDecisorio = novaDecisao.motivoDimensao;
+  rota.decisao = novaDecisao;
+  rota.maiorItem = novaDecisao.maiorItem;
+  rota.itemCritico = { item: novaDecisao.maiorItem };
+
+  ultimoResultado.aguardandoDefinicao.splice(pedidoIndex, 1);
+
+  atualizarMetricas();
+  renderMapControls();
+  renderResumo();
+  if (map && geocoder) desenharRotas(ultimoResultado.rotas, document.getElementById("depot").value);
+  setStatus(`Pedido ${pedido.os} adicionado à rota.`, "ok");
+}
 
 function renderMapControls() {
   let editor = document.getElementById("routeEditorList");
   let unalloc = document.getElementById("unallocatedEditorList");
-  let restricoesDiv = document.getElementById("restricoesList");
   let holdDiv = document.getElementById("holdList");
   let aguardandoDiv = document.getElementById("aguardandoDefinicaoList");
   if (!ultimoResultado) return;
-  
-  // Mapeia sugestão de rota para agendados
-  if (ultimoResultado.rotas.length > 0 && agendados.length) {
-    for (let ag of agendados) {
-      let melhorRota = null;
-      let menorDist = Infinity;
-      for (let rota of ultimoResultado.rotas) {
-        // Sugere rota baseada no corredor e data
-        if (ag.dataPrevisao && rota.dataEntrega !== ag.dataPrevisao) continue;
-        const corredorAg = obterChaveAgrupamento(ag);
-        if (rota.corredor === corredorAg) {
-          // Se tiver coordenadas, calcula distância
-          if (ag.lat && ag.lng && rota.pedidos.length) {
-            let distMin = Math.min(...rota.pedidos.map(p => calcularDistancia(p.lat, p.lng, ag.lat, ag.lng)));
-            if (distMin < menorDist) {
-              menorDist = distMin;
-              melhorRota = rota;
-            }
-          } else {
-            melhorRota = rota;
-            break;
-          }
-        }
-      }
-      if (melhorRota) {
-        const cell = document.querySelector(`.sugestao-rota-${ag.os}`);
-        if (cell) cell.innerHTML = `Rota ${ultimoResultado.rotas.findIndex(r=>r.id===melhorRota.id)+1} - ${melhorRota.nomeCorredor}`;
-      } else {
-        const cell = document.querySelector(`.sugestao-rota-${ag.os}`);
-        if (cell) cell.innerHTML = "Nenhuma rota compatível";
-      }
-    }
-  }
   
   editor.innerHTML = ultimoResultado.rotas.map((r, i) => {
     const outrasRotas = ultimoResultado.rotas.filter(ro => ro.id !== r.id);
@@ -820,93 +766,34 @@ function renderMapControls() {
     </div>`;
   }).join("") || "<div>Nenhuma rota</div>";
   
-  restricoesDiv.innerHTML = ultimoResultado.restricoes.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³ <span class="pill pill-yellow">⚠️ ${p.paletizado?'Paletizado':''} ${p.agendamento?'Agendamento':''}</span></div>`).join("")||"<div>Nenhum pedido com restrição</div>";
   unalloc.innerHTML = ultimoResultado.naoAlocados.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<br><span class="pill pill-yellow">${p.motivo||"Sem alocação"}</span></div>`).join("")||"<div>Todos alocados ✓</div>";
   holdDiv.innerHTML = ultimoResultado.holdList.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<br><span class="pill pill-blue">${p.motivo||"Aguardando consolidação"}</span></div>`).join("")||"<div>Nenhum pedido em espera</div>";
-  aguardandoDiv.innerHTML = agendados.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<br>${p.paletizado ? '🔄 Paletizado' : ''} ${p.agendamento ? '⏰ Agendamento' : ''}<br><span class="pill pill-purple">Sugestão: ${document.querySelector(`.sugestao-rota-${p.os}`)?.innerHTML || 'Nenhuma rota'}</span><br><button class="btn btn-small btn-blue" style="margin-top:5px; padding:4px 8px; font-size:11px;" onclick="moverAgendadoParaRota('${p.os}')">➡️ Mover para rota sugerida</button></div>`).join("")||"<div>Nenhum pedido aguardando definição</div>";
+  
+  if (ultimoResultado.aguardandoDefinicao && ultimoResultado.aguardandoDefinicao.length) {
+    const rotasOptions = ultimoResultado.rotas.map(r => `<option value="${r.id}">Rota ${ultimoResultado.rotas.findIndex(rr=>rr.id===r.id)+1} - ${r.nomeCorredor} (${r.dataEntrega})</option>`).join('');
+    aguardandoDiv.innerHTML = ultimoResultado.aguardandoDefinicao.map(p => {
+      const sugestoes = ultimoResultado.rotas.filter(r => podeConsolidar(r.pedidos[0], p)).map(r => r.id);
+      const sugestoesHtml = sugestoes.length ? `<span class="small">Sugestões: ${sugestoes.map(id => `Rota ${ultimoResultado.rotas.findIndex(rr=>rr.id===id)+1}`).join(', ')}</span>` : '<span class="small">Nenhuma rota compatível no momento</span>';
+      return `<div class="pedido-chip">
+        <strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<br>
+        <span class="pill pill-yellow">⚠️ ${p.paletizado ? 'Paletizado' : ''} ${p.agendamento ? 'Agendamento/Horário' : ''}</span><br>
+        ${sugestoesHtml}
+        <div style="margin-top:8px;">
+          <select id="moveAguardando_${p.os}" style="font-size:12px; padding:4px;"><option value="">Selecione uma rota</option>${rotasOptions}</select>
+          <button class="btn btn-blue btn-sm" onclick="moverAguardandoParaRota('${p.os}', document.getElementById('moveAguardando_${p.os}').value)">Mover para rota</button>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    aguardandoDiv.innerHTML = "<div>Nenhum pedido aguardando definição.</div>";
+  }
 }
 
-function moverAgendadoParaRota(os) {
-  const sugestaoCell = document.querySelector(`.sugestao-rota-${os}`);
-  if (!sugestaoCell || sugestaoCell.innerText === "Nenhuma rota compatível" || sugestaoCell.innerText === "Aguardando planejamento") {
-    alert("Nenhuma rota sugerida para este pedido. Execute o planejamento primeiro.");
-    return;
-  }
-  const rotaTexto = sugestaoCell.innerText;
-  const rotaNum = parseInt(rotaTexto.match(/\d+/)[0]);
-  if (isNaN(rotaNum)) { alert("Erro ao identificar rota."); return; }
-  const rotaDestino = ultimoResultado.rotas[rotaNum-1];
-  if (!rotaDestino) { alert("Rota não encontrada."); return; }
-  const pedido = agendados.find(p => p.os === os);
-  if (!pedido) return;
-  // Remover da lista de agendados
-  const idx = agendados.findIndex(p => p.os === os);
-  if (idx !== -1) agendados.splice(idx, 1);
-  // Adicionar à rota
-  rotaDestino.pedidos.push(pedido);
-  rotaDestino.pesoTotal = rotaDestino.pedidos.reduce((s,p)=>s+p.pesoTotal,0);
-  rotaDestino.volumeTotal = rotaDestino.pedidos.reduce((s,p)=>s+p.volumeTotal,0);
-  rotaDestino.numNotas = rotaDestino.pedidos.reduce((s,p)=>s+p.numNotas,0);
-  const novoVeiculo = escolherVeiculoParaCarga(rotaDestino.pedidos);
-  if (novoVeiculo) {
-    rotaDestino.veiculo = novoVeiculo;
-    const novaDecisao = gerarFatorDecisorio(rotaDestino.pedidos, novoVeiculo, rotaDestino.grupoChave);
-    rotaDestino.fatorDecisorio = novaDecisao.motivoDimensao;
-    rotaDestino.decisao = novaDecisao;
-    rotaDestino.maiorItem = novaDecisao.maiorItem;
-    rotaDestino.itemCritico = { item: novaDecisao.maiorItem };
-  }
-  // Atualizar interface
-  atualizarMetricas();
-  renderMapControls();
-  renderResumo();
-  if (map && geocoder) desenharRotas(ultimoResultado.rotas, document.getElementById("depot").value);
-  setStatus(`Pedido ${os} movido para rota ${rotaNum}.`, "ok");
-}
+function renderResumo(){ let el=document.getElementById("resumoOperacional"); if(!ultimoResultado){ el.innerHTML="<p>Nenhum planejamento</p>"; return; } let {rotas,naoAlocados,holdList,aguardandoDefinicao}=ultimoResultado; let porCorredor=new Map(); for(let r of rotas){ if(!porCorredor.has(r.nomeCorredor)) porCorredor.set(r.nomeCorredor,[]); porCorredor.get(r.nomeCorredor).push(r); } el.innerHTML=`<div class="grid grid-2"><div class="metric"><div class="label">Rotas</div><div class="value">${rotas.length}</div></div><div class="metric"><div class="label">Não Alocados</div><div class="value">${naoAlocados.length}</div></div><div class="metric"><div class="label">Aguardando (Hold)</div><div class="value">${holdList.length}</div></div><div class="metric"><div class="label">Aguardando Definição</div><div class="value">${aguardandoDefinicao.length}</div></div></div><h3>Por Corredor</h3><div class="table-wrap" style="padding:12px;">${Array.from(porCorredor.entries()).map(([nome,rs])=>`<div><strong>${nome}</strong>: ${rs.length} rotas, ${formatNumber(rs.reduce((s,r)=>s+r.pesoTotal,0))} kg, ${formatCurrency(rs.reduce((s,r)=>s+r.custoEstimado,0))}</div>`).join("") || "<div>Sem corredores</div>"}</div>`; }
+function atualizarMetricas(){ document.getElementById("mPedidos").textContent=pedidos.length; document.getElementById("mAlocados").textContent=ultimoResultado?.aprovados?.length||0; document.getElementById("mNaoAlocados").textContent=ultimoResultado?.naoAlocados?.length||0; document.getElementById("mHold").textContent=ultimoResultado?.holdList?.length||0; document.getElementById("mAguardandoDefinicao").textContent=ultimoResultado?.aguardandoDefinicao?.length||0; document.getElementById("mRotas").textContent=ultimoResultado?.rotas?.length||0; document.getElementById("mCustoTotal").textContent=formatCurrency(ultimoResultado?.rotas?.reduce((s,r)=>s+(r.custoEstimado||0),0)||0); }
 
-function renderResumo(){ let el=document.getElementById("resumoOperacional"); if(!ultimoResultado){ el.innerHTML="<p>Nenhum planejamento</p>"; return; } let {rotas,naoAlocados,holdList}=ultimoResultado; let porCorredor=new Map(); for(let r of rotas){ if(!porCorredor.has(r.nomeCorredor)) porCorredor.set(r.nomeCorredor,[]); porCorredor.get(r.nomeCorredor).push(r); } el.innerHTML=`<div class="grid grid-2"><div class="metric"><div class="label">Rotas</div><div class="value">${rotas.length}</div></div><div class="metric"><div class="label">Não Alocados</div><div class="value">${naoAlocados.length}</div></div><div class="metric"><div class="label">Aguardando (Hold)</div><div class="value">${holdList.length}</div></div></div><h3>Por Corredor</h3><div class="table-wrap" style="padding:12px;">${Array.from(porCorredor.entries()).map(([nome,rs])=>`<div><strong>${nome}</strong>: ${rs.length} rotas, ${formatNumber(rs.reduce((s,r)=>s+r.pesoTotal,0))} kg, ${formatCurrency(rs.reduce((s,r)=>s+r.custoEstimado,0))}</div>`).join("") || "<div>Sem corredores</div>"}</div>`; }
-function atualizarMetricas(){ document.getElementById("mPedidos").textContent=pedidos.length; document.getElementById("mAlocados").textContent=ultimoResultado?.aprovados?.length||0; document.getElementById("mNaoAlocados").textContent=ultimoResultado?.naoAlocados?.length||0; document.getElementById("mHold").textContent=ultimoResultado?.holdList?.length||0; document.getElementById("mRotas").textContent=ultimoResultado?.rotas?.length||0; document.getElementById("mCustoTotal").textContent=formatCurrency(ultimoResultado?.rotas?.reduce((s,r)=>s+(r.custoEstimado||0),0)||0); }
-
-async function executarPlanejamento(){ try{ carregarCorredoresDaUI(); if(!vehicles.length){ setStatus("Cadastre veículos","err"); return; } 
-  // Filtra pedidos que vão para planejamento (exclui agendados/paletizados)
-  const pedidosPlanejamento = pedidos.filter(p => !p.agendamento && !p.paletizado);
-  if(!pedidosPlanejamento.length){ setStatus("Nenhum pedido apto para planejamento (todos são agendados ou paletizados)","warn"); return; }
-  if(!geocoder){ setStatus("Aguarde carregamento do mapa","warn"); return; }
-  setStatus("Geocodificando...","warn"); 
-  depotCoords=await geocodeAddress(document.getElementById("depot").value); 
-  let cubagemAutoCount = 0; 
-  for(let p of pedidosPlanejamento){ 
-    try{ 
-      let coord=await geocodeAddress(montarEndereco(p)); 
-      p.lat=coord.lat; p.lng=coord.lng; 
-      if(p.cubagemAuto) cubagemAutoCount++; 
-    }catch(e){ console.warn(`Erro geocode ${p.os}`); } 
-  } 
-  let aprovados=[], restricoes=[]; 
-  for(let p of pedidosPlanejamento){ 
-    let isRod=normalizarTexto(p.modalidade).toLowerCase()==="rodoviario"; 
-    if(p.exclusivo && document.getElementById("regraExclusivo").checked){ 
-      aprovados.push(p); continue; 
-    } 
-    if(p.paletizado || p.agendamento){ 
-      restricoes.push(p); continue; 
-    } 
-    if(document.getElementById("regraLeve").checked && isRod && p.pesoTotal<=1000) aprovados.push(p); 
-    else if(document.getElementById("regraPesado").checked && isRod && p.pesoTotal>1000) aprovados.push(p); 
-    else aprovados.push(p); 
-  } 
-  aprovados = aprovados.map(p => ({ ...p, grupoConsolidado: obterChaveAgrupamento(p) })); 
-  let {rotas,naoAlocados,holdList}=await montarRotasInteligentes(aprovados); 
-  setStatus("Desenhando rotas...","warn"); 
-  await desenharRotas(rotas,document.getElementById("depot").value); 
-  ultimoResultado={rotas,naoAlocados,aprovados,restricoes,holdList,cubagemAutoCount}; 
-  atualizarMetricas(); 
-  renderResumo(); 
-  renderMapControls(); 
-  showTab("resultado", document.querySelectorAll(".nav-btn")[3]); 
-  setStatus(`✅ ${rotas.length} rotas | ${naoAlocados.length} não alocados | ${holdList.length} aguardando | ${restricoes.length} restrições`,"ok"); 
-}catch(err){ console.error(err); setStatus(`Erro: ${err.message}`,"err"); } }
-function replanejarRotas() { if (pedidos.length === 0) { alert("Nenhum pedido importado. Importe um CSV primeiro."); showTab("pedidos"); return; } if (vehicles.length === 0) { alert("Nenhum veículo cadastrado. Adicione veículos na aba Parâmetros."); showTab("parametros"); return; } setStatus("Replanejando com IA...", "warn"); clearRoutes(); ultimoResultado = null; atualizarMetricas(); document.getElementById("resumoOperacional").innerHTML = ""; document.getElementById("routeEditorList").innerHTML = ""; document.getElementById("unallocatedEditorList").innerHTML = ""; document.getElementById("restricoesList").innerHTML = ""; document.getElementById("holdList").innerHTML = ""; document.getElementById("aguardandoDefinicaoList").innerHTML = ""; executarPlanejamento(); }
+async function executarPlanejamento(){ try{ carregarCorredoresDaUI(); if(!vehicles.length){ setStatus("Cadastre veículos","err"); return; } if(!pedidos.length){ setStatus("Importe pedidos","err"); return; } if(!geocoder){ setStatus("Aguarde carregamento do mapa","warn"); return; } setStatus("Geocodificando...","warn"); depotCoords=await geocodeAddress(document.getElementById("depot").value); let cubagemAutoCount = 0; for(let p of pedidos){ try{ let coord=await geocodeAddress(montarEndereco(p)); p.lat=coord.lat; p.lng=coord.lng; if(p.cubagemAuto) cubagemAutoCount++; }catch(e){ console.warn(`Erro geocode ${p.os}`); } } let aprovados=[], restricoes=[], aguardandoDefinicao=[]; for(let p of pedidos){ if(p.exclusivo && document.getElementById("regraExclusivo").checked){ aprovados.push(p); continue; } if(p.paletizado || p.agendamento){ aguardandoDefinicao.push(p); continue; } let isRod=normalizarTexto(p.modalidade).toLowerCase()==="rodoviario"; if(document.getElementById("regraLeve").checked && isRod && p.pesoTotal<=1000) aprovados.push(p); else if(document.getElementById("regraPesado").checked && isRod && p.pesoTotal>1000) aprovados.push(p); else aprovados.push(p); } aprovados = aprovados.map(p => ({ ...p, grupoConsolidado: obterChaveAgrupamento(p) })); let {rotas,naoAlocados,holdList}=await montarRotasInteligentes(aprovados); setStatus("Desenhando rotas...","warn"); await desenharRotas(rotas,document.getElementById("depot").value); ultimoResultado={rotas,naoAlocados,aprovados,restricoes,holdList,aguardandoDefinicao,cubagemAutoCount}; atualizarMetricas(); renderResumo(); renderMapControls(); showTab("resultado", document.querySelectorAll(".nav-btn")[3]); setStatus(`✅ ${rotas.length} rotas | ${naoAlocados.length} não alocados | ${holdList.length} aguardando | ${aguardandoDefinicao.length} aguardando definição`,"ok"); }catch(err){ console.error(err); setStatus(`Erro: ${err.message}`,"err"); } }
+function replanejarRotas() { if (pedidos.length === 0) { alert("Nenhum pedido importado. Importe um CSV primeiro."); showTab("pedidos"); return; } if (vehicles.length === 0) { alert("Nenhum veículo cadastrado. Adicione veículos na aba Parâmetros."); showTab("parametros"); return; } setStatus("Replanejando com IA...", "warn"); clearRoutes(); ultimoResultado = null; atualizarMetricas(); document.getElementById("resumoOperacional").innerHTML = ""; document.getElementById("routeEditorList").innerHTML = ""; document.getElementById("unallocatedEditorList").innerHTML = ""; document.getElementById("holdList").innerHTML = ""; document.getElementById("aguardandoDefinicaoList").innerHTML = ""; executarPlanejamento(); }
 function exportarRelatorioCSV(){ if(!ultimoResultado){ alert("Execute o planejamento"); return; } let linhas=[["ROTA","CORREDOR","DATA","VEICULO","PESO","VOLUME","KM","CUSTO","FATOR_DECISORIO","REGRAS","PEDIDOS"]]; ultimoResultado.rotas.forEach((r,i)=>{ linhas.push([`Rota ${i+1}`,r.nomeCorredor,r.dataEntrega,r.veiculo?.nome||"",r.pesoTotal,r.volumeTotal,r.distanciaKm?.toFixed(1)||0,r.custoEstimado?.toFixed(2)||0,r.fatorDecisorio,(r.decisao?.regrasAplicadas||[]).join(" | "),r.pedidos.map(p=>p.os).join(";")]); }); let csv=Papa.unparse(linhas); let blob=new Blob([csv],{type:"text/csv;charset=utf-8"}); let a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="rotas.csv"; a.click(); URL.revokeObjectURL(a.href); }
 function baixarModeloPedidos(){ let csv=`OS,DESTINATARIO,CEP,CIDADE,UF,PESO BRUTO,METROCUBICO,DATAPREVISAO,OBS,CODIGO PRODUTO,PRODUTO,FOTO_URL,ALTURA,LARGURA,PROFUNDIDADE,LOGRADOURO,NUMERO,BAIRRO
 5035441,COSTAZUL ALIMENTOS LTDA,24800-000,ITABORAI,RJ,36,,25/03/2026,,12345,CAIXA LEVE,,0.40,0.30,0.35,RUA A,100,CENTRO
@@ -914,12 +801,42 @@ function baixarModeloPedidos(){ let csv=`OS,DESTINATARIO,CEP,CIDADE,UF,PESO BRUT
 1002,CLIENTE LEVE,07190-000,GUARULHOS,SP,85,,24/03/2026,,101,CAIXA PEQUENA,,0.30,0.25,0.20,RUA C,50,CENTRO
 1003,EXCLUSIVO,40000-000,SALVADOR,BA,2500,15.0,26/03/2026,"CARRO EXCLUSIVO",202,MOTOR GRANDE,https://placehold.co/60x60?text=Motor,2.40,1.80,4.20,AV D,500,INDUSTRIAL
 1004,FEIRA SANTANA,44000-000,FEIRA DE SANTANA,BA,320,2.5,25/03/2026,,303,ELETRODOMÉSTICO,,1.20,0.90,1.10,RUA E,45,CENTRO
-1005,SALVADOR OUTRO,40000-000,SALVADOR,BA,180,1.2,25/03/2026,,404,ACESSÓRIO,,0.70,0.60,0.90,RUA F,10,CENTRO`; let blob=new Blob([csv],{type:"text/csv;charset=utf-8"}); let a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="pedidos_modelo.csv"; a.click(); URL.revokeObjectURL(a.href); }
+1005,SALVADOR OUTRO,40000-000,SALVADOR,BA,180,1.2,25/03/2026,"AGENDAMENTO 10:00",404,ACESSÓRIO,,0.70,0.60,0.90,RUA F,10,CENTRO`; let blob=new Blob([csv],{type:"text/csv;charset=utf-8"}); let a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="pedidos_modelo.csv"; a.click(); URL.revokeObjectURL(a.href); }
 function carregarDoStorageLocal() { try { const saved = JSON.parse(localStorage.getItem("veiculos") || "[]"); if (Array.isArray(saved)) vehicles = saved; } catch (e) { vehicles = []; } }
 function salvarNoStorageLocal() { localStorage.setItem("veiculos", JSON.stringify(vehicles)); }
 function loadLocalCaches() { try { geocodeCache = JSON.parse(localStorage.getItem("geo_cache") || "{}"); } catch (e) { geocodeCache = {}; } }
 function salvarCacheGeo() { localStorage.setItem("geo_cache", JSON.stringify(geocodeCache)); }
-function loadGoogleMaps() { const mapEl = document.getElementById("map"); if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "COLE_SUA_CHAVE_AQUI") { if (mapEl) mapEl.innerHTML = "Mapa operacional local. Preencha APP_CONFIG.GOOGLE_API_KEY para Google Maps real."; return; } if (window.google && window.google.maps) { if (mapEl && !window.map) { window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat:-23.55, lng:-46.63 }, zoom: 8 }); window.geocoder = new google.maps.Geocoder(); map = window.map; geocoder = window.geocoder; } return; } const script = document.createElement("script"); script.src = `https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places`; script.async = true; script.defer = true; script.onload = () => { if (mapEl && window.google && window.google.maps) { window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat:-23.55, lng:-46.63 }, zoom: 8 }); window.geocoder = new google.maps.Geocoder(); map = window.map; geocoder = window.geocoder; } }; script.onerror = () => { if (mapEl) mapEl.innerHTML = "Não foi possível carregar o Google Maps. O modo operacional local continua disponível."; }; document.head.appendChild(script); }
+function loadGoogleMaps() {
+  const mapEl = document.getElementById("map");
+  if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "COLE_SUA_CHAVE_AQUI") {
+    if (mapEl) mapEl.innerHTML = "Mapa operacional local. Preencha APP_CONFIG.GOOGLE_API_KEY para Google Maps real.";
+    return;
+  }
+  if (window.google && window.google.maps) {
+    if (mapEl && !window.map) {
+      window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat: -23.55, lng: -46.63 }, zoom: 8 });
+      window.geocoder = new google.maps.Geocoder();
+      map = window.map;
+      geocoder = window.geocoder;
+    }
+    return;
+  }
+  window.initMapCallback = function() {
+    if (mapEl && window.google && window.google.maps) {
+      window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat: -23.55, lng: -46.63 }, zoom: 8 });
+      window.geocoder = new google.maps.Geocoder();
+      map = window.map;
+      geocoder = window.geocoder;
+      console.log("Google Maps carregado com sucesso");
+    }
+  };
+  const script = document.createElement("script");
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places&callback=initMapCallback`;
+  script.async = true;
+  script.defer = true;
+  script.onerror = () => { if (mapEl) mapEl.innerHTML = "Erro ao carregar Google Maps. Verifique a chave e as APIs ativadas."; };
+  document.head.appendChild(script);
+}
 function initCSVImport() { const input = document.getElementById("ordersCsvFile"); if (!input) return; input.addEventListener("change", function (e) { const file = e.target.files[0]; if (!file) return; Papa.parse(file, { header: true, skipEmptyLines: true, complete: (res) => { try { pedidos = agruparPedidosPorOS(res.data || []); renderPedidosSeparados(); renderOperacaoLeveList(); atualizarMetricas(); alert(`${pedidos.length} pedidos importados`); } catch (err) { console.error(err); alert("Erro ao processar os pedidos."); } e.target.value = ""; }, error: (err) => { console.error(err); alert("Erro ao importar o CSV."); } }); }); }
 document.addEventListener("DOMContentLoaded", () => { carregarCorredoresDaUI(); loadLocalCaches(); carregarDoStorageLocal(); renderVehicles(); renderPedidosSeparados(); renderOperacaoLeveList(); atualizarMetricas(); loadGoogleMaps(); initCSVImport(); if (vehicles.length === 0) adicionarVeiculoPadrao(); });
 </script>
