@@ -909,8 +909,15 @@ async function geocodeAddress(addr) {
       }
     }
     return { rotas, naoAlocados };
+    
   }
-
+function clearRoutes() {
+  if (window.directionsRenderers && window.directionsRenderers.length) {
+    window.directionsRenderers.forEach(r => r.setMap(null));
+  }
+  window.directionsRenderers = [];
+}
+  
   async function desenharRotas(rotas, origem){
     if(!map||!geocoder) return;
     clearRoutes();
