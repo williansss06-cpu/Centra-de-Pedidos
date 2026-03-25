@@ -162,7 +162,7 @@
 </div>
 
 <script>
-const APP_CONFIG = { GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds" };
+const APP_CONFIG = { GOOGLE_API_KEY: "COLE_SUA_CHAVE_AQUI" };
 let vehicles = [];
 let pedidos = [];
 let map = null, geocoder = null;
@@ -305,7 +305,48 @@ function renderPedidos(){ let tbody=document.getElementById("pedidoTableBody"); 
 
 function obterChaveAgrupamento(p) { const uf = normalizarTexto(p.uf).toUpperCase(), cidade = normalizarTexto(p.cidade).toUpperCase(), cep = (p.cep || "").replace(/\D/g, ""); const cidadesLitoral = ["SANTOS","GUARUJA","SAO VICENTE","PRAIA GRANDE"]; if (uf === "SP" && cidadesLitoral.includes(cidade)) return "LITORAL_SP"; if (uf === "SP" && cep.length >= 5 && isCapitalOuGrandeSP(cep)) return "SP_CAPITAL"; if (uf === "SP") { const regiao = definirRegiaoSP(cidade); if (regiao && REGIOES_SP[regiao]) { const integracao = REGIOES_SP[regiao].integracaoCorredor; return integracao || regiao; } return "SP_INTERIOR"; } const corredor = identificarCorredor(uf, cidade); return corredor || "OUTROS"; }
 
-function gerarFatorDecisorio(pedidosDaCarga, veiculo, grupoChave) { const maiorItem = getMaiorItemDaCarga(pedidosDaCarga), peso = pedidosDaCarga.reduce((s,p)=>s+p.pesoTotal,0), m3 = pedidosDaCarga.reduce((s,p)=>s+p.volumeTotal,0); let regras = []; if (grupoChave === "LITORAL_SP") regras.push("Litoral isolado"); else if (grupoChave === "SP_CAPITAL") regras.push("Capital por CEP"); else regras.push("Consolidação por corredor/rodovia"); if (pedidosDaCarga.length > 1) regras.push("Consolidação entre pedidos compatíveis"); if (pedidosDaCarga.some(p=>p.cubagemAuto)) regras.push("Cubagem automática considerada"); const motivoDimensao = `Maior item ${formatNumber(maiorItem.altura)} x ${formatNumber(maiorItem.largura)} x ${formatNumber(maiorItem.profundidade)} m → veículo mínimo ${veiculo?.nome||"não encontrado"}`; return { maiorItem, motivoDimensao, peso, m3, corredor: grupoChave, regrasAplicadas: regras, observacoes: [`Peso total ${formatNumber(peso)} kg`, `Volume total ${formatNumber(m3)} m³`] }; }
+function gerarFatorDecisorio(pedidosDaCarga, veiculo, grupoChave) {
+  const maiorItem = getMaiorItemDaCarga(pedidosDaCarga);
+  const peso = pedidosDaCarga.reduce((s,p)=>s+p.pesoTotal,0);
+  const m3 = pedidosDaCarga.reduce((s,p)=>s+p.volumeTotal,0);
+  const notas = pedidosDaCarga.reduce((s,p)=>s+p.numNotas,0);
+
+  let regras = [];
+  if (grupoChave === "LITORAL_SP") regras.push("Litoral isolado");
+  else if (grupoChave === "SP_CAPITAL") regras.push("Capital por CEP");
+  else regras.push("Consolidação por corredor/rodovia");
+  if (pedidosDaCarga.length > 1) regras.push("Consolidação entre pedidos compatíveis");
+  if (pedidosDaCarga.some(p=>p.cubagemAuto)) regras.push("Cubagem automática considerada");
+
+  // Calcular percentuais de uso
+  const pctPeso = (peso / veiculo.pesoMax) * 100;
+  const pctVolume = (m3 / veiculo.volumeMax) * 100;
+  const pctNotas = (notas / veiculo.notasMax) * 100;
+
+  let motivoPrincipal = "";
+  if (pctVolume >= pctPeso && pctVolume >= pctNotas) {
+    motivoPrincipal = `cubagem total de ${formatNumber(m3)} m³ (${Math.round(pctVolume)}% da capacidade)`;
+  } else if (pctPeso >= pctVolume && pctPeso >= pctNotas) {
+    motivoPrincipal = `peso total de ${formatNumber(peso)} kg (${Math.round(pctPeso)}% da capacidade)`;
+  } else {
+    motivoPrincipal = `quantidade de ${notas} notas fiscais (${Math.round(pctNotas)}% da capacidade)`;
+  }
+
+  const motivoDimensao = `Maior item ${formatNumber(maiorItem.altura)} x ${formatNumber(maiorItem.largura)} x ${formatNumber(maiorItem.profundidade)} m → veículo mínimo ${veiculo?.nome||"não encontrado"}`;
+
+  // Texto final: "Veículo escolhido devido à [motivoPrincipal]"
+  const textoFinal = `Veículo escolhido devido à ${motivoPrincipal}. ${motivoDimensao}`;
+
+  return {
+    maiorItem,
+    motivoDimensao: textoFinal,
+    peso,
+    m3,
+    corredor: grupoChave,
+    regrasAplicadas: regras,
+    observacoes: [`Peso total ${formatNumber(peso)} kg (${Math.round(pctPeso)}%)`, `Volume total ${formatNumber(m3)} m³ (${Math.round(pctVolume)}%)`, `${notas} notas (${Math.round(pctNotas)}%)`]
+  };
+}
 function montarEndereco(p){ return [p.logradouro,p.numero,p.bairro,p.cidade,p.uf,p.cep].filter(Boolean).join(", "); }
 
 async function geocodeAddress(addr) { if (!geocoder) throw new Error("Geocodificador não disponível"); if (!addr) throw new Error("Endereço inválido"); const key = addr.trim().toLowerCase(); if (geocodeCache[key]) return geocodeCache[key]; return new Promise((resolve, reject) => { geocoder.geocode({ address: addr }, (results, status) => { if (status === "OK" && results[0]) { const loc = results[0].geometry.location, coords = { lat: loc.lat(), lng: loc.lng() }; geocodeCache[key] = coords; salvarCacheGeo(); resolve(coords); } else reject(new Error(`Falha ao geocodificar: ${addr}`)); }); }); }
@@ -399,7 +440,7 @@ function carregarDoStorageLocal() { try { const saved = JSON.parse(localStorage.
 function salvarNoStorageLocal() { localStorage.setItem("veiculos", JSON.stringify(vehicles)); }
 function loadLocalCaches() { try { geocodeCache = JSON.parse(localStorage.getItem("geo_cache") || "{}"); } catch (e) { geocodeCache = {}; } }
 function salvarCacheGeo() { localStorage.setItem("geo_cache", JSON.stringify(geocodeCache)); }
-function loadGoogleMaps() { const mapEl = document.getElementById("map"); if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "COLE_SUA_CHAVE_AQUI") { if (mapEl) mapEl.innerHTML = "Mapa operacional local. Preencha APP_CONFIG.GOOGLE_API_KEY para Google Maps real."; return; } if (window.google && window.google.maps) { if (mapEl && !window.map) { window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat:-23.55, lng:-46.63 }, zoom: 8 }); window.geocoder = new google.maps.Geocoder(); map = window.map; geocoder = window.geocoder; } return; } const script = document.createElement("script"); script.src = `https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places`; script.async = true; script.defer = true; script.onload = () => { if (mapEl && window.google && window.google.maps) { window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat:-23.55, lng:-46.63 }, zoom: 8 }); window.geocoder = new google.maps.Geocoder(); map = window.map; geocoder = window.geocoder; } }; script.onerror = () => { if (mapEl) mapEl.innerHTML = "Não foi possível carregar o Google Maps. O modo operacional local continua disponível."; }; document.head.appendChild(script); }
+function loadGoogleMaps() { const mapEl = document.getElementById("map"); if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds") { if (mapEl) mapEl.innerHTML = "Mapa operacional local. Preencha APP_CONFIG.GOOGLE_API_KEY para Google Maps real."; return; } if (window.google && window.google.maps) { if (mapEl && !window.map) { window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat:-23.55, lng:-46.63 }, zoom: 8 }); window.geocoder = new google.maps.Geocoder(); map = window.map; geocoder = window.geocoder; } return; } const script = document.createElement("script"); script.src = `https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places`; script.async = true; script.defer = true; script.onload = () => { if (mapEl && window.google && window.google.maps) { window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat:-23.55, lng:-46.63 }, zoom: 8 }); window.geocoder = new google.maps.Geocoder(); map = window.map; geocoder = window.geocoder; } }; script.onerror = () => { if (mapEl) mapEl.innerHTML = "Não foi possível carregar o Google Maps. O modo operacional local continua disponível."; }; document.head.appendChild(script); }
 function initCSVImport() { const input = document.getElementById("ordersCsvFile"); if (!input) return; input.addEventListener("change", function (e) { const file = e.target.files[0]; if (!file) return; Papa.parse(file, { header: true, skipEmptyLines: true, complete: (res) => { try { pedidos = agruparPedidosPorOS(res.data || []); renderPedidos(); atualizarMetricas(); alert(`${pedidos.length} pedidos importados`); } catch (err) { console.error(err); alert("Erro ao processar os pedidos."); } e.target.value = ""; }, error: (err) => { console.error(err); alert("Erro ao importar o CSV."); } }); }); }
 document.addEventListener("DOMContentLoaded", () => { carregarCorredoresDaUI(); loadLocalCaches(); carregarDoStorageLocal(); renderVehicles(); renderPedidos(); atualizarMetricas(); loadGoogleMaps(); initCSVImport(); if (vehicles.length === 0) adicionarVeiculoPadrao(); });
 </script>
