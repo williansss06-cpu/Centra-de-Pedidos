@@ -3,89 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Frete PRO TMS - Nível Empresa</title>
+  <title>Frete PRO TMS - Consolidação Profissional</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     * { box-sizing: border-box; }
-    :root {
-      --bg: #dfe5ec;
-      --sidebar: #071533;
-      --sidebar-2: #162748;
-      --sidebar-3: #22365f;
-      --card: #f8fafc;
-      --line: #e2e8f0;
-      --muted: #64748b;
-      --text: #0f172a;
-      --primary: #2563eb;
-      --green: #22c55e;
-      --orange: #f59e0b;
-      --red: #ef4444;
-      --purple: #8b5cf6;
-    }
-    body { margin: 0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); }
-    .app { display: flex; min-height: 100vh; }
-    .sidebar { width: 280px; background: var(--sidebar); color: #fff; padding: 22px 18px; position: sticky; top: 0; height: 100vh; }
-    .brand { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; margin-bottom: 28px; }
-    .brand span { font-size: 30px; }
-    .nav-btn { width: 100%; padding: 14px 16px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; background: var(--sidebar-2); color: #fff; font-size: 16px; cursor: pointer; transition: 0.2s; text-align: center; }
-    .nav-btn:hover, .nav-btn.active { background: var(--sidebar-3); border-color: rgba(255,255,255,0.25); }
-    .content { flex: 1; padding: 26px; }
-    .tab { display: none; }
-    .tab.active { display: block; }
-    .card { background: var(--card); border-radius: 16px; padding: 22px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(15,23,42,0.06); }
-    .card h2, .card h3, .card h4 { margin-top: 0; margin-bottom: 18px; }
-    .grid { display: grid; gap: 12px; }
-    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    .field { display: flex; flex-direction: column; gap: 6px; }
-    .field label { font-size: 14px; font-weight: 600; color: #334155; }
-    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; font-size: 14px; outline: none; }
-    input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
-    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
-    .btn { border: none; border-radius: 10px; padding: 12px 18px; font-size: 14px; cursor: pointer; transition: .2s; font-weight: 600; }
-    .btn-green { background: var(--green); color: #fff; }
-    .btn-blue { background: var(--primary); color: #fff; }
-    .btn-orange { background: var(--orange); color: #fff; }
-    .btn-red { background: var(--red); color: #fff; }
-    .btn-purple { background: var(--purple); color: #fff; }
-    .btn-gray { background: #475569; color: #fff; }
-    .table-wrap { overflow: auto; margin-top: 14px; background: #fff; border-radius: 12px; border: 1px solid var(--line); }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; font-size: 13px; }
-    th { background: #eef2f7; font-weight: 700; }
-    .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; margin-left: 6px; }
-    .pill-green { background: #dcfce7; color: #166534; }
-    .pill-yellow { background: #fef3c7; color: #92400e; }
-    .pill-purple { background: #ede9fe; color: #6d28d9; }
-    .small { font-size: 13px; color: var(--muted); }
-    .status { margin-top: 12px; font-weight: 700; }
-    .ok { color: #15803d; }
-    .warn { color: #b45309; }
-    .err { color: #b91c1c; }
-    .info { color: #1d4ed8; }
-    .metrics { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 14px; }
-    .metric { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
-    .metric .label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
-    .metric .value { font-size: 24px; font-weight: 800; color: var(--text); }
-    #map { width: 100%; height: 520px; border-radius: 14px; background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(34,197,94,0.08)), #cbd5e1; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: #334155; font-weight: 700; }
-    .checkbox-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
-    .route-box { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
-    .route-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-    .corridor-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-left: 8px; background: #e0e7ff; color: #3730a3; }
-    .map-side-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin-top: 16px; }
-    .route-editor { background: #fff; border-radius: 14px; padding: 14px; border: 1px solid var(--line); max-height: 520px; overflow: auto; }
-    .pedido-chip { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 8px; background: #f8fafc; position: relative; }
-    .pedido-chip .btn-icon { position: absolute; top: 8px; right: 8px; background: none; border: none; font-size: 16px; cursor: pointer; }
-    .inline-alert { padding: 12px 14px; border-radius: 10px; background: #eef6ff; border: 1px solid #bfdbfe; color: #1e3a8a; margin-top: 12px; font-size: 13px; }
-    .item-photo { width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin-right: 10px; }
-    .critical-item { background: #fff3e0; border-left: 4px solid var(--orange); padding: 8px; margin-top: 8px; border-radius: 8px; }
-    .modal { display: none; position: fixed; z-index: 1000; inset: 0; overflow: auto; background-color: rgba(0,0,0,0.5); }
-    .modal-content { background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 900px; border-radius: 16px; }
-    .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-    @media (max-width: 1200px) { .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); } .grid-5,.grid-4,.grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .map-side-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 768px) { .app { flex-direction: column; } .sidebar { width: 100%; height: auto; position: relative; } .metrics,.grid-2,.grid-3,.grid-4,.grid-5 { grid-template-columns: 1fr; } }
+    :root{--bg:#dfe5ec;--sidebar:#071533;--sidebar2:#162748;--sidebar3:#22365f;--card:#f8fafc;--line:#e2e8f0;--text:#0f172a;--muted:#64748b;--blue:#2563eb;--green:#22c55e;--orange:#f59e0b;--red:#ef4444;--purple:#8b5cf6;}
+    body{margin:0;font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--text)}
+    .app{display:flex;min-height:100vh}.sidebar{width:280px;background:var(--sidebar);color:#fff;padding:22px 18px;position:sticky;top:0;height:100vh;overflow:auto}
+    .brand{display:flex;align-items:center;gap:12px;font-size:26px;font-weight:700;margin-bottom:28px}.brand span{font-size:30px}
+    .nav-btn{width:100%;padding:14px 16px;margin-bottom:12px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:var(--sidebar2);color:#fff;font-size:16px;cursor:pointer;transition:.2s;text-align:center}
+    .nav-btn:hover,.nav-btn.active{background:var(--sidebar3);border-color:rgba(255,255,255,.25)}.content{flex:1;padding:26px}.tab{display:none}.tab.active{display:block}
+    .card{background:var(--card);border-radius:16px;padding:22px;margin-bottom:20px;box-shadow:0 2px 8px rgba(15,23,42,.06)}.card h2,.card h3,.card h4{margin-top:0;margin-bottom:18px}
+    .grid{display:grid;gap:12px}.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid-5{grid-template-columns:repeat(5,minmax(0,1fr))}.grid-6{grid-template-columns:repeat(6,minmax(0,1fr))}
+    .field{display:flex;flex-direction:column;gap:6px}.field label{font-size:14px;font-weight:600;color:#334155}
+    input,select,textarea{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;font-size:14px;outline:none}input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.btn{border:none;border-radius:10px;padding:12px 18px;font-size:14px;cursor:pointer;transition:.2s;font-weight:600}.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#1d4ed8}.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#16a34a}.btn-orange{background:var(--orange);color:#fff}.btn-red{background:var(--red);color:#fff}.btn-purple{background:var(--purple);color:#fff}.btn-gray{background:#475569;color:#fff}
+    .table-wrap{overflow:auto;margin-top:14px;background:#fff;border-radius:12px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse}th,td{padding:10px 12px;border:1px solid var(--line);text-align:left;vertical-align:top;font-size:13px}th{background:#eef2f7;font-weight:700}
+    .small{font-size:13px;color:var(--muted)}.status{margin-top:12px;font-weight:700}.ok{color:#15803d}.warn{color:#b45309}.err{color:#b91c1c}.info{color:#1d4ed8}
+    .metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}.metric{background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(15,23,42,.05)}.metric .label{font-size:13px;color:var(--muted);margin-bottom:8px}.metric .value{font-size:24px;font-weight:800;color:var(--text)}
+    #map{width:100%;height:520px;border-radius:14px;background:#cbd5e1;display:flex;align-items:center;justify-content:center;color:#334155;font-weight:600}.checkbox-row{display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin-top:8px}
+    .route-box{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:16px}.route-title{font-size:16px;font-weight:700;margin-bottom:8px}.corridor-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-left:8px;background:#e0e7ff;color:#3730a3}
+    .pill{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700}.pill-green{background:#dcfce7;color:#166534}.pill-yellow{background:#fef3c7;color:#92400e}.pill-purple{background:#ede9fe;color:#6d28d9}.pill-blue{background:#dbeafe;color:#1d4ed8}
+    .inline-alert{padding:12px 14px;border-radius:10px;background:#eef6ff;border:1px solid #bfdbfe;color:#1e3a8a;margin-top:12px;font-size:13px}.map-side-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:16px}.route-editor{background:#fff;border-radius:14px;padding:14px;border:1px solid var(--line);max-height:520px;overflow:auto}
+    .pedido-chip{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#f8fafc;position:relative}.btn-icon{position:absolute;top:8px;right:8px;background:none;border:none;font-size:16px;cursor:pointer}.decision-box{margin-top:10px;padding:10px;background:#f8fafc;border-left:4px solid var(--blue);border-radius:10px;font-size:13px}.critical-item{background:#fff3e0;border-left:4px solid var(--orange);padding:8px;margin-top:8px;border-radius:8px}
+    .modal{display:none;position:fixed;z-index:1000;inset:0;overflow:auto;background-color:rgba(0,0,0,.5)}.modal-content{background-color:#fefefe;margin:5% auto;padding:20px;border:1px solid #888;width:80%;max-width:900px;border-radius:16px}.close{color:#aaa;float:right;font-size:28px;font-weight:bold;cursor:pointer}.close:hover{color:black}
+    @media (max-width:1200px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-5,.grid-4,.grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}.map-side-grid{grid-template-columns:1fr}}
+    @media (max-width:768px){.app{flex-direction:column}.sidebar{width:100%;height:auto;position:relative}.metrics,.grid-2,.grid-3,.grid-4,.grid-5,.grid-6{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -118,12 +61,12 @@
           <div class="field"><label>Comprimento (m)</label><input type="number" id="v_profundidade" step="0.01" placeholder="2.50" /></div>
         </div>
         <div class="row"><button class="btn btn-green" onclick="addVehicle()">Adicionar veículo</button></div>
-        <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>R$/km</th><th>Ação</th></tr></thead><tbody id="vehicleTableBody"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Dimensões</th><th>R$/km</th><th>Ação</th></tr></thead><tbody id="vehicleTableBody"></tbody></table></div>
         <div id="statusBanco" class="status"></div>
       </div>
 
       <div class="card">
-        <h2>Configuração - Cubagem Inteligente</h2>
+        <h2>Configuração - Cubagem e Consolidação</h2>
         <div class="grid grid-4">
           <div class="field"><label>Origem</label><input type="text" id="depot" value="Guarulhos/SP" /></div>
           <div class="field"><label>Peso máx/rota (kg)</label><input type="number" id="cfgPesoMax" value="5000" /></div>
@@ -133,13 +76,25 @@
         <div class="grid grid-4">
           <div class="field"><label>Fator cubagem (kg → m³)</label><input type="number" id="fatorCubagem" value="0.003" step="0.0005" /></div>
           <div class="field"><label>Máx. paradas</label><input type="number" id="cfgMaxParadas" value="12" /></div>
-          <div class="field"><label>Buffer desvio (km)</label><input type="number" id="cfgBufferKm" value="35" /></div>
+          <div class="field"><label>Raio de consolidação (km)</label><input type="number" id="cfgRaioKm" value="80" /></div>
           <div class="field"><label>Ordenação</label><select id="ordenacaoParadas"><option value="data">Por data + geográfica</option><option value="mercado">Progressão geográfica</option></select></div>
         </div>
         <div class="inline-alert">
-          🧠 <strong>Drag & Drop:</strong> Arraste pedidos entre rotas ou para “Não Alocados”.<br>
-          🤖 <strong>Otimização:</strong> Use “Otimizar rota” para reordenar paradas.<br>
-          📦 <strong>Cubagem Inteligente:</strong> Volume zerado recebe estimativa automática pelo peso.
+          🧠 <strong>Profissional:</strong> consolidação por corredor + rodovia + CEP + litoral, com mistura controlada sem bagunçar a operação.<br>
+          📦 <strong>Fator decisório:</strong> o maior item do pedido/carga define o veículo mínimo, depois o sistema valida peso, volume e capacidade total.<br>
+          🤖 <strong>Detalhamento:</strong> cada rota traz no final o motivo da escolha do veículo e as regras aplicadas.
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Corredores de Consolidação</h2>
+        <div class="grid grid-2">
+          <div><label>Vale do Paraíba</label><input type="text" id="corridor_paraiba" value="Guarulhos,São José dos Campos,Rio de Janeiro" /></div>
+          <div><label>Campinas</label><input type="text" id="corridor_campinas" value="Guarulhos,Campinas,Ribeirão Preto" /></div>
+          <div><label>Sul</label><input type="text" id="corridor_sul" value="Guarulhos,Curitiba,Porto Alegre" /></div>
+          <div><label>Minas Gerais</label><input type="text" id="corridor_mg" value="Guarulhos,Varginha,Belo Horizonte" /></div>
+          <div><label>Centro-Oeste</label><input type="text" id="corridor_co" value="Guarulhos,Goiânia,Brasília" /></div>
+          <div><label>Nordeste</label><input type="text" id="corridor_ne" value="Guarulhos,Salvador,Recife,Fortaleza" /></div>
         </div>
       </div>
 
@@ -149,7 +104,8 @@
           <label><input type="checkbox" id="regraLeve" checked /> Rodoviário até 1000kg → liberar</label>
           <label><input type="checkbox" id="regraPesado" checked /> Acima 1000kg → incluir</label>
           <label><input type="checkbox" id="regraExclusivo" checked /> Carro exclusivo → prioridade</label>
-          <label><input type="checkbox" id="regraCubagemAuto" checked /> Cubagem automática</label>
+          <label><input type="checkbox" id="regraCubagemAuto" checked /> Cubagem automática (volume=0 → estimar)</label>
+          <label><input type="checkbox" id="regraCapitalFlex" checked /> Capital pode consolidar com interior próximo</label>
         </div>
       </div>
     </section>
@@ -161,11 +117,11 @@
           <input type="file" id="ordersCsvFile" accept=".csv" style="flex:1;" />
           <button class="btn btn-blue" onclick="baixarModeloPedidos()">Baixar modelo</button>
         </div>
-        <p class="small">Colunas: OS, DESTINATARIO, CIDADE, UF, PESO BRUTO, METROCUBICO, DATAPREVISAO, OBS, CEP, LOGRADOURO, NUMERO, BAIRRO, CODIGO PRODUTO, PRODUTO, FOTO_URL</p>
+        <p class="small">Colunas: OS, DESTINATARIO, CIDADE, UF, PESO BRUTO, METROCUBICO, DATAPREVISAO, OBS, CEP, CODIGO PRODUTO, PRODUTO, FOTO_URL, ALTURA, LARGURA, PROFUNDIDADE, LOGRADOURO, NUMERO, BAIRRO</p>
       </div>
       <div class="card">
-        <h2>Pedidos</h2>
-        <div class="table-wrap"><table><thead><tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume</th><th>Volume Corrigido</th><th>Data</th><th>Status</th></tr></thead><tbody id="pedidoTableBody"></tbody></table></div>
+        <h2>Pedidos (com cubagem corrigida)</h2>
+        <div class="table-wrap"><table><thead><tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume</th><th>Volume Corrigido</th><th>Maior item</th><th>Status</th></tr></thead><tbody id="pedidoTableBody"></tbody></table></div>
       </div>
     </section>
 
@@ -188,16 +144,10 @@
         <div class="metric"><div class="label">Não Alocados</div><div class="value" id="mNaoAlocados">0</div></div>
         <div class="metric"><div class="label">Rotas</div><div class="value" id="mRotas">0</div></div>
         <div class="metric"><div class="label">Restrições</div><div class="value" id="mRestricoes">0</div></div>
-        <div class="metric"><div class="label">Cubagem Auto</div><div class="value" id="mCubagemAuto">0</div></div>
         <div class="metric"><div class="label">Custo Total</div><div class="value" id="mCustoTotal">R$ 0</div></div>
       </div>
-      <div class="card">
-        <h2>Mapa</h2>
-        <div id="map">Mapa operacional pronto. Para mapa Google real, cole sua chave em APP_CONFIG.GOOGLE_API_KEY.</div>
-        <div class="map-side-grid">
-          <div class="route-editor"><h4>Rotas</h4><div id="routeEditorList"></div></div>
-          <div class="route-editor"><h4>Pedidos com Restrição</h4><div id="restricoesList"></div><h4 style="margin-top:12px;">Não Alocados</h4><div id="unallocatedEditorList"></div></div>
-        </div>
+      <div class="card"><h2>Mapa</h2><div id="map">Mapa operacional local. Preencha a chave do Google para modo real.</div>
+        <div class="map-side-grid"><div class="route-editor"><h4>Rotas</h4><div id="routeEditorList"></div></div><div class="route-editor"><h4>Pedidos com Restrição</h4><div id="restricoesList"></div><h4 style="margin-top:12px;">Não Alocados</h4><div id="unallocatedEditorList"></div></div></div>
       </div>
       <div class="card"><h2>Resumo</h2><div id="resumoOperacional"></div></div>
     </section>
@@ -212,756 +162,259 @@
 </div>
 
 <script>
-  const APP_CONFIG = {
-    GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds"
+const APP_CONFIG = { GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds" };
+let vehicles = [];
+let pedidos = [];
+let map = null, geocoder = null, directionsRenderers = [];
+let geocodeCache = {};
+let ultimoResultado = null;
+let depotCoords = null;
+
+const REGIOES_SP = {
+  "VALE_DO_PARAIBA": { nome: "Vale do Paraíba", cidades: ["SAO JOSE DOS CAMPOS","TAUBATE","JACAREI"], integracaoCorredor: "VALE_DO_PARAIBA" },
+  "CAMPINAS": { nome: "Região Campinas", cidades: ["CAMPINAS","JUNDIAI","SUMARE"], integracaoCorredor: "MINAS_GERAIS" },
+  "SOROCABA": { nome: "Região Sorocaba", cidades: ["SOROCABA","ITU","BOITUVA"], integracaoCorredor: "SUL" },
+  "NORTE_SP": { nome: "Norte SP", cidades: ["RIBEIRAO PRETO","FRANCA"], integracaoCorredor: "CENTRO_OESTE" },
+  "LITORAL": { nome: "Litoral", cidades: ["SANTOS","GUARUJA","SAO VICENTE","PRAIA GRANDE"], integracaoCorredor: null }
+};
+let CORREDORES = {};
+
+function normalizarTexto(t) { return (t||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim(); }
+function formatNumber(v) { return v || v===0 ? Number(v).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:2}) : "-"; }
+function formatCurrency(v) { return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
+function parseNumero(v) { if(v===null||v===undefined||v==="") return 0; let s=v.toString().trim(); let cleaned=s.includes(",")?s.replace(/\./g,"").replace(",", "."):s; return parseFloat(cleaned)||0; }
+function showTab(tabId,btn=null){ document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active")); document.getElementById(tabId).classList.add("active"); document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active")); if(btn) btn.classList.add("active"); }
+function setStatus(msg,type=""){ let el=document.getElementById("statusPlanejamento"); if(el){ el.className=`status ${type}`; el.innerHTML=msg; } }
+function setStatusBanco(msg,type=""){ let el=document.getElementById("statusBanco"); if(el){ el.className=`status ${type}`; el.innerHTML=msg; } }
+
+/* ==================== CORREÇÃO 1 — CORREDOR NACIONAL MELHORADO ==================== */
+function identificarCorredor(uf,cidade) {
+  let u = normalizarTexto(uf).toUpperCase();
+  let c = normalizarTexto(cidade).toUpperCase();
+
+  // prioridade: cidades configuradas nos corredores
+  for (let [k, corredor] of Object.entries(CORREDORES)) {
+    if (corredor.cidades.includes(c)) return k;
+  }
+
+  // fallback nacional com mapeamento completo de UF
+  const MAPA_UF = {
+    SP:"CAMPINAS",
+    RJ:"VALE_DO_PARAIBA",
+    MG:"MINAS_GERAIS",
+    ES:"VALE_DO_PARAIBA",
+    PR:"SUL",
+    SC:"SUL",
+    RS:"SUL",
+    GO:"CENTRO_OESTE",
+    DF:"CENTRO_OESTE",
+    MT:"CENTRO_OESTE",
+    MS:"CENTRO_OESTE",
+    BA:"NORDESTE",
+    SE:"NORDESTE",
+    AL:"NORDESTE",
+    PE:"NORDESTE",
+    CE:"NORDESTE",
+    PB:"NORDESTE",
+    RN:"NORDESTE",
+    PI:"NORDESTE",
+    MA:"NORDESTE"
   };
 
-  let vehicles = [];
-  let pedidos = [];
-  let ultimoResultado = null;
-  let geocodeCache = {};
-  let depotCoords = { lat: -23.4538, lng: -46.5333 };
-  let draggedPedido = null;
-  let draggedSourceRotaId = null;
-  let map = null;
-  let geocoder = null;
-  let directionsRenderers = [];
-  let markers = [];
+  return MAPA_UF[u] || "OUTROS";
+}
 
-  const REGIOES_SP = {
-    VALE_DO_PARAIBA: { nome: "Vale do Paraíba", cidades: ["SAO JOSE DOS CAMPOS","TAUBATE","JACAREI"], integracaoCorredor: "VALE_DO_PARAIBA" },
-    CAMPINAS: { nome: "Região Campinas", cidades: ["CAMPINAS","JUNDIAI","SUMARE"], integracaoCorredor: "CAMPINAS" },
-    SOROCABA: { nome: "Região Sorocaba", cidades: ["SOROCABA","ITU","BOITUVA"], integracaoCorredor: "SUL" },
-    NORTE_SP: { nome: "Norte SP", cidades: ["RIBEIRAO PRETO","FRANCA"], integracaoCorredor: "CENTRO_OESTE" },
-    LITORAL: { nome: "Litoral", cidades: ["SANTOS","GUARUJA"], integracaoCorredor: null }
+/* ==================== CORREÇÃO 2 — VEÍCULO PROFISSIONAL COM DIMENSÃO ==================== */
+function escolherVeiculoParaCarga(pedidosDaCarga) {
+  if (!pedidosDaCarga.length) return null;
+
+  const pesoTotal = pedidosDaCarga.reduce((s,p)=>s+p.pesoTotal,0);
+  const volumeTotal = pedidosDaCarga.reduce((s,p)=>s+p.volumeTotal,0);
+  const notasTotal = pedidosDaCarga.reduce((s,p)=>s+p.numNotas,0);
+  const maiorItem = getMaiorItemDaCarga(pedidosDaCarga);
+
+  const ordenados = [...vehicles].sort((a,b) =>
+    a.volumeMax - b.volumeMax || a.pesoMax - b.pesoMax
+  );
+
+  for (let v of ordenados) {
+    // validação de dimensão - item crítico deve caber
+    if (!cabeNoVeiculoPorDimensao(maiorItem, v)) continue;
+
+    if (
+      pesoTotal <= v.pesoMax &&
+      volumeTotal <= v.volumeMax &&
+      notasTotal <= v.notasMax
+    ) {
+      return v;
+    }
+  }
+
+  return null;
+}
+
+/* ==================== CORREÇÃO 3 — CONSOLIDAÇÃO INTELIGENTE ==================== */
+function podeConsolidar(p1, p2) {
+  // Litoral SP isola completamente
+  if (p1.grupoConsolidado === "LITORAL_SP" || p2.grupoConsolidado === "LITORAL_SP") {
+    return p1.grupoConsolidado === p2.grupoConsolidado;
+  }
+
+  // mesmo grupo consolidado
+  if (p1.grupoConsolidado === p2.grupoConsolidado) return true;
+
+  // Capital com interior próximo (checkbox)
+  if (
+    document.getElementById("regraCapitalFlex")?.checked &&
+    (p1.grupoConsolidado === "SP_CAPITAL" || p2.grupoConsolidado === "SP_CAPITAL")
+  ) {
+    return true;
+  }
+
+  // fallback inteligente por corredor (antes travava)
+  return identificarCorredor(p1.uf, p1.cidade) === identificarCorredor(p2.uf, p2.cidade);
+}
+
+/* ==================== CORREÇÃO 4 — MOTIVO DE NÃO ALOCAÇÃO CLARO ==================== */
+function motivoNaoAlocadoCarga(lote) {
+  if (!lote.length) return "Carga vazia";
+  const peso = lote.reduce((s,p)=>s+p.pesoTotal,0);
+  const m3 = lote.reduce((s,p)=>s+p.volumeTotal,0);
+  const notas = lote.reduce((s,p)=>s+p.numNotas,0);
+  const maiorItem = getMaiorItemDaCarga(lote);
+  
+  const veiculoTest = escolherVeiculoParaCarga(lote);
+  if (!veiculoTest) {
+    if (maiorItem && maiorItem.dimCritica > 0) {
+      return `Item crítico (${formatNumber(maiorItem.altura)}x${formatNumber(maiorItem.largura)}x${formatNumber(maiorItem.profundidade)}m) excede dimensões dos veículos disponíveis`;
+    }
+    return `Excede capacidade (${formatNumber(peso)}kg / ${formatNumber(m3)}m³ / ${notas} notas)`;
+  }
+  return `Não foi possível alocar: verifique restrições de consolidação ou capacidade`;
+}
+
+function carregarCorredoresDaUI() {
+  const parse = (id) => (document.getElementById(id)?.value || "").split(",").map(v=>normalizarTexto(v).toUpperCase()).filter(Boolean);
+  CORREDORES = {
+    "VALE_DO_PARAIBA": { nome:"Vale do Paraíba", rodovia:"BR-116", ufs:["RJ"], cidades:parse("corridor_paraiba") },
+    "CAMPINAS": { nome:"Campinas", rodovia:"SP-330", ufs:["SP"], cidades:parse("corridor_campinas") },
+    "SUL": { nome:"Sul", rodovia:"BR-116", ufs:["PR","SC","RS"], cidades:parse("corridor_sul") },
+    "MINAS_GERAIS": { nome:"Minas Gerais", rodovia:"BR-381", ufs:["MG"], cidades:parse("corridor_mg") },
+    "CENTRO_OESTE": { nome:"Centro-Oeste", rodovia:"BR-040", ufs:["GO","DF","MT"], cidades:parse("corridor_co") },
+    "NORDESTE": { nome:"Nordeste", rodovia:"BR-116", ufs:["BA","PE","CE"], cidades:parse("corridor_ne") }
   };
+}
+function isCapitalOuGrandeSP(cep) { let cepNum=(cep||"").replace(/\D/g,""); if(!cepNum || cepNum.length<5) return false; let p=parseInt(cepNum.substring(0,5),10); return p>=1000 && p<=9999; }
+function definirRegiaoSP(cidade) { let c=normalizarTexto(cidade).toUpperCase(); for(let [k,r] of Object.entries(REGIOES_SP)) if(r.cidades.includes(c)) return k; return null; }
+function getCorredorInfo(k) { return CORREDORES[k]||{nome:"Outros",rodovia:"-",cidades:[]}; }
+function calcularCubagemInteligente(pesoKg, volumeInformado) { let volume = parseNumero(volumeInformado); if (volume > 0) return volume; const regraAuto = document.getElementById("regraCubagemAuto")?.checked !== false; if (!regraAuto) return 0; const fator = parseFloat(document.getElementById("fatorCubagem")?.value || 0.003); return Math.max(pesoKg * fator, 0.01); }
+function custoPorKmPadrao(nome) { let n=normalizarTexto(nome).toLowerCase(); if(n.includes("fiorino")) return 1.8; if(n.includes("van")) return 2.2; if(n.includes("vuc")) return 3.2; if(n.includes("truck")) return 4.8; return 2.5; }
 
-  const CORREDORES = {
-    VALE_DO_PARAIBA: { nome: "Vale do Paraíba", rodovia: "BR-116", ufs: ["RJ"], cidades: ["Guarulhos","São José dos Campos","Rio de Janeiro"] },
-    CAMPINAS: { nome: "Campinas", rodovia: "SP-330", ufs: ["SP"], cidades: ["Guarulhos","Campinas","Ribeirão Preto"] },
-    SUL: { nome: "Sul", rodovia: "BR-116", ufs: ["PR","SC","RS"], cidades: ["Curitiba","Porto Alegre"] },
-    MINAS_GERAIS: { nome: "Minas Gerais", rodovia: "BR-381", ufs: ["MG"], cidades: ["Varginha","Belo Horizonte"] },
-    CENTRO_OESTE: { nome: "Centro-Oeste", rodovia: "BR-040", ufs: ["GO","DF","MT"], cidades: ["Goiânia","Brasília"] },
-    NORDESTE: { nome: "Nordeste", rodovia: "BR-116", ufs: ["BA","PE","CE"], cidades: ["Salvador","Recife","Fortaleza"] }
-  };
+function adicionarVeiculoPadrao() {
+  const defaults = [
+    { nome:"Fiorino / Van Leve", volumeMax:5, pesoMax:800, notasMax:30, alturaMax:1.5, larguraMax:1.6, profundidadeMax:2.5, custoKm:2.2 },
+    { nome:"VUC", volumeMax:14, pesoMax:3000, notasMax:50, alturaMax:2.2, larguraMax:2.2, profundidadeMax:4.5, custoKm:3.4 },
+    { nome:"Truck", volumeMax:30, pesoMax:8000, notasMax:80, alturaMax:2.7, larguraMax:2.4, profundidadeMax:7.5, custoKm:4.8 }
+  ];
+  let added = 0;
+  defaults.forEach(v => { if (!vehicles.some(x => x.nome === v.nome)) { vehicles.push({ id: crypto.randomUUID?.() || Date.now()+"_"+Math.random(), ...v }); added++; } });
+  salvarNoStorageLocal(); renderVehicles(); atualizarMetricas(); setStatusBanco(added ? "Frota padrão adicionada!" : "Frota padrão já existe.", added ? "ok" : "info");
+}
+function addVehicle() {
+  let nome=document.getElementById("v_nome").value.trim(), vol=parseFloat(document.getElementById("v_volume").value||0), peso=parseFloat(document.getElementById("v_peso").value||0), notas=parseInt(document.getElementById("v_notas").value||0,10), alt=parseFloat(document.getElementById("v_altura").value||0), larg=parseFloat(document.getElementById("v_largura").value||0), prof=parseFloat(document.getElementById("v_profundidade").value||0), custo=parseFloat(document.getElementById("v_custo_km").value||0);
+  if(!nome||vol<=0||peso<=0||notas<=0){ alert("Preencha nome, volume, peso e notas"); return; }
+  vehicles.push({id:crypto.randomUUID?.()||Date.now()+"_"+Math.random(),nome,volumeMax:vol,pesoMax:peso,notasMax:notas,alturaMax:alt||1,larguraMax:larg||1,profundidadeMax:prof||1,custoKm:custo>0?custo:custoPorKmPadrao(nome)});
+  ["v_nome","v_volume","v_peso","v_notas","v_altura","v_largura","v_profundidade","v_custo_km"].forEach(id=>document.getElementById(id).value=""); salvarNoStorageLocal(); renderVehicles(); atualizarMetricas();
+}
+function removeVehicle(id){ vehicles=vehicles.filter(v=>String(v.id)!==String(id)); salvarNoStorageLocal(); renderVehicles(); atualizarMetricas(); }
+function renderVehicles(){ let tbody=document.getElementById("vehicleTableBody"); if(!vehicles.length){ tbody.innerHTML='<tr><td colspan="7">Nenhum veículo. Clique em "Adicionar Veículo Leve Padrão"</td></tr>'; return; } tbody.innerHTML=vehicles.map(v=>`<tr><td>${v.nome}</td><td>${formatNumber(v.volumeMax)}</td><td>${formatNumber(v.pesoMax)} kg</td><td>${v.notasMax}</td><td>${formatNumber(v.alturaMax)} x ${formatNumber(v.larguraMax)} x ${formatNumber(v.profundidadeMax)} m</td><td>${formatCurrency(v.custoKm)}</td><td><button class="btn btn-red" onclick="removeVehicle('${String(v.id).replace(/'/g,"\\'")}')">X</button></td></tr>`).join(""); }
 
-  function normalizarTexto(t) {
-    return (t || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  }
-  function formatNumber(v) {
-    if (v === null || v === undefined || Number.isNaN(Number(v))) return "-";
-    return Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  }
-  function formatCurrency(v) {
-    return Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  }
-  function parseNumero(v) {
-    if (!v) return 0;
-    const s = v.toString().trim();
-    const cleaned = s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s;
-    return parseFloat(cleaned) || 0;
-  }
-  function slugify(s) { return normalizarTexto(s).toUpperCase(); }
-  function uid() { return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "_" + Math.random().toString(36).slice(2); }
-  function calcularDistancia(lat1, lng1, lat2, lng2) {
-    const R = 6371;
-    const dLat = (lat2-lat1) * Math.PI/180;
-    const dLng = (lng2-lng1) * Math.PI/180;
-    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
-    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  }
-  function montarEndereco(p) {
-    return [p.logradouro, p.numero, p.bairro, p.cidade, p.uf, p.cep].filter(Boolean).join(", ") || `${p.cidade || ""}/${p.uf || ""}`;
-  }
-  function isCapitalOuGrandeSP(cep) {
-    const cepNum = (cep || "").replace(/\D/g, "");
-    if (!cepNum || cepNum.length < 5) return false;
-    const p = parseInt(cepNum.substring(0,5), 10);
-    return p >= 1000 && p <= 9999;
-  }
-  function definirRegiaoSP(cidade) {
-    const c = slugify(cidade);
-    for (const [k, r] of Object.entries(REGIOES_SP)) if (r.cidades.includes(c)) return k;
-    return null;
-  }
-  function identificarCorredor(uf, cidade) {
-    const u = slugify(uf);
-    if (u === "SP") {
-      const r = definirRegiaoSP(cidade);
-      if (r && REGIOES_SP[r].integracaoCorredor) return REGIOES_SP[r].integracaoCorredor;
-      return "CAMPINAS";
-    }
-    for (const [k, c] of Object.entries(CORREDORES)) if (c.ufs.includes(u)) return k;
-    return "OUTROS";
-  }
-  function getCorredorInfo(k) { return CORREDORES[k] || { nome: "Outros", rodovia: "-", cidades: [] }; }
+function valorColuna(row,names){ for(let key of Object.keys(row||{})){ let cleanKey=normalizarTexto(key).toUpperCase().replace(/\./g,"").replace(/\s+/g," "); for(let name of names){ let cleanName=normalizarTexto(name).toUpperCase().replace(/\./g,"").replace(/\s+/g," "); if(cleanKey===cleanName) return row[key]; } } return ""; }
+function analisarObs(obs){ let t=normalizarTexto(obs).toLowerCase(); return { exclusivo:t.includes("exclusivo")||t.includes("carro exclusivo"), paletizado:t.includes("palet"), agendamento:t.includes("agend") }; }
+function getMaiorItemDoPedido(pedido){ let maior = null; (pedido.items||[]).forEach(item => { const dimCritica = Math.max(item.altura||0, item.largura||0, item.profundidade||0); if (!maior || dimCritica > maior.dimCritica) maior = { ...item, dimCritica }; }); return maior || { altura:0, largura:0, profundidade:0, dimCritica:0 }; }
+function getMaiorItemDaCarga(pedidosDaCarga) { let maior = null; pedidosDaCarga.forEach(p => { const item = getMaiorItemDoPedido(p); if (!maior || (item.dimCritica||0) > (maior.dimCritica||0)) maior = item; }); return maior || { altura:0, largura:0, profundidade:0, dimCritica:0 }; }
+function cabeNoVeiculoPorDimensao(item, veiculo) { return (item.altura||0) <= (veiculo.alturaMax||0) && (item.largura||0) <= (veiculo.larguraMax||0) && (item.profundidade||0) <= (veiculo.profundidadeMax||0); }
 
-  function showTab(tabId, btn = null) {
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-    document.getElementById(tabId).classList.add("active");
-    document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
-    if (btn) btn.classList.add("active");
-  }
-  function setStatus(msg, type="") {
-    const el = document.getElementById("statusPlanejamento");
-    if (el) { el.className = `status ${type}`; el.innerHTML = msg; }
-  }
-  function setStatusBanco(msg, type="") {
-    const el = document.getElementById("statusBanco");
-    if (el) { el.className = `status ${type}`; el.innerHTML = msg; }
-  }
-
-  function calcularCubagemInteligente(pesoKg, volumeInformado) {
-    const volume = parseNumero(volumeInformado);
-    if (volume > 0) return volume;
-    const regraAuto = document.getElementById("regraCubagemAuto")?.checked !== false;
-    if (!regraAuto) return 0;
-    const fator = parseFloat(document.getElementById("fatorCubagem")?.value || 0.003);
-    return Math.max(pesoKg * fator, 0.01);
-  }
-
-  function valorColuna(row, names) {
-    for (const key of Object.keys(row || {})) {
-      const cleanKey = slugify(key).replace(/\./g, "").replace(/\s+/g, " ");
-      for (const name of names) {
-        const cleanName = slugify(name).replace(/\./g, "").replace(/\s+/g, " ");
-        if (cleanKey === cleanName) return row[key];
-      }
-    }
-    return "";
-  }
-  function analisarObs(obs) {
-    const t = normalizarTexto(obs).toLowerCase();
-    return {
-      exclusivo: t.includes("exclusivo") || t.includes("carro exclusivo"),
-      paletizado: t.includes("palet"),
-      agendamento: t.includes("agend")
-    };
-  }
-
-  async function geocodeAddress(addr) {
-    if (!addr) return depotCoords;
-    const key = addr.trim().toLowerCase();
-    if (geocodeCache[key]) return geocodeCache[key];
-
-    if (geocoder && window.google && window.google.maps) {
-      const coords = await new Promise((resolve, reject) => {
-        geocoder.geocode({ address: addr }, (results, status) => {
-          if (status === "OK" && results[0]) {
-            const loc = results[0].geometry.location;
-            resolve({ lat: loc.lat(), lng: loc.lng() });
-          } else {
-            reject(new Error(status));
-          }
-        });
-      }).catch(() => null);
-      if (coords) {
-        geocodeCache[key] = coords;
-        salvarCacheGeo();
-        return coords;
-      }
-    }
-
-    let hash = 0;
-    for (let i = 0; i < key.length; i++) hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
-    const lat = -23.55 + ((hash % 1000) / 1000) * 12;
-    const lng = -46.63 + (((hash >> 3) % 1000) / 1000) * 12;
-    const coords = { lat, lng };
-    geocodeCache[key] = coords;
-    salvarCacheGeo();
-    return coords;
-  }
-
-  function adicionarVeiculoPadrao() {
-    const veiculoLeve = { id: uid(), nome: "Fiorino / Van Leve", volumeMax: 5.0, pesoMax: 800, notasMax: 30, alturaMax: 1.5, larguraMax: 1.6, profundidadeMax: 2.5, custoKm: 2.2 };
-    const existe = vehicles.some(v => v.nome === veiculoLeve.nome);
-    if (!existe) {
-      vehicles.push(veiculoLeve);
-      salvarNoStorageLocal();
-      renderVehicles();
-      setStatusBanco("Veículo leve padrão adicionado!", "ok");
-    } else {
-      setStatusBanco("Veículo leve já existe!", "info");
-    }
-  }
-  function custoPorKmPadrao(nome) {
-    const n = normalizarTexto(nome).toLowerCase();
-    if (n.includes("fiorino")) return 1.8;
-    if (n.includes("van")) return 2.2;
-    if (n.includes("vuc")) return 3.2;
-    if (n.includes("truck")) return 4.3;
-    return 2.5;
-  }
-  function addVehicle() {
-    const nome = document.getElementById("v_nome").value.trim();
-    const vol = parseFloat(document.getElementById("v_volume").value || 0);
-    const peso = parseFloat(document.getElementById("v_peso").value || 0);
-    const notas = parseInt(document.getElementById("v_notas").value || 0, 10);
-    const alt = parseFloat(document.getElementById("v_altura").value || 0);
-    const larg = parseFloat(document.getElementById("v_largura").value || 0);
-    const prof = parseFloat(document.getElementById("v_profundidade").value || 0);
-    const custo = parseFloat(document.getElementById("v_custo_km").value || 0);
-    if (!nome || vol <= 0 || peso <= 0 || notas <= 0) { alert("Preencha nome, volume, peso e notas"); return; }
-    vehicles.push({ id: uid(), nome, volumeMax: vol, pesoMax: peso, notasMax: notas, alturaMax: alt || 10, larguraMax: larg || 10, profundidadeMax: prof || 10, custoKm: custo > 0 ? custo : custoPorKmPadrao(nome) });
-    ["v_nome","v_volume","v_peso","v_notas","v_altura","v_largura","v_profundidade","v_custo_km"].forEach(id => document.getElementById(id).value = "");
-    salvarNoStorageLocal(); renderVehicles(); atualizarMetricas();
-  }
-  function removeVehicle(id) {
-    vehicles = vehicles.filter(v => String(v.id) !== String(id));
-    salvarNoStorageLocal(); renderVehicles(); atualizarMetricas();
-  }
-  function renderVehicles() {
-    const tbody = document.getElementById("vehicleTableBody");
-    if (!vehicles.length) {
-      tbody.innerHTML = '<tr><td colspan="6">Nenhum veículo. Clique em "Adicionar Veículo Leve Padrão"</td></tr>';
-      return;
-    }
-    tbody.innerHTML = vehicles.map(v => `<tr><td>${v.nome}</td><td>${formatNumber(v.volumeMax)}</td><td>${formatNumber(v.pesoMax)} kg</td><td>${v.notasMax}</td><td>${formatCurrency(v.custoKm)}</td><td><button class="btn btn-red" onclick="removeVehicle('${String(v.id).replace(/'/g, "\\'")}')">X</button></td></tr>`).join("");
-  }
-
-  function agruparPedidosPorOS(linhas) {
-    const mapa = new Map();
-    linhas.forEach((row, idx) => {
-      const os = String(valorColuna(row, ["OS"]) || "").trim();
-      if (!os) return;
-      const obs = valorColuna(row, ["OBS"]) || "";
-      const leitura = analisarObs(obs);
-      const peso = parseNumero(valorColuna(row, ["PESO BRUTO","PESO"]));
-      const volumeOriginal = parseNumero(valorColuna(row, ["METROCUBICO","VOLUME","M3","M³"]));
-      const volumeCorrigido = calcularCubagemInteligente(peso, volumeOriginal);
-      const codigoProduto = valorColuna(row, ["CODIGO PRODUTO","COD_PRODUTO","CODIGO"]);
-      const produto = valorColuna(row, ["PRODUTO","DESCRICAO"]);
-      const fotoUrl = valorColuna(row, ["FOTO_URL","FOTO"]);
-      const alturaItem = parseNumero(valorColuna(row, ["ALTURA"]));
-      const larguraItem = parseNumero(valorColuna(row, ["LARGURA"]));
-      const profundidadeItem = parseNumero(valorColuna(row, ["PROFUNDIDADE","COMPRIMENTO"]));
-      if (!mapa.has(os)) {
-        mapa.set(os, {
-          csvIndex: idx, os,
-          destinatario: valorColuna(row, ["DESTINATARIO"]),
-          cep: valorColuna(row, ["CEP"]),
-          logradouro: valorColuna(row, ["LOGRADOURO"]),
-          numero: valorColuna(row, ["NUMERO"]),
-          bairro: valorColuna(row, ["BAIRRO"]),
-          cidade: valorColuna(row, ["CIDADE"]),
-          uf: valorColuna(row, ["UF"]),
-          pesoTotal: 0, volumeTotal: 0, volumeOriginal: 0, numNotas: 0,
-          dataPrevisao: valorColuna(row, ["DATAPREVISAO","DATA PREVISAO"]),
-          modalidade: valorColuna(row, ["MODALIDADE"]) || "Rodoviario",
-          exclusivo: leitura.exclusivo,
-          paletizado: leitura.paletizado,
-          agendamento: leitura.agendamento,
-          corredorPrincipal: identificarCorredor(valorColuna(row,["UF"]), valorColuna(row,["CIDADE"])),
-          regiaoSP: valorColuna(row,["UF"]) === "SP" ? definirRegiaoSP(valorColuna(row,["CIDADE"])) : null,
-          obs, cubagemAuto: volumeOriginal === 0 || volumeOriginal === null || isNaN(volumeOriginal),
-          items: []
-        });
-      }
-      const p = mapa.get(os);
-      p.pesoTotal += peso;
-      p.volumeTotal += volumeCorrigido;
-      p.volumeOriginal += volumeOriginal;
-      p.numNotas += 1;
-      p.items.push({ codigo: codigoProduto, descricao: produto, fotoUrl, peso, volume: volumeCorrigido, altura: alturaItem, largura: larguraItem, profundidade: profundidadeItem });
-    });
-    return Array.from(mapa.values());
-  }
-
-  function renderPedidos() {
-    const tbody = document.getElementById("pedidoTableBody");
-    if (!pedidos.length) { tbody.innerHTML = '<tr><td colspan="8">Nenhum pedido</td></tr>'; return; }
-    tbody.innerHTML = pedidos.map(p => {
-      const volOriginal = p.volumeOriginal > 0 ? formatNumber(p.volumeOriginal) : "0";
-      const volCorrigido = formatNumber(p.volumeTotal);
-      const badgeAuto = p.cubagemAuto ? '<span class="pill pill-purple">🤖 Auto</span>' : '<span class="pill pill-green">✓</span>';
-      return `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${volOriginal} m³</td><td>${volCorrigido} m³ ${badgeAuto}</td><td>${p.dataPrevisao||"-"}</td><td>${p.exclusivo?'🔒 Exclusivo':(p.pesoTotal<=1000?'✅ Leve':'📦')}</td></tr>`;
-    }).join("");
-  }
-
-  function selecionarVeiculoPorRota(rota, frota) {
-    const atende = (v) => {
-      if (rota.pesoTotal > v.pesoMax) return false;
-      if (rota.numNotas > v.notasMax) return false;
-      if (rota.volumeTotal > v.volumeMax) return false;
-      if (rota.maiorAltura > (v.alturaMax || Infinity)) return false;
-      if (rota.maiorLargura > (v.larguraMax || Infinity)) return false;
-      if (rota.maiorProfundidade > (v.profundidadeMax || Infinity)) return false;
-      return true;
-    };
-    return [...frota].sort((a,b) => a.volumeMax - b.volumeMax).find(atende) || null;
-  }
-
-  function identificarItemCritico(rota, veiculo) {
-    if (!veiculo || !rota.pedidos.length) return null;
-    const candidatos = [];
-    for (const p of rota.pedidos) {
-      for (const item of p.items) {
-        let score = 0;
-        if (item.altura > veiculo.alturaMax) score += 100;
-        if (item.largura > veiculo.larguraMax) score += 100;
-        if (item.profundidade > veiculo.profundidadeMax) score += 100;
-        if (item.peso > veiculo.pesoMax) score += 100;
-        if (item.volume > veiculo.volumeMax) score += 100;
-        if (score === 0) score = Math.max(item.peso / veiculo.pesoMax, item.volume / veiculo.volumeMax) * 50;
-        candidatos.push({ item, pedido: p, score });
-      }
-    }
-    candidatos.sort((a,b) => b.score - a.score);
-    return candidatos[0] || null;
-  }
-
-  function obterChaveAgrupamento(pedido) {
-    if (pedido.uf === "SP" && isCapitalOuGrandeSP(pedido.cep)) {
-      const cepNum = (pedido.cep || "").replace(/\D/g, "");
-      if (cepNum && cepNum.length >= 5) return `SP_CEP_${cepNum.substring(0,5)}`;
-      return `SP_CEP_${pedido.cidade || "desconhecido"}`;
-    }
-    return pedido.corredorIntegracao || pedido.corredorPrincipal;
-  }
-
-  async function montarRotasInteligentes(pedidosBase, frota) {
-    const rotas = [];
-    const naoAlocados = [];
-    const pesoMax = Number(document.getElementById("cfgPesoMax").value || 5000);
-    const volumeMax = Number(document.getElementById("cfgVolumeMax").value || 20);
-    const maxParadas = Number(document.getElementById("cfgMaxParadas").value || 12);
-    const minVolume = Number(document.getElementById("cfgMinVolume").value || 0.01);
-
-    const grupos = new Map();
-    for (const p of pedidosBase) {
-      const chave = obterChaveAgrupamento(p);
-      if (!grupos.has(chave)) grupos.set(chave, []);
-      grupos.get(chave).push(p);
-    }
-
-    for (const [chave, pedidosGrupo] of grupos.entries()) {
-      const corredorEfetivo = chave.startsWith("SP_CEP_") ? "CAMPINAS" : chave;
-      if (corredorEfetivo === "OUTROS") {
-        pedidosGrupo.forEach(p => naoAlocados.push({ ...p, motivo: "UF não mapeada" }));
-        continue;
-      }
-      const corredorInfo = getCorredorInfo(corredorEfetivo);
-      const gruposData = new Map();
-      for (const p of pedidosGrupo) {
-        const data = p.dataPrevisao || "Sem data";
-        if (!gruposData.has(data)) gruposData.set(data, []);
-        gruposData.get(data).push(p);
-      }
-
-      for (const [data, pedidosData] of gruposData.entries()) {
-        const ordenados = [...pedidosData].sort((a,b) => calcularDistancia(a.lat, a.lng, depotCoords.lat, depotCoords.lng) - calcularDistancia(b.lat, b.lng, depotCoords.lat, depotCoords.lng));
-        let lote = [];
-        let pesoAtual = 0, volumeAtual = 0, notasAtual = 0;
-        let maiorAltura = 0, maiorLargura = 0, maiorProfundidade = 0;
-
-        const fecharLote = () => {
-          if (!lote.length) return;
-          const rotaTemp = { pesoTotal: pesoAtual, volumeTotal: volumeAtual, numNotas: notasAtual, maiorAltura, maiorLargura, maiorProfundidade };
-          const melhorVeiculo = selecionarVeiculoPorRota(rotaTemp, frota);
-          if (!melhorVeiculo) {
-            lote.forEach(p => naoAlocados.push({ ...p, motivo: `Sem veículo compatível (peso:${pesoAtual}kg, vol:${volumeAtual.toFixed(2)}m³)` }));
-          } else {
-            const ocupacaoPeso = pesoAtual / melhorVeiculo.pesoMax;
-            const ocupacaoVolume = volumeAtual / melhorVeiculo.volumeMax;
-            let fator = "Equilibrado";
-            if (ocupacaoPeso > ocupacaoVolume) fator = "Peso";
-            else if (ocupacaoVolume > ocupacaoPeso) fator = "Cubagem";
-            const rotaObj = {
-              id: uid(),
-              corredor: corredorEfetivo,
-              nomeCorredor: corredorInfo.nome,
-              rodovia: corredorInfo.rodovia,
-              dataEntrega: data,
-              pedidos: [...lote],
-              pesoTotal: pesoAtual,
-              volumeTotal: volumeAtual,
-              numNotas: notasAtual,
-              veiculo: melhorVeiculo,
-              distanciaKm: 0,
-              custoEstimado: 0,
-              exclusivo: lote.some(p => p.exclusivo),
-              fatorDecisorio: fator,
-              avisoMinVolume: volumeAtual < minVolume ? `Volume baixo (${volumeAtual.toFixed(2)}m³)` : null,
-              grupoChave: chave,
-              maiorAltura, maiorLargura, maiorProfundidade
-            };
-            rotaObj.itemCritico = identificarItemCritico(rotaObj, melhorVeiculo);
-            rotas.push(rotaObj);
-          }
-          lote = []; pesoAtual = 0; volumeAtual = 0; notasAtual = 0; maiorAltura = 0; maiorLargura = 0; maiorProfundidade = 0;
-        };
-
-        for (const p of ordenados) {
-          p.maiorAltura = Math.max(0, ...p.items.map(i => i.altura || 0));
-          p.maiorLargura = Math.max(0, ...p.items.map(i => i.largura || 0));
-          p.maiorProfundidade = Math.max(0, ...p.items.map(i => i.profundidade || 0));
-          const novoPeso = pesoAtual + p.pesoTotal;
-          const novoVolume = volumeAtual + p.volumeTotal;
-          const estoura = lote.length && (novoPeso > pesoMax || novoVolume > volumeMax || (lote.length + 1) > maxParadas);
-          if (estoura) fecharLote();
-          lote.push(p);
-          pesoAtual += p.pesoTotal;
-          volumeAtual += p.volumeTotal;
-          notasAtual += p.numNotas;
-          maiorAltura = Math.max(maiorAltura, p.maiorAltura || 0);
-          maiorLargura = Math.max(maiorLargura, p.maiorLargura || 0);
-          maiorProfundidade = Math.max(maiorProfundidade, p.maiorProfundidade || 0);
-        }
-        fecharLote();
-      }
-    }
-    return { rotas, naoAlocados };
-  }
-
-  function clearRoutes() {
-    directionsRenderers.forEach(r => r.setMap && r.setMap(null));
-    directionsRenderers = [];
-    markers.forEach(m => m.setMap && m.setMap(null));
-    markers = [];
-  }
-
-  function addMarker(coord, title, label, color) {
-    if (map && window.google && window.google.maps) {
-      const marker = new google.maps.Marker({
-        position: coord,
-        map,
-        title,
-        label: label ? String(label) : undefined,
-        icon: color ? { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 1 } : undefined
-      });
-      markers.push(marker);
-    }
-  }
-
-  async function desenharRotas(rotas, origem) {
-    clearRoutes();
-    const origin = await geocodeAddress(origem);
-    depotCoords = origin;
-    const mapEl = document.getElementById('map');
-    if (mapEl && !map) {
-      mapEl.innerHTML = 'Mapa operacional pronto.';
-    }
-    const colors = ['#2563eb','#dc2626','#16a34a','#9333ea','#d97706','#0891b2'];
-    addMarker(origin, origem, 'CD');
-
-    for (let idx = 0; idx < rotas.length; idx++) {
-      const rota = rotas[idx];
-      if (!rota.pedidos.length) continue;
-      const pontos = [];
-      for (const p of rota.pedidos) {
-        const coord = await geocodeAddress(montarEndereco(p));
-        p.lat = coord.lat;
-        p.lng = coord.lng;
-        pontos.push({ pedido: p, coord });
-        addMarker(coord, `${p.os} - ${p.destinatario || ''}`, pontos.length, colors[idx % colors.length]);
-      }
-      if (!pontos.length) continue;
-
-      if (map && window.google && window.google.maps && pontos.length <= 23) {
-        const service = new google.maps.DirectionsService();
-        const destination = pontos[pontos.length - 1].coord;
-        const waypoints = pontos.slice(0, -1).map(p => ({ location: p.coord, stopover: true }));
-        await new Promise(resolve => {
-          service.route({
-            origin,
-            destination,
-            waypoints,
-            travelMode: google.maps.TravelMode.DRIVING,
-            optimizeWaypoints: true
-          }, (res, status) => {
-            if (status === 'OK') {
-              const renderer = new google.maps.DirectionsRenderer({ map, preserveViewport: true, suppressMarkers: true, polylineOptions: { strokeColor: colors[idx % colors.length], strokeWeight: 5 } });
-              renderer.setDirections(res);
-              directionsRenderers.push(renderer);
-              let dist = 0;
-              res.routes[0].legs.forEach(l => { dist += l.distance?.value || 0; });
-              rota.distanciaKm = dist / 1000;
-            } else {
-              rota.distanciaKm = 0;
-            }
-            rota.custoEstimado = rota.distanciaKm * (rota.veiculo?.custoKm || 0);
-            resolve();
-          });
-        });
-      } else {
-        let dist = 0;
-        let atual = origin;
-        for (const p of pontos) {
-          dist += calcularDistancia(atual.lat, atual.lng, p.coord.lat, p.coord.lng);
-          atual = p.coord;
-        }
-        rota.distanciaKm = dist;
-        rota.custoEstimado = rota.distanciaKm * (rota.veiculo?.custoKm || 0);
-      }
-    }
-
-    if (map && window.google && window.google.maps) {
-      const bounds = new google.maps.LatLngBounds();
-      bounds.extend(origin);
-      rotas.forEach(r => r.pedidos.forEach(p => { if (p.lat && p.lng) bounds.extend({ lat: p.lat, lng: p.lng }); }));
-      if (!bounds.isEmpty()) map.fitBounds(bounds);
-    }
-  }
-
-  function renderResumo() {
-    const el = document.getElementById('resumoOperacional');
-    if (!ultimoResultado) { el.innerHTML = '<p>Nenhum planejamento</p>'; return; }
-    const { rotas, naoAlocados } = ultimoResultado;
-    const porCorredor = new Map();
-    rotas.forEach(r => {
-      if (!porCorredor.has(r.nomeCorredor)) porCorredor.set(r.nomeCorredor, []);
-      porCorredor.get(r.nomeCorredor).push(r);
-    });
-    el.innerHTML = `<div class="grid grid-2"><div class="metric"><div class="label">Rotas</div><div class="value">${rotas.length}</div></div><div class="metric"><div class="label">Não Alocados</div><div class="value">${naoAlocados.length}</div></div></div><h3>Por Corredor</h3><div class="table-wrap">${Array.from(porCorredor.entries()).map(([nome, rs]) => `<div style="padding:10px 12px;"><strong>${nome}</strong>: ${rs.length} rotas, ${formatNumber(rs.reduce((s,r)=>s+r.pesoTotal,0))} kg</div>`).join('') || '<div style="padding:10px 12px;">Nenhum corredor</div>'}</div>`;
-  }
-
-  function renderMapControls() {
-    const editor = document.getElementById('routeEditorList');
-    const unalloc = document.getElementById('unallocatedEditorList');
-    const restricoesDiv = document.getElementById('restricoesList');
-    if (!ultimoResultado) return;
-    editor.innerHTML = ultimoResultado.rotas.map((r,i) => `<div class="route-box"><div class="route-title">Rota ${i+1} - ${r.veiculo?.nome}<span class="corridor-badge">${r.nomeCorredor}</span>${r.exclusivo ? '<span class="pill pill-purple">🔒 Exclusivo</span>' : ''}<button class="btn btn-blue" style="float:right; margin-left:8px;" onclick="verDetalheRota('${r.id}')">📋 Detalhe</button><button class="btn btn-green" style="float:right; margin-left:8px;" onclick="focusRouteOnMap('${r.id}')">🗺️ Foco</button><button class="btn btn-purple" style="float:right;" onclick="otimizarRotaComIA('${r.id}')">🤖 Otimizar rota</button></div><div class="small">${r.rodovia} | 📅 ${r.dataEntrega} | ${formatNumber(r.pesoTotal)} kg | ${formatNumber(r.volumeTotal)} m³ | ${formatNumber(r.distanciaKm)} km | ${formatCurrency(r.custoEstimado)}<br><strong>Fator decisório:</strong> ${r.fatorDecisorio}${r.avisoMinVolume ? `<span class="pill pill-yellow">⚠️ ${r.avisoMinVolume}</span>` : ''}</div>${r.pedidos.map(p => `<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario || '-'}<br>📍 ${p.cidade}/${p.uf} | ⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³ ${p.cubagemAuto ? '<span class="pill pill-purple">🤖 Auto</span>' : ''}</div>`).join('')}</div>`).join('') || '<div>Nenhuma rota</div>';
-    restricoesDiv.innerHTML = ultimoResultado.restricoes.map(p => `<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario || '-'}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<span class="pill pill-yellow">⚠️ ${p.paletizado ? 'Paletizado' : ''} ${p.agendamento ? 'Agendamento' : ''}</span></div>`).join('') || '<div>Nenhum pedido com restrição</div>';
-    unalloc.innerHTML = ultimoResultado.naoAlocados.map(p => `<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario || '-'}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³ ${p.motivo ? `<span class="pill pill-yellow">${p.motivo}</span>` : ''}</div>`).join('') || '<div>Todos alocados ✓</div>';
-  }
-
-  function focusRouteOnMap(rotaId) {
-    if (!map || !ultimoResultado) return;
-    const rota = ultimoResultado.rotas.find(r => r.id === rotaId);
-    if (!rota) return;
-    const bounds = new google.maps.LatLngBounds();
-    bounds.extend(depotCoords);
-    rota.pedidos.forEach(p => { if (p.lat && p.lng) bounds.extend({ lat: p.lat, lng: p.lng }); });
-    map.fitBounds(bounds);
-  }
-
-  function verDetalheRota(rotaId) {
-    const rota = ultimoResultado?.rotas?.find(r => r.id === rotaId);
-    if (!rota) return;
-    let html = `<h3>Detalhes da Rota</h3><p><strong>Corredor:</strong> ${rota.nomeCorredor} (${rota.rodovia})</p><p><strong>Data de Entrega:</strong> ${rota.dataEntrega}</p><p><strong>Veículo:</strong> ${rota.veiculo?.nome} (${formatNumber(rota.veiculo?.volumeMax)} m³, ${formatNumber(rota.veiculo?.pesoMax)} kg)</p><p><strong>Fator Decisório:</strong> ${rota.fatorDecisorio}</p><p><strong>Totais:</strong> ${formatNumber(rota.pesoTotal)} kg, ${formatNumber(rota.volumeTotal)} m³, ${rota.numNotas} notas, ${formatNumber(rota.distanciaKm)} km, ${formatCurrency(rota.custoEstimado)}</p>`;
-    if (rota.itemCritico) {
-      html += `<div class="critical-item"><strong>🎯 Item que determinou o veículo:</strong><br>Código: ${rota.itemCritico.item.codigo || '-'}<br>Descrição: ${rota.itemCritico.item.descricao || '-'}<br>Dimensões: ${rota.itemCritico.item.altura || 0} x ${rota.itemCritico.item.largura || 0} x ${rota.itemCritico.item.profundidade || 0} m<br>Peso: ${formatNumber(rota.itemCritico.item.peso)} kg | Volume: ${formatNumber(rota.itemCritico.item.volume)} m³<br>${rota.itemCritico.item.fotoUrl ? `<img src="${rota.itemCritico.item.fotoUrl}" class="item-photo" style="width:100px;height:auto;" />` : '<span class="small">(foto não disponível)</span>'}</div>`;
-    }
-    html += '<h4>Pedidos na rota:</h4>';
-    rota.pedidos.forEach(p => {
-      html += `<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<details><summary>Itens</summary>`;
-      p.items.forEach(item => {
-        html += `<div style="margin:5px 0; padding-left:10px; border-left:2px solid #ccc;"><strong>${item.codigo || '-'}</strong> - ${item.descricao || '-'}<br>Dimensões: ${item.altura || 0} x ${item.largura || 0} x ${item.profundidade || 0} m | ${formatNumber(item.peso)} kg | ${formatNumber(item.volume)} m³${item.fotoUrl ? `<br><img src="${item.fotoUrl}" class="item-photo" style="width:60px;height:auto;" />` : ''}</div>`;
-      });
-      html += '</details></div>';
-    });
-    document.getElementById('modalContent').innerHTML = html;
-    document.getElementById('routeModal').style.display = 'block';
-  }
-
-  function otimizarRotaComIA(rotaId) {
-    const rota = ultimoResultado?.rotas?.find(r => r.id === rotaId);
-    if (!rota || rota.pedidos.length < 2) { alert('Rota precisa de pelo menos 2 pedidos para otimização.'); return; }
-    function distanciaTotal(ordemPedidos) {
-      let total = 0;
-      let atual = depotCoords;
-      for (const p of ordemPedidos) {
-        total += calcularDistancia(atual.lat, atual.lng, p.lat, p.lng);
-        atual = { lat: p.lat, lng: p.lng };
-      }
-      return total;
-    }
-    let melhorOrdem = [...rota.pedidos];
-    let melhorDist = distanciaTotal(melhorOrdem);
-    let improved = true;
-    while (improved) {
-      improved = false;
-      for (let i = 1; i < melhorOrdem.length - 1; i++) {
-        for (let j = i + 1; j < melhorOrdem.length; j++) {
-          const novaOrdem = [...melhorOrdem];
-          const reversed = novaOrdem.slice(i, j + 1).reverse();
-          novaOrdem.splice(i, j - i + 1, ...reversed);
-          const novaDist = distanciaTotal(novaOrdem);
-          if (novaDist < melhorDist - 0.001) { melhorOrdem = novaOrdem; melhorDist = novaDist; improved = true; }
-        }
-      }
-    }
-    if (distanciaTotal(rota.pedidos) - melhorDist > 0.001) {
-      rota.pedidos = melhorOrdem;
-      rota.distanciaKm = melhorDist;
-      rota.custoEstimado = rota.distanciaKm * (rota.veiculo?.custoKm || 0);
-      renderMapControls(); atualizarMetricas(); setStatus(`Rota otimizada! Nova distância: ${formatNumber(rota.distanciaKm)} km`, 'ok');
-    } else setStatus('Nenhuma melhoria encontrada.', 'info');
-  }
-
-  async function executarPlanejamento() {
-    try {
-      if (!vehicles.length) { setStatus('Cadastre veículos', 'err'); return; }
-      if (!pedidos.length) { setStatus('Importe pedidos', 'err'); return; }
-      setStatus('Geocodificando...', 'warn');
-      depotCoords = await geocodeAddress(document.getElementById('depot').value);
-      let cubagemAutoCount = 0;
-      for (const p of pedidos) {
-        const coord = await geocodeAddress(montarEndereco(p));
-        p.lat = coord.lat; p.lng = coord.lng;
-        if (p.cubagemAuto) cubagemAutoCount++;
-      }
-      document.getElementById('mCubagemAuto').textContent = cubagemAutoCount;
-
-      const aprovados = [];
-      const restricoes = [];
-      for (const p of pedidos) {
-        const isRod = normalizarTexto(p.modalidade).toLowerCase() === 'rodoviario';
-        if (p.exclusivo) { aprovados.push(p); continue; }
-        if (p.paletizado || p.agendamento) { restricoes.push(p); continue; }
-        if (document.getElementById('regraLeve').checked && isRod && p.pesoTotal <= 1000) aprovados.push(p);
-        else if (document.getElementById('regraPesado').checked && isRod && p.pesoTotal > 1000) aprovados.push(p);
-        else aprovados.push(p);
-      }
-
-      const comIntegracao = aprovados.map(p => {
-        const p2 = { ...p };
-        for (const [ck] of Object.entries(CORREDORES)) {
-          const reg = definirRegiaoSP(p.cidade);
-          if (reg && REGIOES_SP[reg]?.integracaoCorredor === ck) { p2.corredorIntegracao = ck; break; }
-        }
-        return p2;
-      });
-
-      const { rotas, naoAlocados } = await montarRotasInteligentes(comIntegracao, vehicles);
-      setStatus('Desenhando rotas...', 'warn');
-      await desenharRotas(rotas, document.getElementById('depot').value);
-      ultimoResultado = { rotas, naoAlocados, aprovados, restricoes };
-      atualizarMetricas(); renderResumo(); renderMapControls(); showTab('resultado');
-      setStatus(`✅ ${rotas.length} rotas | ${naoAlocados.length} não alocados | ${restricoes.length} com restrição | ${cubagemAutoCount} com cubagem automática`, 'ok');
-    } catch (err) {
-      console.error(err); setStatus(`Erro: ${err.message}`, 'err');
-    }
-  }
-
-  function atualizarMetricas() {
-    document.getElementById('mPedidos').textContent = pedidos.length;
-    document.getElementById('mAlocados').textContent = ultimoResultado?.aprovados?.length || 0;
-    document.getElementById('mNaoAlocados').textContent = ultimoResultado?.naoAlocados?.length || 0;
-    document.getElementById('mRotas').textContent = ultimoResultado?.rotas?.length || 0;
-    document.getElementById('mRestricoes').textContent = ultimoResultado?.restricoes?.length || 0;
-    document.getElementById('mCustoTotal').textContent = formatCurrency(ultimoResultado?.rotas?.reduce((s,r) => s + (r.custoEstimado || 0), 0) || 0);
-  }
-
-  function exportarRelatorioCSV() {
-    if (!ultimoResultado) { alert('Execute o planejamento'); return; }
-    const linhas = [["ROTA","CORREDOR","DATA","VEICULO","PESO","VOLUME","KM","CUSTO","FATOR","GRUPO","PEDIDOS"]];
-    ultimoResultado.rotas.forEach((r,i) => linhas.push([`Rota ${i+1}`, r.nomeCorredor, r.dataEntrega, r.veiculo?.nome || '', r.pesoTotal, r.volumeTotal, (r.distanciaKm || 0).toFixed(1), (r.custoEstimado || 0).toFixed(2), r.fatorDecisorio, r.grupoChave || '', r.pedidos.map(p => p.os).join(';')]));
-    const csv = Papa.unparse(linhas);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'rotas.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
-  function replanejarRotas() {
-    clearRoutes();
-    ultimoResultado = null;
-    atualizarMetricas();
-    document.getElementById('resumoOperacional').innerHTML = '';
-    document.getElementById('routeEditorList').innerHTML = '';
-    document.getElementById('unallocatedEditorList').innerHTML = '';
-    document.getElementById('restricoesList').innerHTML = '';
-    setStatus('Replanejamento liberado', 'warn');
-    showTab('planejamento');
-  }
-
-  function baixarModeloPedidos() {
-    const csv = `OS,DESTINATARIO,CEP,CIDADE,UF,PESO BRUTO,METROCUBICO,DATAPREVISAO,OBS,LOGRADOURO,NUMERO,BAIRRO,CODIGO PRODUTO,PRODUTO,FOTO_URL\n5035441,COSTAZUL ALIMENTOS LTDA,24800-000,ITABORAI,RJ,36,,25/03/2026,,AV CENTRAL,100,CENTRO,12345,CAIXA LEVE,\n1001,CLIENTE TESTE,13000-000,CAMPINAS,SP,450,3.2,25/03/2026,,RUA A,45,JARDIM,789,PAINEL ELETRÔNICO,https://placehold.co/60x60?text=Painel\n1002,CLIENTE LEVE,07190-000,GUARULHOS,SP,85,,24/03/2026,,RUA B,210,VILA GALVAO,101,CAIXA PEQUENA,\n1003,EXCLUSIVO,40000-000,SALVADOR,BA,2500,15.0,26/03/2026,CARRO EXCLUSIVO,AV OCEANICA,900,BARRA,202,MOTOR GRANDE,https://placehold.co/60x60?text=Motor\n1004,FEIRA SANTANA,44000-000,FEIRA DE SANTANA,BA,320,2.5,25/03/2026,,RUA C,12,CENTRO,303,ELETRODOMÉSTICO,\n1005,SALVADOR OUTRO,40000-000,SALVADOR,BA,180,1.2,25/03/2026,,RUA D,88,ITAIGARA,404,ACESSÓRIO,`;
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'pedidos_modelo.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
-  function carregarDoStorageLocal() {
-    try {
-      const saved = JSON.parse(localStorage.getItem('veiculos') || '[]');
-      if (Array.isArray(saved)) vehicles = saved;
-    } catch (e) { vehicles = []; }
-  }
-  function salvarNoStorageLocal() { localStorage.setItem('veiculos', JSON.stringify(vehicles)); }
-  function loadLocalCaches() {
-    try { geocodeCache = JSON.parse(localStorage.getItem('geo_cache') || '{}'); }
-    catch (e) { geocodeCache = {}; }
-  }
-  function salvarCacheGeo() { localStorage.setItem('geo_cache', JSON.stringify(geocodeCache)); }
-
-  function loadGoogleMaps() {
-    const mapEl = document.getElementById('map');
-    if (!mapEl) return;
-    if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === 'AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds') {
-      mapEl.innerHTML = 'Mapa operacional pronto. Para mapa Google real, cole sua chave em APP_CONFIG.GOOGLE_API_KEY.';
-      return;
-    }
-    if (window.google && window.google.maps) {
-      if (!map) {
-        map = new google.maps.Map(mapEl, { center: depotCoords || { lat: -23.55, lng: -46.63 }, zoom: 8 });
-        geocoder = new google.maps.Geocoder();
-      }
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      map = new google.maps.Map(mapEl, { center: depotCoords || { lat: -23.55, lng: -46.63 }, zoom: 8 });
-      geocoder = new google.maps.Geocoder();
-    };
-    script.onerror = () => {
-      mapEl.innerHTML = 'Não foi possível carregar o Google Maps. O modo operacional local continua disponível.';
-    };
-    document.head.appendChild(script);
-  }
-
-  function initCSVImport() {
-    const input = document.getElementById('ordersCsvFile');
-    if (!input) return;
-    input.addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (res) => {
-          try {
-            pedidos = agruparPedidosPorOS(res.data || []);
-            renderPedidos();
-            atualizarMetricas();
-            alert(`${pedidos.length} pedidos importados`);
-          } catch (err) {
-            console.error(err);
-            alert('Erro ao processar os pedidos.');
-          }
-          e.target.value = '';
-        },
-        error: (err) => {
-          console.error(err);
-          alert('Erro ao importar o CSV.');
-        }
-      });
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    loadLocalCaches();
-    carregarDoStorageLocal();
-    renderVehicles();
-    renderPedidos();
-    atualizarMetricas();
-    loadGoogleMaps();
-    initCSVImport();
-    if (vehicles.length === 0) {
-      setTimeout(() => {
-        if (confirm('Nenhum veículo cadastrado. Deseja adicionar um veículo leve padrão?')) adicionarVeiculoPadrao();
-      }, 300);
-    }
+function agruparPedidosPorOS(linhas){
+  carregarCorredoresDaUI(); let mapa=new Map();
+  linhas.forEach((row,idx)=>{
+    let os=String(valorColuna(row,["OS"])||"").trim(); if(!os) return; let obs=valorColuna(row,["OBS"])||""; let leitura=analisarObs(obs); let peso=parseNumero(valorColuna(row,["PESO BRUTO","PESO"])); let volumeOriginal=parseNumero(valorColuna(row,["METROCUBICO","VOLUME","M3","M³"])); let volumeCorrigido=calcularCubagemInteligente(peso, volumeOriginal); let codigoProduto=valorColuna(row,["CODIGO PRODUTO","COD_PRODUTO","CODIGO"]); let produto=valorColuna(row,["PRODUTO","DESCRICAO"]); let fotoUrl=valorColuna(row,["FOTO_URL","FOTO"]); let alturaItem=parseNumero(valorColuna(row,["ALTURA"])); let larguraItem=parseNumero(valorColuna(row,["LARGURA"])); let profundidadeItem=parseNumero(valorColuna(row,["PROFUNDIDADE","COMPRIMENTO"]));
+    if(!mapa.has(os)){ const cidade = valorColuna(row,["CIDADE"]), uf = valorColuna(row,["UF"]); mapa.set(os,{csvIndex:idx, os, destinatario:valorColuna(row,["DESTINATARIO"]), cep:valorColuna(row,["CEP"]), logradouro:valorColuna(row,["LOGRADOURO"]), numero:valorColuna(row,["NUMERO"]), bairro:valorColuna(row,["BAIRRO"]), cidade, uf, pesoTotal:0, volumeTotal:0, volumeOriginal:0, numNotas:0, dataPrevisao:valorColuna(row,["DATAPREVISAO","DATA PREVISAO"]), modalidade:valorColuna(row,["MODALIDADE"])||"Rodoviario", exclusivo:leitura.exclusivo, paletizado:leitura.paletizado, agendamento:leitura.agendamento, corredorPrincipal:identificarCorredor(uf, cidade), regiaoSP:uf==="SP"?definirRegiaoSP(cidade):null, obs, cubagemAuto: volumeOriginal === 0 || volumeOriginal === null || isNaN(volumeOriginal), items:[]}); }
+    let p=mapa.get(os); p.pesoTotal+=peso; p.volumeTotal+=volumeCorrigido; p.numNotas+=1; p.volumeOriginal += volumeOriginal; p.items.push({codigo: codigoProduto, descricao: produto, fotoUrl: fotoUrl, peso, volume: volumeCorrigido, altura: alturaItem, largura: larguraItem, profundidade: profundidadeItem});
   });
+  const pedidosAgrupados = Array.from(mapa.values()); pedidosAgrupados.forEach(p => { p.maiorItem = getMaiorItemDoPedido(p); p.maiorAltura = p.maiorItem.altura || 0; p.maiorLargura = p.maiorItem.largura || 0; p.maiorProfundidade = p.maiorItem.profundidade || 0; p.grupoConsolidado = obterChaveAgrupamento(p); }); return pedidosAgrupados;
+}
+function renderPedidos(){ let tbody=document.getElementById("pedidoTableBody"); if(!pedidos.length){ tbody.innerHTML='<tr><td colspan="8">Nenhum pedido</td></tr>'; return; } tbody.innerHTML=pedidos.map(p=>{ let badgeAuto = p.cubagemAuto ? '<span class="pill pill-purple">🤖 Auto</span>' : '<span class="pill pill-green">✓</span>'; return `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeOriginal)} m³</td><td>${formatNumber(p.volumeTotal)} m³ ${badgeAuto}</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td><td>${p.grupoConsolidado||"-"}</td></tr>`; }).join(""); }
+
+function obterChaveAgrupamento(p) { const uf = normalizarTexto(p.uf).toUpperCase(), cidade = normalizarTexto(p.cidade).toUpperCase(), cep = (p.cep || "").replace(/\D/g, ""); const cidadesLitoral = ["SANTOS","GUARUJA","SAO VICENTE","PRAIA GRANDE"]; if (uf === "SP" && cidadesLitoral.includes(cidade)) return "LITORAL_SP"; if (uf === "SP" && cep.length >= 5 && isCapitalOuGrandeSP(cep)) return "SP_CAPITAL"; if (uf === "SP") { const regiao = definirRegiaoSP(cidade); if (regiao && REGIOES_SP[regiao]) { const integracao = REGIOES_SP[regiao].integracaoCorredor; return integracao || regiao; } return "SP_INTERIOR"; } const corredor = identificarCorredor(uf, cidade); return corredor || "OUTROS"; }
+
+function gerarFatorDecisorio(pedidosDaCarga, veiculo, grupoChave) { const maiorItem = getMaiorItemDaCarga(pedidosDaCarga), peso = pedidosDaCarga.reduce((s,p)=>s+p.pesoTotal,0), m3 = pedidosDaCarga.reduce((s,p)=>s+p.volumeTotal,0); let regras = []; if (grupoChave === "LITORAL_SP") regras.push("Litoral isolado"); else if (grupoChave === "SP_CAPITAL") regras.push("Capital por CEP"); else regras.push("Consolidação por corredor/rodovia"); if (pedidosDaCarga.length > 1) regras.push("Consolidação entre pedidos compatíveis"); if (pedidosDaCarga.some(p=>p.cubagemAuto)) regras.push("Cubagem automática considerada"); const motivoDimensao = `Maior item ${formatNumber(maiorItem.altura)} x ${formatNumber(maiorItem.largura)} x ${formatNumber(maiorItem.profundidade)} m → veículo mínimo ${veiculo?.nome||"não encontrado"}`; return { maiorItem, motivoDimensao, peso, m3, corredor: grupoChave, regrasAplicadas: regras, observacoes: [`Peso total ${formatNumber(peso)} kg`, `Volume total ${formatNumber(m3)} m³`] }; }
+function montarEndereco(p){ return [p.logradouro,p.numero,p.bairro,p.cidade,p.uf,p.cep].filter(Boolean).join(", "); }
+
+async function geocodeAddress(addr) { if (!geocoder) throw new Error("Geocodificador não disponível"); if (!addr) throw new Error("Endereço inválido"); const key = addr.trim().toLowerCase(); if (geocodeCache[key]) return geocodeCache[key]; return new Promise((resolve, reject) => { geocoder.geocode({ address: addr }, (results, status) => { if (status === "OK" && results[0]) { const loc = results[0].geometry.location, coords = { lat: loc.lat(), lng: loc.lng() }; geocodeCache[key] = coords; salvarCacheGeo(); resolve(coords); } else reject(new Error(`Falha ao geocodificar: ${addr}`)); }); }); }
+function clearRoutes() { if (directionsRenderers && directionsRenderers.length) directionsRenderers.forEach(r => r.setMap(null)); directionsRenderers = []; }
+
+async function montarRotasInteligentes(pedidosBase) {
+  const rotas = [], naoAlocados = [], pesoMaxCfg = Number(document.getElementById("cfgPesoMax").value||5000), volumeMaxCfg = Number(document.getElementById("cfgVolumeMax").value||20), maxParadas = Number(document.getElementById("cfgMaxParadas").value||12), raioKm = Number(document.getElementById("cfgRaioKm").value||80);
+  const grupos = new Map(); for (const p of pedidosBase) { const chave = p.grupoConsolidado || obterChaveAgrupamento(p); if (!grupos.has(chave)) grupos.set(chave, []); grupos.get(chave).push(p); }
+  for (const [chave, pedidosGrupo] of grupos.entries()) {
+    const corredorInfo = getCorredorInfo(chave), gruposData = new Map(); for (const p of pedidosGrupo) { const data = p.dataPrevisao || "Sem data"; if (!gruposData.has(data)) gruposData.set(data, []); gruposData.get(data).push(p); }
+    for (const [data, pedidosData] of gruposData.entries()) {
+      const ordenados = [...pedidosData].sort((a,b) => calcularDistancia(a.lat,a.lng,depotCoords?.lat,depotCoords?.lng) - calcularDistancia(b.lat,b.lng,depotCoords?.lat,depotCoords?.lng)); let lote = [];
+      const fecharLote = () => {
+        if (!lote.length) return; const veiculo = escolherVeiculoParaCarga(lote);
+        if (!veiculo) lote.forEach(p => naoAlocados.push({ ...p, motivo: motivoNaoAlocadoCarga(lote) }));
+        else { const decisao = gerarFatorDecisorio(lote, veiculo, chave); rotas.push({ id: crypto.randomUUID?.() || Date.now()+"_"+Math.random(), corredor: chave, nomeCorredor: corredorInfo.nome || chave, rodovia: corredorInfo.rodovia || "-", dataEntrega: data, pedidos: [...lote], pesoTotal: lote.reduce((s,p)=>s+p.pesoTotal,0), volumeTotal: lote.reduce((s,p)=>s+p.volumeTotal,0), numNotas: lote.reduce((s,p)=>s+p.numNotas,0), veiculo, distanciaKm: 0, custoEstimado: 0, exclusivo: lote.some(p => p.exclusivo), fatorDecisorio: decisao.motivoDimensao, decisao, grupoChave: chave, maiorItem: decisao.maiorItem, itemCritico: { item: decisao.maiorItem } }); }
+        lote = [];
+      };
+      for (const p of ordenados) {
+        if (!lote.length) { lote.push(p); continue; }
+        let pode = true; for (const existente of lote) { if (!podeConsolidar(existente, p) || calcularDistancia(existente.lat, existente.lng, p.lat, p.lng) > raioKm) { pode = false; break; } }
+        const teste = [...lote, p], pesoTeste = teste.reduce((s,x)=>s+x.pesoTotal,0), volumeTeste = teste.reduce((s,x)=>s+x.volumeTotal,0);
+        if (!pode || pesoTeste > pesoMaxCfg || volumeTeste > volumeMaxCfg || teste.length > maxParadas || !escolherVeiculoParaCarga(teste)) fecharLote();
+        lote.push(p);
+      }
+      fecharLote();
+    }
+  }
+  return { rotas, naoAlocados };
+}
+
+function calcularDistancia(lat1,lng1,lat2,lng2){ if([lat1,lng1,lat2,lng2].some(v => v===undefined || v===null)) return 999999; const R = 6371, dLat = (lat2-lat1) * Math.PI/180, dLng = (lng2-lng1) * Math.PI/180; const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2; return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
+
+async function desenharRotas(rotas, origem){
+  if(!map || !geocoder) return; clearRoutes(); let origin = await geocodeAddress(origem); depotCoords = origin; let bounds = new google.maps.LatLngBounds(); bounds.extend(origin); let colors = ["#2563eb","#dc2626","#16a34a","#9333ea","#d97706","#0891b2"]; new google.maps.Marker({position:origin,map,title:origem,label:"CD"});
+  for(let idx=0; idx<rotas.length; idx++){
+    let rota=rotas[idx]; if(!rota.pedidos.length) continue; let pontos=[];
+    for(let p of rota.pedidos){ try{ let coord = p.lat && p.lng ? {lat:p.lat,lng:p.lng} : await geocodeAddress(montarEndereco(p)); pontos.push({pedido:p,coord}); bounds.extend(coord); new google.maps.Marker({position:coord,map,title:`${p.os} - ${p.destinatario||""}`,label:String(pontos.length),icon:{path:google.maps.SymbolPath.CIRCLE,scale:8,fillColor:colors[idx%colors.length],fillOpacity:1,strokeColor:"#fff",strokeWeight:1}}); }catch(e){ console.warn("Erro geocode",p.os); } }
+    if(!pontos.length) continue; let service = new google.maps.DirectionsService(); let destination = pontos[pontos.length - 1].coord; let waypoints = pontos.slice(0, -1).map(p => ({ location: p.coord, stopover: true }));
+    await new Promise(resolve => { service.route({ origin, destination, waypoints, travelMode: google.maps.TravelMode.DRIVING, optimizeWaypoints: true }, (res,status)=>{ if(status==="OK"){ let renderer=new google.maps.DirectionsRenderer({map,preserveViewport:true,suppressMarkers:true,polylineOptions:{strokeColor:colors[idx%colors.length],strokeWeight:5}}); renderer.setDirections(res); directionsRenderers.push(renderer); let dist=0; res.routes[0].legs.forEach(l=>{dist+=l.distance?.value||0;}); rota.distanciaKm=dist/1000; rota.custoEstimado=rota.distanciaKm*(rota.veiculo?.custoKm||0); } else console.warn("Directions falhou:", status); resolve(); }); });
+  }
+  if(!bounds.isEmpty()) map.fitBounds(bounds);
+}
+function focusRouteOnMap(rotaId) { const rota = ultimoResultado?.rotas?.find(r => r.id === rotaId); if (!rota || !map || !depotCoords) return; const bounds = new google.maps.LatLngBounds(); bounds.extend(depotCoords); for (let p of rota.pedidos) if (p.lat && p.lng) bounds.extend({ lat:p.lat, lng:p.lng }); map.fitBounds(bounds); }
+function verDetalheRota(rotaId) { const rota = ultimoResultado?.rotas?.find(r => r.id === rotaId); if (!rota) return; let html = `<h3>Detalhes da Rota</h3><p><strong>Corredor:</strong> ${rota.nomeCorredor} (${rota.rodovia})</p><p><strong>Data de Entrega:</strong> ${rota.dataEntrega}</p><p><strong>Veículo:</strong> ${rota.veiculo?.nome} (${formatNumber(rota.veiculo?.volumeMax)} m³, ${formatNumber(rota.veiculo?.pesoMax)} kg)</p><p><strong>Fator Decisório:</strong> ${rota.fatorDecisorio}</p><div class="decision-box"><strong>Resumo decisório</strong><br>${rota.decisao?.motivoDimensao || "-"}<br>Corredor/Regra: ${rota.decisao?.corredor || "-"}<br>Regras aplicadas: ${(rota.decisao?.regrasAplicadas||[]).join(" | ")}<br>Observações: ${(rota.decisao?.observacoes||[]).join(" | ")}</div><p><strong>Totais:</strong> ${formatNumber(rota.pesoTotal)} kg, ${formatNumber(rota.volumeTotal)} m³, ${rota.numNotas} notas, ${formatNumber(rota.distanciaKm)} km, ${formatCurrency(rota.custoEstimado)}</p>`; if (rota.itemCritico?.item) { const it = rota.itemCritico.item; html += `<div class="critical-item"><strong>🎯 Item crítico que definiu o veículo</strong><br>Código: ${it.codigo || '-'}<br>Descrição: ${it.descricao || '-'}<br>Dimensões: ${formatNumber(it.altura||0)} x ${formatNumber(it.largura||0)} x ${formatNumber(it.profundidade||0)} m<br>Peso: ${formatNumber(it.peso||0)} kg | Volume: ${formatNumber(it.volume||0)} m³</div>`; } html += `<h4>Pedidos na rota:</h4>`; for (let p of rota.pedidos) { html += `<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<details><summary>Itens</summary>`; for (let item of p.items) html += `<div style="margin:5px 0; padding-left:10px; border-left:2px solid #ccc;"><strong>${item.codigo || '-'}</strong> - ${item.descricao || '-'}<br>Dimensões: ${formatNumber(item.altura||0)} x ${formatNumber(item.largura||0)} x ${formatNumber(item.profundidade||0)} m | ${formatNumber(item.peso||0)} kg | ${formatNumber(item.volume||0)} m³</div>`; html += `</details></div>`; } document.getElementById("modalContent").innerHTML = html; document.getElementById("routeModal").style.display = "block"; }
+function renderResumo(){ let el=document.getElementById("resumoOperacional"); if(!ultimoResultado){ el.innerHTML="<p>Nenhum planejamento</p>"; return; } let {rotas,naoAlocados}=ultimoResultado; let porCorredor=new Map(); for(let r of rotas){ if(!porCorredor.has(r.nomeCorredor)) porCorredor.set(r.nomeCorredor,[]); porCorredor.get(r.nomeCorredor).push(r); } el.innerHTML=`<div class="grid grid-2"><div class="metric"><div class="label">Rotas</div><div class="value">${rotas.length}</div></div><div class="metric"><div class="label">Não Alocados</div><div class="value">${naoAlocados.length}</div></div></div><h3>Por Corredor</h3><div class="table-wrap" style="padding:12px;">${Array.from(porCorredor.entries()).map(([nome,rs])=>`<div><strong>${nome}</strong>: ${rs.length} rotas, ${formatNumber(rs.reduce((s,r)=>s+r.pesoTotal,0))} kg, ${formatCurrency(rs.reduce((s,r)=>s+r.custoEstimado,0))}</div>`).join("") || "<div>Sem corredores</div>"}</div>`; }
+function renderMapControls(){ let editor=document.getElementById("routeEditorList"), unalloc=document.getElementById("unallocatedEditorList"), restricoesDiv=document.getElementById("restricoesList"); if(!ultimoResultado) return; editor.innerHTML=ultimoResultado.rotas.map((r,i)=>`<div class="route-box"><div class="route-title">Rota ${i+1} - ${r.veiculo?.nome}<span class="corridor-badge">${r.nomeCorredor}</span>${r.exclusivo?'<span class="pill pill-purple">🔒 Exclusivo</span>':''}<button class="btn btn-blue" style="float:right; margin-left:8px;" onclick="verDetalheRota('${r.id}')">📋 Detalhe</button><button class="btn btn-green" style="float:right;" onclick="focusRouteOnMap('${r.id}')">🗺️ Foco</button></div><div class="small">${r.rodovia} | 📅 ${r.dataEntrega} | ${formatNumber(r.pesoTotal)} kg | ${formatNumber(r.volumeTotal)} m³ | ${formatNumber(r.distanciaKm)} km | ${formatCurrency(r.custoEstimado)}</div><div class="decision-box"><strong>Fator decisório:</strong> ${r.fatorDecisorio}<br><strong>Regras:</strong> ${(r.decisao?.regrasAplicadas||[]).join(" | ")}</div>${r.pedidos.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf} | ⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³${p.cubagemAuto?'<span class="pill pill-purple"> 🤖 Auto</span>':''}</div>`).join("")}</div>`).join("")||"<div>Nenhuma rota</div>"; restricoesDiv.innerHTML=ultimoResultado.restricoes.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³ <span class="pill pill-yellow">⚠️ ${p.paletizado?'Paletizado':''} ${p.agendamento?'Agendamento':''}</span></div>`).join("")||"<div>Nenhum pedido com restrição</div>"; unalloc.innerHTML=ultimoResultado.naoAlocados.map(p=>`<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<br><span class="pill pill-yellow">${p.motivo||"Sem alocação"}</span></div>`).join("")||"<div>Todos alocados ✓</div>"; }
+function atualizarMetricas(){ document.getElementById("mPedidos").textContent=pedidos.length; document.getElementById("mAlocados").textContent=ultimoResultado?.aprovados?.length||0; document.getElementById("mNaoAlocados").textContent=ultimoResultado?.naoAlocados?.length||0; document.getElementById("mRotas").textContent=ultimoResultado?.rotas?.length||0; document.getElementById("mRestricoes").textContent=ultimoResultado?.restricoes?.length||0; document.getElementById("mCustoTotal").textContent=formatCurrency(ultimoResultado?.rotas?.reduce((s,r)=>s+(r.custoEstimado||0),0)||0); }
+
+async function executarPlanejamento(){ try{ carregarCorredoresDaUI(); if(!vehicles.length){ setStatus("Cadastre veículos","err"); return; } if(!pedidos.length){ setStatus("Importe pedidos","err"); return; } if(!geocoder){ setStatus("Aguarde carregamento do mapa","warn"); return; } setStatus("Geocodificando...","warn"); depotCoords=await geocodeAddress(document.getElementById("depot").value); let cubagemAutoCount = 0; for(let p of pedidos){ try{ let coord=await geocodeAddress(montarEndereco(p)); p.lat=coord.lat; p.lng=coord.lng; if(p.cubagemAuto) cubagemAutoCount++; }catch(e){ console.warn(`Erro geocode ${p.os}`); } } let aprovados=[], restricoes=[]; for(let p of pedidos){ let isRod=normalizarTexto(p.modalidade).toLowerCase()==="rodoviario"; if(p.exclusivo && document.getElementById("regraExclusivo").checked){ aprovados.push(p); continue; } if(p.paletizado || p.agendamento){ restricoes.push(p); continue; } if(document.getElementById("regraLeve").checked && isRod && p.pesoTotal<=1000) aprovados.push(p); else if(document.getElementById("regraPesado").checked && isRod && p.pesoTotal>1000) aprovados.push(p); else aprovados.push(p); } aprovados = aprovados.map(p => ({ ...p, grupoConsolidado: obterChaveAgrupamento(p) })); let {rotas,naoAlocados}=await montarRotasInteligentes(aprovados); setStatus("Desenhando rotas...","warn"); await desenharRotas(rotas,document.getElementById("depot").value); ultimoResultado={rotas,naoAlocados,aprovados,restricoes,cubagemAutoCount}; atualizarMetricas(); renderResumo(); renderMapControls(); showTab("resultado", document.querySelectorAll(".nav-btn")[3]); setStatus(`✅ ${rotas.length} rotas | ${naoAlocados.length} não alocados | ${restricoes.length} com restrição | ${cubagemAutoCount} com cubagem automática`,"ok"); }catch(err){ console.error(err); setStatus(`Erro: ${err.message}`,"err"); } }
+function exportarRelatorioCSV(){ if(!ultimoResultado){ alert("Execute o planejamento"); return; } let linhas=[["ROTA","CORREDOR","DATA","VEICULO","PESO","VOLUME","KM","CUSTO","FATOR_DECISORIO","REGRAS","PEDIDOS"]]; ultimoResultado.rotas.forEach((r,i)=>{ linhas.push([`Rota ${i+1}`,r.nomeCorredor,r.dataEntrega,r.veiculo?.nome||"",r.pesoTotal,r.volumeTotal,r.distanciaKm?.toFixed(1)||0,r.custoEstimado?.toFixed(2)||0,r.fatorDecisorio,(r.decisao?.regrasAplicadas||[]).join(" | "),r.pedidos.map(p=>p.os).join(";")]); }); let csv=Papa.unparse(linhas); let blob=new Blob([csv],{type:"text/csv;charset=utf-8"}); let a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="rotas.csv"; a.click(); URL.revokeObjectURL(a.href); }
+function replanejarRotas(){ clearRoutes(); ultimoResultado=null; atualizarMetricas(); document.getElementById("resumoOperacional").innerHTML=""; document.getElementById("routeEditorList").innerHTML=""; document.getElementById("unallocatedEditorList").innerHTML=""; document.getElementById("restricoesList").innerHTML=""; setStatus("Replanejamento liberado","warn"); showTab("planejamento", document.querySelectorAll(".nav-btn")[2]); }
+function baixarModeloPedidos(){ let csv=`OS,DESTINATARIO,CEP,CIDADE,UF,PESO BRUTO,METROCUBICO,DATAPREVISAO,OBS,CODIGO PRODUTO,PRODUTO,FOTO_URL,ALTURA,LARGURA,PROFUNDIDADE,LOGRADOURO,NUMERO,BAIRRO
+5035441,COSTAZUL ALIMENTOS LTDA,24800-000,ITABORAI,RJ,36,,25/03/2026,,12345,CAIXA LEVE,,0.40,0.30,0.35,RUA A,100,CENTRO
+1001,CLIENTE TESTE,13000-000,CAMPINAS,SP,450,3.2,25/03/2026,,789,PAINEL ELETRÔNICO,https://placehold.co/60x60?text=Painel,1.50,1.20,2.80,RUA B,200,DISTRITO
+1002,CLIENTE LEVE,07190-000,GUARULHOS,SP,85,,24/03/2026,,101,CAIXA PEQUENA,,0.30,0.25,0.20,RUA C,50,CENTRO
+1003,EXCLUSIVO,40000-000,SALVADOR,BA,2500,15.0,26/03/2026,"CARRO EXCLUSIVO",202,MOTOR GRANDE,https://placehold.co/60x60?text=Motor,2.40,1.80,4.20,AV D,500,INDUSTRIAL
+1004,FEIRA SANTANA,44000-000,FEIRA DE SANTANA,BA,320,2.5,25/03/2026,,303,ELETRODOMÉSTICO,,1.20,0.90,1.10,RUA E,45,CENTRO
+1005,SALVADOR OUTRO,40000-000,SALVADOR,BA,180,1.2,25/03/2026,,404,ACESSÓRIO,,0.70,0.60,0.90,RUA F,10,CENTRO`; let blob=new Blob([csv],{type:"text/csv;charset=utf-8"}); let a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="pedidos_modelo.csv"; a.click(); URL.revokeObjectURL(a.href); }
+function carregarDoStorageLocal() { try { const saved = JSON.parse(localStorage.getItem("veiculos") || "[]"); if (Array.isArray(saved)) vehicles = saved; } catch (e) { vehicles = []; } }
+function salvarNoStorageLocal() { localStorage.setItem("veiculos", JSON.stringify(vehicles)); }
+function loadLocalCaches() { try { geocodeCache = JSON.parse(localStorage.getItem("geo_cache") || "{}"); } catch (e) { geocodeCache = {}; } }
+function salvarCacheGeo() { localStorage.setItem("geo_cache", JSON.stringify(geocodeCache)); }
+function loadGoogleMaps() { const mapEl = document.getElementById("map"); if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "COLE_SUA_CHAVE_AQUI") { if (mapEl) mapEl.innerHTML = "Mapa operacional local. Preencha APP_CONFIG.GOOGLE_API_KEY para Google Maps real."; return; } if (window.google && window.google.maps) { if (mapEl && !window.map) { window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat:-23.55, lng:-46.63 }, zoom: 8 }); window.geocoder = new google.maps.Geocoder(); map = window.map; geocoder = window.geocoder; } return; } const script = document.createElement("script"); script.src = `https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places`; script.async = true; script.defer = true; script.onload = () => { if (mapEl && window.google && window.google.maps) { window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat:-23.55, lng:-46.63 }, zoom: 8 }); window.geocoder = new google.maps.Geocoder(); map = window.map; geocoder = window.geocoder; } }; script.onerror = () => { if (mapEl) mapEl.innerHTML = "Não foi possível carregar o Google Maps. O modo operacional local continua disponível."; }; document.head.appendChild(script); }
+function initCSVImport() { const input = document.getElementById("ordersCsvFile"); if (!input) return; input.addEventListener("change", function (e) { const file = e.target.files[0]; if (!file) return; Papa.parse(file, { header: true, skipEmptyLines: true, complete: (res) => { try { pedidos = agruparPedidosPorOS(res.data || []); renderPedidos(); atualizarMetricas(); alert(`${pedidos.length} pedidos importados`); } catch (err) { console.error(err); alert("Erro ao processar os pedidos."); } e.target.value = ""; }, error: (err) => { console.error(err); alert("Erro ao importar o CSV."); } }); }); }
+document.addEventListener("DOMContentLoaded", () => { carregarCorredoresDaUI(); loadLocalCaches(); carregarDoStorageLocal(); renderVehicles(); renderPedidos(); atualizarMetricas(); loadGoogleMaps(); initCSVImport(); if (vehicles.length === 0) adicionarVeiculoPadrao(); });
 </script>
 </body>
 </html>
