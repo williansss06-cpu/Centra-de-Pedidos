@@ -431,7 +431,32 @@ function focusRouteOnMap(rotaId) {
   map.fitBounds(bounds);
 }
 
-function verDetalheRota(rotaId) { const rota = ultimoResultado?.rotas?.find(r => r.id === rotaId); if (!rota) return; let html = `<h3>Detalhes da Rota</h3><p><strong>Corredor:</strong> ${rota.nomeCorredor} (${rota.rodovia})</p><p><strong>Data de Entrega:</strong> ${rota.dataEntrega}</p><p><strong>Veículo:</strong> ${rota.veiculo?.nome} (${formatNumber(rota.veiculo?.volumeMax)} m³, ${formatNumber(rota.veiculo?.pesoMax)} kg)</p><p><strong>Fator Decisório:</strong> ${rota.fatorDecisorio}</p><div class="decision-box"><strong>Resumo decisório</strong><br>${rota.decisao?.motivoDimensao || "-"}<br>Corredor/Regra: ${rota.decisao?.corredor || "-"}<br>Regras aplicadas: ${(rota.decisao?.regrasAplicadas||[]).join(" | ")}<br>Observações: ${(rota.decisao?.observacoes||[]).join(" | ")}</div><p><strong>Totais:</strong> ${formatNumber(rota.pesoTotal)} kg, ${formatNumber(rota.volumeTotal)} m³, ${rota.numNotas} notas, ${formatNumber(rota.distanciaKm)} km, ${formatCurrency(rota.custoEstimado)}</p>`; if (rota.itemCritico?.item) { const it = rota.itemCritico.item; html += `<div class="critical-item"><strong>🎯 Item crítico que definiu o veículo</strong><br>Código: ${it.codigo || '-'}<br>Descrição: ${it.descricao || '-'}<br>Dimensões: ${formatNumber(it.altura||0)} x ${formatNumber(it.largura||0)} x ${formatNumber(it.profundidade||0)} m<br>Peso: ${formatNumber(it.peso||0)} kg | Volume: ${formatNumber(it.volume||0)} m³</div>`; } html += `<h4>Pedidos na rota:</h4>`; for (let p of rota.pedidos) { html += `<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³<details><summary>Itens</summary>`; for (let item of p.items) html += `<div style="margin:5px 0; padding-left:10px; border-left:2px solid #ccc;"><strong>${item.codigo || '-'}</strong> - ${item.descricao || '-'}<br>Dimensões: ${formatNumber(item.altura||0)} x ${formatNumber(item.largura||0)} x ${formatNumber(item.profundidade||0)} m | ${formatNumber(item.peso||0)} kg | ${formatNumber(item.volume||0)} m³</div>`; html += `</details></div>`; } document.getElementById("modalContent").innerHTML = html; document.getElementById("routeModal").style.display = "block"; }
+function verDetalheRota(rotaId) { 
+  const rota = ultimoResultado?.rotas?.find(r => r.id === rotaId); 
+  if (!rota) return; 
+  let html = `<h3>Detalhes da Rota</h3><p><strong>Corredor:</strong> ${rota.nomeCorredor} (${rota.rodovia})</p><p><strong>Data de Entrega:</strong> ${rota.dataEntrega}</p><p><strong>Veículo:</strong> ${rota.veiculo?.nome} (${formatNumber(rota.veiculo?.volumeMax)} m³, ${formatNumber(rota.veiculo?.pesoMax)} kg)</p><p><strong>Fator Decisório:</strong> ${rota.fatorDecisorio}</p><div class="decision-box"><strong>Resumo decisório</strong><br>${rota.decisao?.motivoDimensao || "-"}<br>Corredor/Regra: ${rota.decisao?.corredor || "-"}<br>Regras aplicadas: ${(rota.decisao?.regrasAplicadas||[]).join(" | ")}<br>Observações: ${(rota.decisao?.observacoes||[]).join(" | ")}</div><p><strong>Totais:</strong> ${formatNumber(rota.pesoTotal)} kg, ${formatNumber(rota.volumeTotal)} m³, ${rota.numNotas} notas, ${formatNumber(rota.distanciaKm)} km, ${formatCurrency(rota.custoEstimado)}</p>`; 
+  if (rota.itemCritico?.item) { const it = rota.itemCritico.item; html += `<div class="critical-item"><strong>🎯 Item crítico que definiu o veículo</strong><br>Código: ${it.codigo || '-'}<br>Descrição: ${it.descricao || '-'}<br>Dimensões: ${formatNumber(it.altura||0)} x ${formatNumber(it.largura||0)} x ${formatNumber(it.profundidade||0)} m<br>Peso: ${formatNumber(it.peso||0)} kg | Volume: ${formatNumber(it.volume||0)} m³</div>`; } 
+  html += `<h4>Pedidos na rota:</h4>`; 
+  for (let p of rota.pedidos) { 
+    // Data de entrega individual
+    const dataEntrega = p.dataPrevisao ? p.dataPrevisao : "Sem data";
+    html += `<div class="pedido-chip">
+      <strong>${p.os}</strong> - ${p.destinatario||"-"}<br>
+      📍 ${p.cidade}/${p.uf}<br>
+      📅 ${dataEntrega}<br>
+      ⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³
+      <details><summary>Itens</summary>`;
+    for (let item of p.items) {
+      html += `<div style="margin:5px 0; padding-left:10px; border-left:2px solid #ccc;">
+        <strong>${item.codigo || '-'}</strong> - ${item.descricao || '-'}<br>
+        Dimensões: ${formatNumber(item.altura||0)} x ${formatNumber(item.largura||0)} x ${formatNumber(item.profundidade||0)} m | ${formatNumber(item.peso||0)} kg | ${formatNumber(item.volume||0)} m³
+      </div>`;
+    }
+    html += `</details></div>`;
+  } 
+  document.getElementById("modalContent").innerHTML = html; 
+  document.getElementById("routeModal").style.display = "block"; 
+}
 
 // ==================== FUNÇÕES PARA MOVER/EXCLUIR PEDIDOS ====================
 function removerPedidoDaRota(rotaId, pedidoOs) {
@@ -556,7 +581,7 @@ function renderMapControls() {
       <div class="small">${r.rodovia} | 📅 ${r.dataEntrega} | ${formatNumber(r.pesoTotal)} kg | ${formatNumber(r.volumeTotal)} m³ | ${formatNumber(r.distanciaKm)} km | ${formatCurrency(r.custoEstimado)}</div>
       <div class="decision-box"><strong>Fator decisório:</strong> ${r.fatorDecisorio}<br><strong>Regras:</strong> ${(r.decisao?.regrasAplicadas||[]).join(" | ")}</div>
       ${r.pedidos.map(p => `<div class="pedido-chip">
-        <strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf} | ⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³${p.cubagemAuto?'<span class="pill pill-purple"> 🤖 Auto</span>':''}
+        <strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf} | 📅 ${p.dataPrevisao || "Sem data"} | ⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³${p.cubagemAuto?'<span class="pill pill-purple"> 🤖 Auto</span>':''}
         <div class="btn-icon-group">
           <button class="btn-remove" onclick="removerPedidoDaRota('${r.id}', '${p.os}')">🗑️ Remover</button>
           <button class="btn-move" onclick="moverPedidoParaRota('${r.id}', '${p.os}', document.getElementById('destSelect_${r.id}').value)">➡️ Mover</button>
