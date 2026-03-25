@@ -121,8 +121,25 @@
         <p class="small">Colunas: OS, DESTINATARIO, CIDADE, UF, PESO BRUTO, METROCUBICO, DATAPREVISAO, OBS, CEP, CODIGO PRODUTO, PRODUTO, FOTO_URL, ALTURA, LARGURA, PROFUNDIDADE, LOGRADOURO, NUMERO, BAIRRO</p>
       </div>
       <div class="card">
-        <h2>Pedidos (com cubagem corrigida)</h2>
-        <div class="table-wrap">\n<table>\n<thead>\n<tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume</th><th>Volume Corrigido</th><th>Maior item</th><th>Status</th></tr>\n</thead>\n<tbody id="pedidoTableBody"></tbody>\n</table>\n</div>
+        <h2>Pedidos Leves (≤ 1000kg) <span class="pill pill-green">Prontos para operação</span></h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="width:30px"><input type="checkbox" id="selectAllLight" onchange="toggleSelectAllLight()"></th><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th></tr></thead>
+            <tbody id="lightPedidosTable"></tbody>
+          </table>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <button class="btn btn-green" onclick="enviarLevesParaOperacao()">📦 Enviar selecionados para operação</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Pedidos Pesados (> 1000kg)</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th></tr></thead>
+            <tbody id="heavyPedidosTable"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -148,7 +165,7 @@
         <div class="metric"><div class="label">Custo Total</div><div class="value" id="mCustoTotal">R$ 0</div></div>
       </div>
       <div class="card"><h2>Mapa</h2><div id="map">Mapa operacional local. Preencha a chave do Google para modo real.</div>
-        <div class="map-side-grid"><div class="route-editor"><h4>Rotas</h4><div id="routeEditorList"></div></div><div class="route-editor"><h4>Pedidos com Restrição</h4><div id="restricoesList"></div><h4 style="margin-top:12px;">Não Alocados</h4><div id="unallocatedEditorList"></div><h4 style="margin-top:12px;">Aguardando (Hold)</h4><div id="holdList"></div></div></div>
+        <div class="map-side-grid"><div class="route-editor"><h4>Rotas</h4><div id="routeEditorList"></div></div><div class="route-editor"><h4>Pedidos com Restrição</h4><div id="restricoesList"></div><h4 style="margin-top:12px;">Não Alocados</h4><div id="unallocatedEditorList"></div><h4 style="margin-top:12px;">Aguardando (Hold)</h4><div id="holdList"></div><h4 style="margin-top:12px;">Operação Leve</h4><div id="operacaoLeveList"></div></div></div>
       </div>
       <div class="card"><h2>Resumo</h2><div id="resumoOperacional"></div></div>
     </section>
@@ -166,6 +183,7 @@
 const APP_CONFIG = { GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds" };
 let vehicles = [];
 let pedidos = [];
+let operacaoLeve = []; // pedidos leves enviados para operação
 let map = null, geocoder = null;
 let directionsRenderers = []; // guarda { id, renderer }
 let geocodeCache = {};
@@ -300,7 +318,45 @@ function agruparPedidosPorOS(linhas){
   });
   const pedidosAgrupados = Array.from(mapa.values()); pedidosAgrupados.forEach(p => { p.maiorItem = getMaiorItemDoPedido(p); p.maiorAltura = p.maiorItem.altura || 0; p.maiorLargura = p.maiorItem.largura || 0; p.maiorProfundidade = p.maiorItem.profundidade || 0; p.grupoConsolidado = obterChaveAgrupamento(p); }); return pedidosAgrupados;
 }
-function renderPedidos(){ let tbody=document.getElementById("pedidoTableBody"); if(!pedidos.length){ tbody.innerHTML='<tr><td colspan="8">Nenhum pedido</td></tr>'; return; } tbody.innerHTML=pedidos.map(p=>{ let badgeAuto = p.cubagemAuto ? '<span class="pill pill-purple">🤖 Auto</span>' : '<span class="pill pill-green">✓</span>'; return `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeOriginal)} m³</td><td>${formatNumber(p.volumeTotal)} m³ ${badgeAuto}</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td><td>${p.grupoConsolidado||"-"}</td></tr>`; }).join(""); }
+
+function renderPedidosSeparados() {
+  const lightTable = document.getElementById("lightPedidosTable");
+  const heavyTable = document.getElementById("heavyPedidosTable");
+  if (!lightTable || !heavyTable) return;
+  const light = pedidos.filter(p => p.pesoTotal <= 1000);
+  const heavy = pedidos.filter(p => p.pesoTotal > 1000);
+  lightTable.innerHTML = light.map(p => `<tr><td><input type="checkbox" class="lightCheckbox" value="${p.os}"></td><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
+  heavyTable.innerHTML = heavy.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
+  document.getElementById("mPedidos").textContent = pedidos.length;
+}
+
+function toggleSelectAllLight() {
+  const chk = document.getElementById("selectAllLight");
+  const checkboxes = document.querySelectorAll(".lightCheckbox");
+  checkboxes.forEach(cb => cb.checked = chk.checked);
+}
+
+function enviarLevesParaOperacao() {
+  const checkboxes = document.querySelectorAll(".lightCheckbox:checked");
+  const osSelecionados = Array.from(checkboxes).map(cb => cb.value);
+  if (osSelecionados.length === 0) { alert("Selecione ao menos um pedido leve para enviar à operação."); return; }
+  const novosLeves = pedidos.filter(p => osSelecionados.includes(p.os));
+  operacaoLeve.push(...novosLeves);
+  pedidos = pedidos.filter(p => !osSelecionados.includes(p.os));
+  renderPedidosSeparados();
+  renderOperacaoLeveList();
+  atualizarMetricas();
+  alert(`${novosLeves.length} pedidos leves enviados para operação.`);
+  // Opcional: limpar seleção master
+  document.getElementById("selectAllLight").checked = false;
+}
+
+function renderOperacaoLeveList() {
+  const div = document.getElementById("operacaoLeveList");
+  if (!div) return;
+  if (operacaoLeve.length === 0) { div.innerHTML = "<div>Nenhum pedido enviado para operação.</div>"; return; }
+  div.innerHTML = operacaoLeve.map(p => `<div class="pedido-chip"><strong>${p.os}</strong> - ${p.destinatario||"-"}<br>📍 ${p.cidade}/${p.uf}<br>⚖ ${formatNumber(p.pesoTotal)} kg | 📦 ${formatNumber(p.volumeTotal)} m³</div>`).join("");
+}
 
 function obterChaveAgrupamento(p) { const uf = normalizarTexto(p.uf).toUpperCase(), cidade = normalizarTexto(p.cidade).toUpperCase(), cep = (p.cep || "").replace(/\D/g, ""); const cidadesLitoral = ["SANTOS","GUARUJA","SAO VICENTE","PRAIA GRANDE"]; if (uf === "SP" && cidadesLitoral.includes(cidade)) return "LITORAL_SP"; if (uf === "SP" && cep.length >= 5 && isCapitalOuGrandeSP(cep)) return "SP_CAPITAL"; if (uf === "SP") { const regiao = definirRegiaoSP(cidade); if (regiao && REGIOES_SP[regiao]) { const integracao = REGIOES_SP[regiao].integracaoCorredor; return integracao || regiao; } return "SP_INTERIOR"; } const corredor = identificarCorredor(uf, cidade); return corredor || "OUTROS"; }
 
@@ -372,7 +428,7 @@ async function montarRotasInteligentes(pedidosBase) {
   const volumeMaxCfg = Number(document.getElementById("cfgVolumeMax").value||20);
   const maxParadas = Number(document.getElementById("cfgMaxParadas").value||12);
   const raioKm = Number(document.getElementById("cfgRaioKm").value||80);
-  const usarHold = document.getElementById("regraPesado")?.checked !== false; // se ativo, segura pesados solitários
+  const usarHold = document.getElementById("regraPesado")?.checked !== false;
 
   const grupos = new Map(); 
   for (const p of pedidosBase) { 
@@ -398,16 +454,12 @@ async function montarRotasInteligentes(pedidosBase) {
         if (!lote.length) return; 
         const loteOtimizado = otimizarOrdemRota(lote, depotCoords);
         const veiculo = escolherVeiculoParaCarga(loteOtimizado);
-        
-        // Regra de negócio: se há apenas um pedido no lote, ele é pesado (>1000kg), não exclusivo, e a opção de segurar está ativa
         const isHeavySolo = usarHold && loteOtimizado.length === 1 && 
                             loteOtimizado[0].pesoTotal > 1000 && 
                             !loteOtimizado[0].exclusivo;
-        
         if (!veiculo) {
           loteOtimizado.forEach(p => naoAlocados.push({ ...p, motivo: motivoNaoAlocadoCarga(loteOtimizado) }));
         } else if (isHeavySolo) {
-          // Segurar para nova rodada
           loteOtimizado.forEach(p => holdList.push({ ...p, motivo: "Peso > 1000kg sem consolidação → aguardar nova rodada" }));
         } else {
           const decisao = gerarFatorDecisorio(loteOtimizado, veiculo, chave);
@@ -529,15 +581,12 @@ function removerPedidoDaRota(rotaId, pedidoOs) {
   if (pedidoIndex === -1) return;
   const pedidoRemovido = rota.pedidos[pedidoIndex];
   rota.pedidos.splice(pedidoIndex, 1);
-  // Recalcula totais da rota
   rota.pesoTotal = rota.pedidos.reduce((s,p)=>s+p.pesoTotal,0);
   rota.volumeTotal = rota.pedidos.reduce((s,p)=>s+p.volumeTotal,0);
   rota.numNotas = rota.pedidos.reduce((s,p)=>s+p.numNotas,0);
-  // Se a rota ficou vazia, remove
   if (rota.pedidos.length === 0) {
     ultimoResultado.rotas.splice(rotaIndex, 1);
   } else {
-    // Revalida veículo
     const novoVeiculo = escolherVeiculoParaCarga(rota.pedidos);
     if (novoVeiculo) {
       rota.veiculo = novoVeiculo;
@@ -547,18 +596,14 @@ function removerPedidoDaRota(rotaId, pedidoOs) {
       rota.maiorItem = novaDecisao.maiorItem;
       rota.itemCritico = { item: novaDecisao.maiorItem };
     } else {
-      // Se não há veículo compatível, move todos para não alocados
       ultimoResultado.naoAlocados.push(...rota.pedidos.map(p => ({ ...p, motivo: "Rota sem veículo após remoção" })));
       ultimoResultado.rotas.splice(rotaIndex, 1);
     }
   }
-  // Adiciona pedido removido aos não alocados
   ultimoResultado.naoAlocados.push({ ...pedidoRemovido, motivo: "Removido manualmente da rota" });
-  // Atualiza interface e mapa
   atualizarMetricas();
   renderMapControls();
   renderResumo();
-  // Redesenha rotas no mapa
   if (map && geocoder) desenharRotas(ultimoResultado.rotas, document.getElementById("depot").value);
   setStatus("Pedido removido da rota.", "warn");
 }
@@ -572,11 +617,8 @@ function moverPedidoParaRota(rotaOrigemId, pedidoOs, rotaDestinoId) {
   const pedido = rotaOrigem.pedidos[pedidoIndex];
   const rotaDestino = ultimoResultado.rotas.find(r => r.id === rotaDestinoId);
   if (!rotaDestino) return;
-  // Remove da origem
   rotaOrigem.pedidos.splice(pedidoIndex, 1);
-  // Adiciona ao destino
   rotaDestino.pedidos.push(pedido);
-  // Recalcula origem
   if (rotaOrigem.pedidos.length === 0) {
     const idx = ultimoResultado.rotas.findIndex(r => r.id === rotaOrigemId);
     if (idx !== -1) ultimoResultado.rotas.splice(idx, 1);
@@ -593,13 +635,11 @@ function moverPedidoParaRota(rotaOrigemId, pedidoOs, rotaDestinoId) {
       rotaOrigem.maiorItem = novaDecisao.maiorItem;
       rotaOrigem.itemCritico = { item: novaDecisao.maiorItem };
     } else {
-      // Se origem ficar inviável, move todos para não alocados
       ultimoResultado.naoAlocados.push(...rotaOrigem.pedidos.map(p => ({ ...p, motivo: "Rota sem veículo após movimentação" })));
       const idx = ultimoResultado.rotas.findIndex(r => r.id === rotaOrigemId);
       if (idx !== -1) ultimoResultado.rotas.splice(idx, 1);
     }
   }
-  // Recalcula destino
   rotaDestino.pesoTotal = rotaDestino.pedidos.reduce((s,p)=>s+p.pesoTotal,0);
   rotaDestino.volumeTotal = rotaDestino.pedidos.reduce((s,p)=>s+p.volumeTotal,0);
   rotaDestino.numNotas = rotaDestino.pedidos.reduce((s,p)=>s+p.numNotas,0);
@@ -612,12 +652,10 @@ function moverPedidoParaRota(rotaOrigemId, pedidoOs, rotaDestinoId) {
     rotaDestino.maiorItem = novaDecisao.maiorItem;
     rotaDestino.itemCritico = { item: novaDecisao.maiorItem };
   } else {
-    // Se destino ficar inviável, move todos para não alocados
     ultimoResultado.naoAlocados.push(...rotaDestino.pedidos.map(p => ({ ...p, motivo: "Rota sem veículo após movimentação" })));
     const idx = ultimoResultado.rotas.findIndex(r => r.id === rotaDestinoId);
     if (idx !== -1) ultimoResultado.rotas.splice(idx, 1);
   }
-  // Atualiza interface
   atualizarMetricas();
   renderMapControls();
   renderResumo();
@@ -675,8 +713,8 @@ function salvarNoStorageLocal() { localStorage.setItem("veiculos", JSON.stringif
 function loadLocalCaches() { try { geocodeCache = JSON.parse(localStorage.getItem("geo_cache") || "{}"); } catch (e) { geocodeCache = {}; } }
 function salvarCacheGeo() { localStorage.setItem("geo_cache", JSON.stringify(geocodeCache)); }
 function loadGoogleMaps() { const mapEl = document.getElementById("map"); if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "COLE_SUA_CHAVE_AQUI") { if (mapEl) mapEl.innerHTML = "Mapa operacional local. Preencha APP_CONFIG.GOOGLE_API_KEY para Google Maps real."; return; } if (window.google && window.google.maps) { if (mapEl && !window.map) { window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat:-23.55, lng:-46.63 }, zoom: 8 }); window.geocoder = new google.maps.Geocoder(); map = window.map; geocoder = window.geocoder; } return; } const script = document.createElement("script"); script.src = `https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places`; script.async = true; script.defer = true; script.onload = () => { if (mapEl && window.google && window.google.maps) { window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat:-23.55, lng:-46.63 }, zoom: 8 }); window.geocoder = new google.maps.Geocoder(); map = window.map; geocoder = window.geocoder; } }; script.onerror = () => { if (mapEl) mapEl.innerHTML = "Não foi possível carregar o Google Maps. O modo operacional local continua disponível."; }; document.head.appendChild(script); }
-function initCSVImport() { const input = document.getElementById("ordersCsvFile"); if (!input) return; input.addEventListener("change", function (e) { const file = e.target.files[0]; if (!file) return; Papa.parse(file, { header: true, skipEmptyLines: true, complete: (res) => { try { pedidos = agruparPedidosPorOS(res.data || []); renderPedidos(); atualizarMetricas(); alert(`${pedidos.length} pedidos importados`); } catch (err) { console.error(err); alert("Erro ao processar os pedidos."); } e.target.value = ""; }, error: (err) => { console.error(err); alert("Erro ao importar o CSV."); } }); }); }
-document.addEventListener("DOMContentLoaded", () => { carregarCorredoresDaUI(); loadLocalCaches(); carregarDoStorageLocal(); renderVehicles(); renderPedidos(); atualizarMetricas(); loadGoogleMaps(); initCSVImport(); if (vehicles.length === 0) adicionarVeiculoPadrao(); });
+function initCSVImport() { const input = document.getElementById("ordersCsvFile"); if (!input) return; input.addEventListener("change", function (e) { const file = e.target.files[0]; if (!file) return; Papa.parse(file, { header: true, skipEmptyLines: true, complete: (res) => { try { pedidos = agruparPedidosPorOS(res.data || []); renderPedidosSeparados(); renderOperacaoLeveList(); atualizarMetricas(); alert(`${pedidos.length} pedidos importados`); } catch (err) { console.error(err); alert("Erro ao processar os pedidos."); } e.target.value = ""; }, error: (err) => { console.error(err); alert("Erro ao importar o CSV."); } }); }); }
+document.addEventListener("DOMContentLoaded", () => { carregarCorredoresDaUI(); loadLocalCaches(); carregarDoStorageLocal(); renderVehicles(); renderPedidosSeparados(); renderOperacaoLeveList(); atualizarMetricas(); loadGoogleMaps(); initCSVImport(); if (vehicles.length === 0) adicionarVeiculoPadrao(); });
 </script>
 </body>
 </html>
