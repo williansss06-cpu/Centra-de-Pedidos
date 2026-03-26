@@ -1755,7 +1755,7 @@ function renderLoteResultados(resultados) {
 
 function loadGoogleMaps() {
   const mapEl = document.getElementById("map");
-  if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds") {
+  if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "") {
     if (mapEl) mapEl.innerHTML = "Mapa operacional local. Preencha APP_CONFIG.GOOGLE_API_KEY para Google Maps real.";
     return;
   }
