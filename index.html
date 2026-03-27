@@ -1815,6 +1815,39 @@ function enviarParaFreteInteligente(rotasConsolidadas) {
     return;
   }
 
+  // 🚀 1. FORMATA AS ROTAS (ESSA PARTE É NOVA)
+  const rotasFormatadas = rotasConsolidadas.map(r => ({
+    origem: r.origem || "CD",
+    destino: r.destino || r.cidade || "",
+
+    km_total: r.distancia || r.km || 0,
+
+    veiculo: r.veiculo_usado || r.veiculo || "carreta5",
+
+    paradas: r.pedidos?.length || 1,
+
+    pedidos: r.pedidos || [],
+
+    peso_total: r.peso_total || 0,
+    volume_total: r.volume_total || 0
+  }));
+
+
+  // 🚀 2. SALVA PARA O FRETE
+  localStorage.setItem("rotasFrete", JSON.stringify(rotasFormatadas));
+
+
+  // 🚀 3. DEBUG (IMPORTANTE PRA VOCÊ TESTAR)
+  console.log("🚀 Rotas enviadas:", rotasFormatadas);
+
+
+  // 🚀 4. ABRE O FRETE INTELIGENTE
+  window.open("frete.html", "_blank");
+
+
+  alert("✅ Rotas enviadas para o Frete Inteligente!");
+}
+
   // 🔥 PADRONIZAÇÃO
   const rotasFormatadas = rotasConsolidadas.map((rota, index) => ({
     id: "rota_" + Date.now() + "_" + index,
