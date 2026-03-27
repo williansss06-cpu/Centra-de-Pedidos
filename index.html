@@ -307,7 +307,7 @@
 
 <script>
 // ==================== CONFIGURAÇÃO GLOBAL ====================
-const APP_CONFIG = { GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds" };
+const APP_CONFIG = { GOOGLE_API_KEY: "****" };
 const REGRAS = {
   distancia: { maxKmDireto: 80, maxKmAnalise: 120 },
   tempo: { maxHorasDireto: 1.5, maxHorasAnalise: 2.5 },
@@ -1859,7 +1859,7 @@ document.addEventListener("DOMContentLoaded", () => {
   carregarDoStorageLocal(); 
   renderVehicles(); 
   renderPedidosSeparados(); 
-  renderOperacaoLeveList(); 
+  renderOperacaoLeveList();
   atualizarMetricas(); 
   loadGoogleMaps(); 
   initCSVImport(); 
@@ -1867,6 +1867,9 @@ document.addEventListener("DOMContentLoaded", () => {
   iniciarTimerOportunidades();
   if (vehicles.length === 0) adicionarVeiculoPadrao();
 });
+</script>
+  <script async
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds&libraries=geometry&callback=initMap">
 </script>
 </body>
 </html>
