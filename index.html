@@ -1841,9 +1841,26 @@ function enviarParaFreteInteligente(rotasConsolidadas) {
   }));
 
   // 💾 SALVA LOCAL
-  localStorage.setItem("rotasFrete", JSON.stringify(rotasFormatadas));
-  localStorage.setItem("rotasFrete_exportado_em", new Date().toISOString());
-  localStorage.setItem("rotasFrete_quantidade", rotasFormatadas.length);
+fetch('/api/rotas', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    rotas: rotasFormatadas,
+    exportado_em: new Date().toISOString(),
+    quantidade: rotasFormatadas.length
+  })
+})
+.then(res => res.json())
+.then(() => {
+  alert("✅ Rotas enviadas para o sistema!");
+  window.location.href = "/frete";
+})
+.catch(err => {
+  console.error(err);
+  alert("❌ Erro ao enviar rotas");
+});
 
   // 📋 MOSTRA MENSAGEM
   alert(`✅ ${rotasFormatadas.length} rotas exportadas com sucesso!\n\n📦 Dados salvos no localStorage.\n🔗 Redirecionando para Frete Inteligente...`);
