@@ -83,12 +83,12 @@
         </div>
         <div class="row"><button class="btn btn-green" onclick="addVehicle()">Adicionar veículo</button></div>
         <div class="table-wrap">
-          <table>
+           <table>
             <thead>
-              <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Dimensões</th><th>R$/km</th><th>Ação</th> </tr>
+               <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Dimensões</th><th>R$/km</th><th>Ação</th> </tr>
             </thead>
             <tbody id="vehicleTableBody"></tbody>
-          </table>
+           </table>
         </div>
         <div id="statusBanco" class="status"></div>
       </div>
@@ -144,35 +144,35 @@
       <div class="card">
         <h2>Pedidos Rodoviários Leves (≤ 1000kg) <span class="pill pill-green">Prontos para operação</span></h2>
         <div class="table-wrap">
-          <table>
+           <table>
             <thead>
-              <tr><th style="width:30px"><input type="checkbox" id="selectAllLight" onchange="toggleSelectAllLight()"></th><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th> </tr>
+               <tr><th style="width:30px"><input type="checkbox" id="selectAllLight" onchange="toggleSelectAllLight()"></th><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th> </tr>
             </thead>
             <tbody id="lightRodoviariosTable"></tbody>
-          </table>
+           </table>
         </div>
         <div class="row" style="margin-top:12px;"><button class="btn btn-green" onclick="enviarLevesParaOperacao()">📦 Enviar selecionados para operação</button></div>
       </div>
       <div class="card">
         <h2>Pedidos Rodoviários Pesados (> 1000kg)</h2>
         <div class="table-wrap">
-          <table>
+           <table>
             <thead>
-              <tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th> </tr>
+               <tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th> </tr>
             </thead>
             <tbody id="heavyRodoviariosTable"></tbody>
-          </table>
+           </table>
         </div>
       </div>
       <div class="card">
         <h2>Pedidos Exclusivos <span class="pill pill-purple">Seguem para consolidação</span></h2>
         <div class="table-wrap">
-          <table>
+           <table>
             <thead>
-              <tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th> </tr>
+               <tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th> </tr>
             </thead>
             <tbody id="exclusivosTable"></tbody>
-          </table>
+           </table>
         </div>
       </div>
     </section>
@@ -194,7 +194,7 @@
                 <tr><th>OS</th><th>Cód. Depositante</th><th>Depositante</th><th>CNPJ</th><th>Destinatário</th><th>CEP</th><th>Logradouro</th><th>Número</th><th>Bairro</th><th>Cidade</th><th>UF</th><th>Peso Bruto</th><th>Metrocúbico</th><th>Data Previsão</th><th>Modalidade</th> </tr>
             </thead>
             <tbody id="centralTableBody"><tr><td colspan="15">Carregando...</td></tr></tbody>
-          </table>
+           </table>
         </div>
       </div>
       <div class="card">
@@ -293,7 +293,15 @@
       <div class="card"><h2>Mapa</h2><div id="map">Carregando mapa...</div>
         <div class="map-side-grid"><div class="route-editor"><h4>Rotas</h4><div id="routeEditorList"></div></div><div class="route-editor"><h4 style="margin-top:0;">Aguardando Definição</h4><div id="aguardandoDefinicaoList"></div><h4 style="margin-top:12px;">Não Alocados</h4><div id="unallocatedEditorList"></div><h4 style="margin-top:12px;">Aguardando (Hold)</h4><div id="holdList"></div><h4 style="margin-top:12px;">Operação Leve</h4><div id="operacaoLeveList"></div><h4 style="margin-top:12px;">✈️ Aéreos Aguardando Decisão</h4><div id="aereosAguardandoList"></div></div></div>
       </div>
-      <div class="card"><h2>Resumo</h2><div id="resumoOperacional"></div></div>
+      <div class="card">
+        <div class="row" style="justify-content: space-between; align-items: center;">
+          <h2 style="margin:0;">Resumo Operacional</h2>
+          <button class="btn btn-purple" onclick="enviarParaFreteInteligente(ultimoResultado?.rotas || [])" style="font-size:14px; padding:10px 20px;">
+            🚀 Enviar para Frete Inteligente
+          </button>
+        </div>
+        <div id="resumoOperacional"></div>
+      </div>
     </section>
   </main>
 </div>
@@ -771,9 +779,9 @@ function renderPedidosSeparados() {
   const naoExclusivosRod = rodoviarios.filter(p => !p.exclusivo);
   const leves = naoExclusivosRod.filter(p => p.pesoTotal <= 1000);
   const pesados = naoExclusivosRod.filter(p => p.pesoTotal > 1000);
-  lightTable.innerHTML = leves.map(p => `<tr><td><input type="checkbox" class="lightCheckbox" value="${p.os}"></td><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
-  heavyTable.innerHTML = pesados.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
-  exclusivosTable.innerHTML = exclusivos.map(p => `<tr><td>${p.os}</td><td>${p.destinatario?.substring(0,25)||"-"}</td><td>${p.cidade}/${p.uf}</td><td>${formatNumber(p.pesoTotal)} kg</td><td>${formatNumber(p.volumeTotal)} m³</td><td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td></tr>`).join("");
+  lightTable.innerHTML = leves.map(p => `     <input type="checkbox" class="lightCheckbox" value="${p.os}">     <td>${p.os}</td>    <td>${p.destinatario?.substring(0,25)||"-"}</td>    <td>${p.cidade}/${p.uf}</td>    <td>${formatNumber(p.pesoTotal)} kg</td>    <td>${formatNumber(p.volumeTotal)} m³</td>    <td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td>   `).join("");
+  heavyTable.innerHTML = pesados.map(p => `     <td>${p.os}</td>    <td>${p.destinatario?.substring(0,25)||"-"}</td>    <td>${p.cidade}/${p.uf}</td>    <td>${formatNumber(p.pesoTotal)} kg</td>    <td>${formatNumber(p.volumeTotal)} m³</td>    <td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td>   `).join("");
+  exclusivosTable.innerHTML = exclusivos.map(p => `     <td>${p.os}</td>    <td>${p.destinatario?.substring(0,25)||"-"}</td>    <td>${p.cidade}/${p.uf}</td>    <td>${formatNumber(p.pesoTotal)} kg</td>    <td>${formatNumber(p.volumeTotal)} m³</td>    <td>${formatNumber(p.maiorItem?.dimCritica||0)} m</td>   `).join("");
   setTextSafe("mPedidos", pedidos.length);
 }
 
@@ -1486,7 +1494,7 @@ function renderLoteResultados(resultados) {
   if(!resultados.length) { div.innerHTML = "<div class='inline-alert'>Nenhum resultado</div>"; return; }
   let html = `<h3>📊 Resultados da Simulação em Lote</h3>
   <div class="table-wrap"><table class="batch-sim-table">
-    <thead>   <tr><th>Linha</th><th>Cliente</th><th>Destinatário</th><th>Distância (km)</th><th>Peso (kg)</th><th>Volume (m³)</th><th>Veículo</th><th>Ocupação</th><th>Custo (R$)</th><th>Status</th> </tr> </thead><tbody>`;
+    <thead>   <th>Linha</th><th>Cliente</th><th>Destinatário</th><th>Distância (km)</th><th>Peso (kg)</th><th>Volume (m³)</th><th>Veículo</th><th>Ocupação</th><th>Custo (R$)</th><th>Status</th>  </thead><tbody>`;
   for(let r of resultados) {
     if(r.ok) {
       html += `<tr>
@@ -1591,23 +1599,23 @@ function renderCentral() {
     return;
   }
   tbody.innerHTML = pendentes.map(p => `
-        <tr>
-           <td>${p.os || '-'} <td>
-           <td>${p.codDepositante || '-'} <td>
-           <td>${p.depositante || '-'} <td>
-           <td>${p.cnpj || '-'} <td>
-           <td>${p.destinatario || '-'} <td>
-           <td>${p.cep || '-'} <td>
-           <td>${p.logradouro || '-'} <td>
-           <td>${p.numero || '-'} <td>
-           <td>${p.bairro || '-'} <td>
-           <td>${p.cidade || '-'} <td>
-           <td>${p.uf || '-'} <td>
-           <td>${formatNumber(p.pesoTotal)} kg <td>
-           <td>${formatNumber(p.volumeTotal)} m³ <td>
-           <td>${p.dataPrevisao || '-'} <td>
-           <td>${p.modalidade || '-'} <td>
-         </tr>
+        蹈
+            <td>${p.os || '-'}</td>
+            <td>${p.codDepositante || '-'}</td>
+            <td>${p.depositante || '-'}</td>
+            <td>${p.cnpj || '-'}</td>
+            <td>${p.destinatario || '-'}</td>
+            <td>${p.cep || '-'}</td>
+            <td>${p.logradouro || '-'}</td>
+            <td>${p.numero || '-'}</td>
+            <td>${p.bairro || '-'}</td>
+            <td>${p.cidade || '-'}</td>
+            <td>${p.uf || '-'}</td>
+            <td>${formatNumber(p.pesoTotal)} kg</td>
+            <td>${formatNumber(p.volumeTotal)} m³</td>
+            <td>${p.dataPrevisao || '-'}</td>
+            <td>${p.modalidade || '-'}</td>
+          </tr>
   `).join('');
 }
 function atualizarCentral() { renderCentral(); exibirOportunidades(); }
@@ -1795,6 +1803,58 @@ function limparSimulador() {
   document.getElementById("simCubagem").value = "";
   document.getElementById("simulacaoResultado").style.display = "none";
   document.getElementById("sugestoesInclusao").innerHTML = "";
+}
+
+// ================================
+// 🚀 ENVIAR ROTAS PARA FRETE INTELIGENTE
+// ================================
+
+function enviarParaFreteInteligente(rotasConsolidadas) {
+  if (!rotasConsolidadas || rotasConsolidadas.length === 0) {
+    alert("⚠️ Nenhuma rota para enviar. Execute o planejamento primeiro.");
+    return;
+  }
+
+  // 🔥 PADRONIZAÇÃO
+  const rotasFormatadas = rotasConsolidadas.map((rota, index) => ({
+    id: "rota_" + Date.now() + "_" + index,
+    origem: document.getElementById("depot").value || "Guarulhos/SP",
+    destino: rota.pedidos && rota.pedidos.length > 0 ? montarEndereco(rota.pedidos[rota.pedidos.length - 1]) : "Não especificado",
+    km_total: rota.distanciaKm || 0,
+    tempo_total: rota.tempo || 0,
+    veiculo: rota.veiculo?.nome || "Não definido",
+    tipo_veiculo: rota.veiculo ? tipoDoVeiculo(rota.veiculo.nome) : "INDEFINIDO",
+    ocupacao: rota.volumeTotal && rota.veiculo?.volumeMax ? (rota.volumeTotal / rota.veiculo.volumeMax) * 100 : 100,
+    tipo_rota: rota.distanciaKm > 200 ? "transferencia" : "entrega",
+    paradas: rota.pedidos?.length || 1,
+    peso_total: rota.pesoTotal || 0,
+    volume_total: rota.volumeTotal || 0,
+    empresa_id: localStorage.getItem("empresa_id") || "empresa_padrao",
+    data_execucao: new Date().toISOString(),
+    corredor: rota.nomeCorredor || rota.corredor || "Não definido",
+    rodovia: rota.rodovia || "-",
+    data_entrega: rota.dataEntrega || "Sem data",
+    fator_decisorio: rota.fatorDecisorio || "",
+    custo_estimado: rota.custoEstimado || 0,
+    pedidos_os: rota.pedidos?.map(p => p.os).join(", ") || "",
+    notas_total: rota.numNotas || rota.pedidos?.length || 0
+  }));
+
+  // 💾 SALVA LOCAL
+  localStorage.setItem("rotasFrete", JSON.stringify(rotasFormatadas));
+  localStorage.setItem("rotasFrete_exportado_em", new Date().toISOString());
+  localStorage.setItem("rotasFrete_quantidade", rotasFormatadas.length);
+
+  // 📋 MOSTRA MENSAGEM
+  alert(`✅ ${rotasFormatadas.length} rotas exportadas com sucesso!\n\n📦 Dados salvos no localStorage.\n🔗 Redirecionando para Frete Inteligente...`);
+
+  console.log("Rotas exportadas:", rotasFormatadas);
+
+  // 🚀 REDIRECIONA (comente se não tiver a página)
+  window.location.href = "/frete-inteligente.html";
+  
+  // Se não tiver a página, use apenas:
+  // console.log("Rotas prontas para envio:", rotasFormatadas);
 }
 
 document.addEventListener("DOMContentLoaded", () => { 
