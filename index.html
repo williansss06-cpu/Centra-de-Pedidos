@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Frete PRO TMS - Consolidação Profissional</title>
+  <title>Frete PRO TMS - Consolidação Profissional (Routes API)</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     * { box-sizing: border-box; }
@@ -82,7 +82,14 @@
           <div class="field"><label>Comprimento (m)</label><input type="number" id="v_profundidade" step="0.01" placeholder="2.50" /></div>
         </div>
         <div class="row"><button class="btn btn-green" onclick="addVehicle()">Adicionar veículo</button></div>
-        <div class="table-wrap">\n<table>\n<thead>\n<tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Dimensões</th><th>R$/km</th><th>Ação</th></tr>\n</thead>\n<tbody id="vehicleTableBody"></tbody>\n</table>\n</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Veículo</th><th>M³</th><th>Peso</th><th>Notas</th><th>Dimensões</th><th>R$/km</th><th>Ação</th></tr>
+            </thead>
+            <tbody id="vehicleTableBody"></tbody>
+          </table>
+        </div>
         <div id="statusBanco" class="status"></div>
       </div>
       <div class="card">
@@ -136,16 +143,37 @@
       </div>
       <div class="card">
         <h2>Pedidos Rodoviários Leves (≤ 1000kg) <span class="pill pill-green">Prontos para operação</span></h2>
-        <div class="table-wrap">\n<table>\n<thead>\n<tr><th style="width:30px"><input type="checkbox" id="selectAllLight" onchange="toggleSelectAllLight()"></th><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th></tr>\n</thead>\n<tbody id="lightRodoviariosTable"></tbody>\n</table>\n</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th style="width:30px"><input type="checkbox" id="selectAllLight" onchange="toggleSelectAllLight()"></th><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th></tr>
+            </thead>
+            <tbody id="lightRodoviariosTable"></tbody>
+          </table>
+        </div>
         <div class="row" style="margin-top:12px;"><button class="btn btn-green" onclick="enviarLevesParaOperacao()">📦 Enviar selecionados para operação</button></div>
       </div>
       <div class="card">
         <h2>Pedidos Rodoviários Pesados (> 1000kg)</h2>
-        <div class="table-wrap">\n<table>\n<thead>\n<tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th></tr>\n</thead>\n<tbody id="heavyRodoviariosTable"></tbody>\n</table>\n</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th></tr>
+            </thead>
+            <tbody id="heavyRodoviariosTable"></tbody>
+          </table>
+        </div>
       </div>
       <div class="card">
         <h2>Pedidos Exclusivos <span class="pill pill-purple">Seguem para consolidação</span></h2>
-        <div class="table-wrap">\n<table>\n<thead>\n<tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th></tr>\n</thead>\n<tbody id="exclusivosTable"></tbody>\n</table>\n</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>OS</th><th>Destinatário</th><th>Cidade/UF</th><th>Peso</th><th>Volume Corrigido</th><th>Maior item</th></tr>
+            </thead>
+            <tbody id="exclusivosTable"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -163,7 +191,7 @@
         <div class="table-wrap">
           <table style="font-size:12px;">
             <thead>
-              <tr><th>OS</th><th>Cód. Depositante</th><th>Depositante</th><th>CNPJ</th><th>Destinatário</th><th>CEP</th><th>Logradouro</th><th>Número</th><th>Bairro</th><th>Cidade</th><th>UF</th><th>Peso Bruto</th><th>Metrocúbico</th><th>Data Previsão</th><th>Modalidade</th></tr>
+                <tr><th>OS</th><th>Cód. Depositante</th><th>Depositante</th><th>CNPJ</th><th>Destinatário</th><th>CEP</th><th>Logradouro</th><th>Número</th><th>Bairro</th><th>Cidade</th><th>UF</th><th>Peso Bruto</th><th>Metrocúbico</th><th>Data Previsão</th><th>Modalidade</th></tr>
             </thead>
             <tbody id="centralTableBody"><tr><td colspan="15">Carregando...</td></tr></tbody>
           </table>
@@ -283,7 +311,6 @@ const APP_CONFIG = { GOOGLE_API_KEY: "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds" }
 const REGRAS = {
   distancia: { maxKmDireto: 80, maxKmAnalise: 120 },
   tempo: { maxHorasDireto: 1.5, maxHorasAnalise: 2.5 },
-  // Ordem de tipos para percorrer (crescente capacidade)
   tiposOrdenados: ["FIORINO", "VAN", "VUC", "TOCO", "TRUCK", "CARRETA"],
   cubagem: [
     { tipo: "FIORINO", max: 3 }, { tipo: "VAN", max: 7 }, { tipo: "VUC", max: 19 },
@@ -295,7 +322,7 @@ let vehicles = [];
 let pedidos = [];
 let operacaoLeve = [];
 let map = null, geocoder = null;
-let directionsRenderers = [];
+let routePolylines = [];
 let geocodeCache = {};
 let ultimoResultado = null;
 let depotCoords = null;
@@ -319,6 +346,15 @@ function showTab(tabId,btn=null){
 function setStatus(msg,type=""){ let el=document.getElementById("statusPlanejamento"); if(el){ el.className=`status ${type}`; el.innerHTML=msg; } }
 function setStatusBanco(msg,type=""){ let el=document.getElementById("statusBanco"); if(el){ el.className=`status ${type}`; el.innerHTML=msg; } }
 
+function initMap() {
+  const defaultCenter = { lat: -23.4543, lng: -46.5333 };
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: defaultCenter,
+    zoom: 8,
+  });
+  geocoder = new google.maps.Geocoder();
+  console.log("Mapa e Geocoder inicializados");
+}
 // ==================== CORREDORES ====================
 const REGIOES_SP = {
   "VALE_DO_PARAIBA": { nome: "Vale do Paraíba", cidades: ["SAO JOSE DOS CAMPOS","TAUBATE","JACAREI"], integracaoCorredor: "VALE_DO_PARAIBA" },
@@ -373,7 +409,6 @@ function tipoDoVeiculo(nome) {
 }
 function cabeNoVeiculoPorDimensao(item, veiculo) { return (item.altura||0) <= (veiculo.alturaMax||0) && (item.largura||0) <= (veiculo.larguraMax||0) && (item.profundidade||0) <= (veiculo.profundidadeMax||0); }
 
-// NOVA LÓGICA: percorre todos os tipos em ordem crescente, começando pelo ideal
 function escolherVeiculoParaCarga(pedidosDaCarga) {
   if (!pedidosDaCarga.length) return null;
   const pesoTotal = pedidosDaCarga.reduce((s,p)=>s+p.pesoTotal,0);
@@ -382,7 +417,6 @@ function escolherVeiculoParaCarga(pedidosDaCarga) {
   const maiorItem = getMaiorItemDaCarga(pedidosDaCarga);
   const tipoIdeal = definirTipoVeiculoPorVolume(volumeTotal);
   const indexIdeal = REGRAS.tiposOrdenados.indexOf(tipoIdeal);
-  // Percorre tipos a partir do ideal até o maior
   for (let i = indexIdeal; i < REGRAS.tiposOrdenados.length; i++) {
     const tipoAtual = REGRAS.tiposOrdenados[i];
     const candidatos = vehicles.filter(v => tipoDoVeiculo(v.nome) === tipoAtual);
@@ -393,7 +427,6 @@ function escolherVeiculoParaCarga(pedidosDaCarga) {
       }
     }
   }
-  // Se nenhum tipo atender, tenta qualquer veículo (fallback por ordem de volume)
   const ordenados = [...vehicles].sort((a,b)=> a.volumeMax - b.volumeMax);
   for (let v of ordenados) {
     if (!cabeNoVeiculoPorDimensao(maiorItem, v)) continue;
@@ -448,7 +481,7 @@ function addVehicle() {
   ["v_nome","v_volume","v_peso","v_notas","v_altura","v_largura","v_profundidade","v_custo_km"].forEach(id=>document.getElementById(id).value=""); salvarNoStorageLocal(); renderVehicles(); atualizarMetricas();
 }
 function removeVehicle(id){ vehicles=vehicles.filter(v=>String(v.id)!==String(id)); salvarNoStorageLocal(); renderVehicles(); atualizarMetricas(); }
-function renderVehicles(){ let tbody=document.getElementById("vehicleTableBody"); if(!vehicles.length){ tbody.innerHTML='<tr><td colspan="7">Nenhum veículo. Clique em "Adicionar Veículo Leve Padrão"</td></tr>'; return; } tbody.innerHTML=vehicles.map(v=>`<tr><td>${v.nome}</td><td>${formatNumber(v.volumeMax)}</td><td>${formatNumber(v.pesoMax)} kg</td><td>${v.notasMax}</td><td>${formatNumber(v.alturaMax)} x ${formatNumber(v.larguraMax)} x ${formatNumber(v.profundidadeMax)} m</td><td>${formatCurrency(v.custoKm)}</td><td><button class="btn btn-red" onclick="removeVehicle('${String(v.id).replace(/'/g,"\\'")}')">X</button></td></tr>`).join(""); }
+function renderVehicles(){ let tbody=document.getElementById("vehicleTableBody"); if(!vehicles.length){ tbody.innerHTML='<tr><td colspan="7">Nenhum veículo. Clique em "Adicionar Veículo Leve Padrão</td></tr>'; return; } tbody.innerHTML=vehicles.map(v=>`<tr><td>${v.nome}</td><td>${formatNumber(v.volumeMax)}</td><td>${formatNumber(v.pesoMax)} kg</td><td>${v.notasMax}</td><td>${formatNumber(v.alturaMax)} x ${formatNumber(v.larguraMax)} x ${formatNumber(v.profundidadeMax)} m</td><td>${formatCurrency(v.custoKm)}</td><td><button class="btn btn-red" onclick="removeVehicle('${String(v.id).replace(/'/g,"\\'")}')">X</button></td></tr>`).join(""); }
 function salvarNoStorageLocal() { localStorage.setItem("veiculos", JSON.stringify(vehicles)); }
 function carregarDoStorageLocal() { try { const saved = JSON.parse(localStorage.getItem("veiculos") || "[]"); if (Array.isArray(saved)) vehicles = saved; } catch (e) { vehicles = []; } }
 
@@ -526,7 +559,7 @@ function montarEndereco(p){ return [p.logradouro,p.numero,p.bairro,p.cidade,p.uf
 
 // ==================== GEOCÓDIGO E MAPA ====================
 async function geocodeAddress(addr) { if (!geocoder) throw new Error("Geocodificador não disponível"); if (!addr) throw new Error("Endereço inválido"); const key = addr.trim().toLowerCase(); if (geocodeCache[key]) return geocodeCache[key]; return new Promise((resolve, reject) => { geocoder.geocode({ address: addr }, (results, status) => { if (status === "OK" && results[0]) { const loc = results[0].geometry.location, coords = { lat: loc.lat(), lng: loc.lng() }; geocodeCache[key] = coords; salvarCacheGeo(); resolve(coords); } else reject(new Error(`Falha ao geocodificar: ${addr}`)); }); }); }
-function clearRoutes() { if (directionsRenderers && directionsRenderers.length) directionsRenderers.forEach(item => item.renderer.setMap(null)); directionsRenderers = []; }
+function clearRoutes() { if (routePolylines.length) { routePolylines.forEach(item => item.polyline.setMap(null)); routePolylines = []; } }
 function salvarCacheGeo() { localStorage.setItem("geo_cache", JSON.stringify(geocodeCache)); }
 function loadLocalCaches() { try { geocodeCache = JSON.parse(localStorage.getItem("geo_cache") || "{}"); } catch (e) { geocodeCache = {}; } }
 
@@ -551,38 +584,118 @@ function otimizarOrdemRota(pedidos, origemCoords) {
 
 function calcularDistancia(lat1,lng1,lat2,lng2){ if([lat1,lng1,lat2,lng2].some(v => v===undefined || v===null)) return 999999; const R = 6371, dLat = (lat2-lat1) * Math.PI/180, dLng = (lng2-lng1) * Math.PI/180; const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2; return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
 
-async function desenharRotas(rotas, origem){
-  if(!map || !geocoder) return; clearRoutes(); let origin = await geocodeAddress(origem); depotCoords = origin; let bounds = new google.maps.LatLngBounds(); bounds.extend(origin); let colors = ["#2563eb","#dc2626","#16a34a","#9333ea","#d97706","#0891b2"]; new google.maps.Marker({position:origin,map,title:origem,label:"CD"});
-  for(let idx=0; idx<rotas.length; idx++){
-    let rota=rotas[idx]; if(!rota.pedidos.length) continue; let pontos=[];
-    for(let p of rota.pedidos){ try{ let coord = p.lat && p.lng ? {lat:p.lat,lng:p.lng} : await geocodeAddress(montarEndereco(p)); pontos.push({pedido:p,coord}); bounds.extend(coord); new google.maps.Marker({position:coord,map,title:`${p.os} - ${p.destinatario||""}`,label:String(pontos.length),icon:{path:google.maps.SymbolPath.CIRCLE,scale:8,fillColor:colors[idx%colors.length],fillOpacity:1,strokeColor:"#fff",strokeWeight:1}}); }catch(e){ console.warn("Erro geocode",p.os); } }
-    if(!pontos.length) continue; let service = new google.maps.DirectionsService(); let destination = pontos[pontos.length - 1].coord; let waypoints = pontos.slice(0, -1).map(p => ({ location: p.coord, stopover: true }));
-    await new Promise(resolve => { service.route({ origin, destination, waypoints, travelMode: google.maps.TravelMode.DRIVING, optimizeWaypoints: true }, (res,status)=>{ if(status==="OK"){ let renderer=new google.maps.DirectionsRenderer({map,preserveViewport:true,suppressMarkers:true,polylineOptions:{strokeColor:colors[idx%colors.length],strokeWeight:5}}); renderer.setDirections(res); directionsRenderers.push({ id: rota.id, renderer }); let dist=0; res.routes[0].legs.forEach(l=>{dist+=l.distance?.value||0;}); rota.distanciaKm=dist/1000; rota.custoEstimado=rota.distanciaKm*(rota.veiculo?.custoKm||0); } else console.warn("Directions falhou:", status); resolve(); }); });
+// ========== FUNÇÃO DESENHAR ROTAS COM ROUTES API (com fallback) ==========
+async function desenharRotas(rotas, origem) {
+  if (!map || !geocoder) {
+    console.warn("Mapa não inicializado. Aguardando...");
+    setTimeout(() => desenharRotas(rotas, origem), 1000);
+    return;
   }
-  if(!bounds.isEmpty()) map.fitBounds(bounds);
+  if (!google.maps.routes || !google.maps.routes.TravelMode) {
+    console.warn("Routes API não carregada. Tentando novamente...");
+    setTimeout(() => desenharRotas(rotas, origem), 1000);
+    return;
+  }
+  clearRoutes();
+  let origin = await geocodeAddress(origem);
+  depotCoords = origin;
+  let bounds = new google.maps.LatLngBounds();
+  bounds.extend(origin);
+  let colors = ["#2563eb","#dc2626","#16a34a","#9333ea","#d97706","#0891b2"];
+  new google.maps.Marker({ position: origin, map, title: origem, label: "CD" });
+
+  for (let idx = 0; idx < rotas.length; idx++) {
+    let rota = rotas[idx];
+    if (!rota.pedidos.length) continue;
+    let pontos = [];
+    for (let p of rota.pedidos) {
+      try {
+        let coord = p.lat && p.lng ? { lat: p.lat, lng: p.lng } : await geocodeAddress(montarEndereco(p));
+        pontos.push({ pedido: p, coord });
+        bounds.extend(coord);
+        new google.maps.Marker({
+          position: coord, map,
+          title: `${p.os} - ${p.destinatario || ""}`,
+          label: String(pontos.length),
+          icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: colors[idx % colors.length], fillOpacity: 1, strokeColor: "#fff", strokeWeight: 1 }
+        });
+      } catch (e) { console.warn("Erro geocode", p.os); }
+    }
+    if (!pontos.length) continue;
+
+    // Monta requisição para a Routes API
+    const waypoints = pontos.map(p => ({ location: { latLng: p.coord } }));
+    const request = {
+      origin: { location: { latLng: origin } },
+      destination: { location: { latLng: pontos[pontos.length - 1].coord } },
+      intermediates: waypoints.slice(0, -1),
+      travelMode: google.maps.routes.TravelMode.DRIVE,
+      optimizeWaypointOrder: true
+    };
+
+    try {
+      const response = await google.maps.routes.Route.computeRoutes(request);
+      if (!response.routes || response.routes.length === 0) throw new Error("Nenhuma rota encontrada");
+      const route = response.routes[0];
+      const encodedPolyline = route.polyline.encodedPolyline;
+      const decodedPath = google.maps.geometry.encoding.decodePath(encodedPolyline);
+
+      const polyline = new google.maps.Polyline({
+        path: decodedPath,
+        strokeColor: colors[idx % colors.length],
+        strokeWeight: 5,
+        map: map
+      });
+      routePolylines.push({ id: rota.id, polyline, color: colors[idx % colors.length] });
+
+      let totalDistMeters = 0;
+      if (route.legs) {
+        route.legs.forEach(leg => { totalDistMeters += leg.distanceMeters || 0; });
+      } else {
+        let acum = 0;
+        let prev = origin;
+        for (let p of pontos) {
+          acum += calcularDistancia(prev.lat, prev.lng, p.coord.lat, p.coord.lng);
+          prev = p.coord;
+        }
+        totalDistMeters = acum * 1000;
+      }
+      rota.distanciaKm = totalDistMeters / 1000;
+      rota.custoEstimado = rota.distanciaKm * (rota.veiculo?.custoKm || 0);
+    } catch (err) {
+      console.error(`Erro ao calcular rota ${idx}:`, err);
+      let distTotal = 0;
+      let prev = origin;
+      for (let p of pontos) {
+        distTotal += calcularDistancia(prev.lat, prev.lng, p.coord.lat, p.coord.lng);
+        prev = p.coord;
+      }
+      rota.distanciaKm = distTotal;
+      rota.custoEstimado = rota.distanciaKm * (rota.veiculo?.custoKm || 0);
+    }
+  }
+  if (!bounds.isEmpty()) map.fitBounds(bounds);
 }
 
 function resetAllRouteStyles() {
-  directionsRenderers.forEach(item => {
-    if (item.renderer && item.renderer.setOptions) {
-      item.renderer.setOptions({ polylineOptions: { strokeWeight: 5, strokeColor: "#2563eb" } });
-    }
+  routePolylines.forEach(item => {
+    if (item.polyline) item.polyline.setOptions({ strokeWeight: 5, strokeColor: item.color });
   });
 }
 function highlightRouteById(routeId) {
-  const found = directionsRenderers.find(item => item.id === routeId);
-  if (found && found.renderer) {
-    found.renderer.setOptions({ polylineOptions: { strokeWeight: 8, strokeColor: "#ff0000" } });
+  resetAllRouteStyles();
+  const found = routePolylines.find(item => item.id === routeId);
+  if (found && found.polyline) {
+    found.polyline.setOptions({ strokeWeight: 8, strokeColor: "#ff0000" });
   }
 }
 function focusRouteOnMap(rotaId) {
   const rota = ultimoResultado?.rotas?.find(r => r.id === rotaId);
   if (!rota || !map || !depotCoords) return;
-  resetAllRouteStyles();
   highlightRouteById(rotaId);
   const bounds = new google.maps.LatLngBounds();
   bounds.extend(depotCoords);
-  for (let p of rota.pedidos) if (p.lat && p.lng) bounds.extend({ lat:p.lat, lng:p.lng });
+  for (let p of rota.pedidos) if (p.lat && p.lng) bounds.extend({ lat: p.lat, lng: p.lng });
   map.fitBounds(bounds);
 }
 
@@ -886,7 +999,6 @@ function verDetalheRota(rotaId) {
   document.getElementById("routeModal").style.display = "block";
 }
 
-// ==================== FUNÇÕES PARA MOVER/EXCLUIR PEDIDOS ====================
 function removerPedidoDaRota(rotaId, pedidoOs) {
   if (!ultimoResultado) return;
   const rotaIndex = ultimoResultado.rotas.findIndex(r => r.id === rotaId);
@@ -1429,8 +1541,7 @@ function renderLoteResultados(resultados) {
   if(!resultados.length) { div.innerHTML = "<div class='inline-alert'>Nenhum resultado</div>"; return; }
   let html = `<h3>📊 Resultados da Simulação em Lote</h3>
   <div class="table-wrap"><table class="batch-sim-table">
-  <div class="table-wrap"><table class="batch-sim-table">
-    <thead><tr><th>Linha</th><th>Cliente</th><th>Destinatário</th><th>Distância (km)</th><th>Peso (kg)</th><th>Volume (m³)</th><th>Veículo</th><th>Ocupação</th><th>Custo (R$)</th><th>Status</th></tr></thead><tbody>`;
+    <thead>  <tr><th>Linha</th><th>Cliente</th><th>Destinatário</th><th>Distância (km)</th><th>Peso (kg)</th><th>Volume (m³)</th><th>Veículo</th><th>Ocupação</th><th>Custo (R$)</th><th>Status</th></tr> </thead><tbody>`;
   for(let r of resultados) {
     if(r.ok) {
       html += `<tr>
@@ -1449,39 +1560,40 @@ function renderLoteResultados(resultados) {
   html += `</tbody></table></div>`;
   div.innerHTML = html;
 }
-
+// ==================== CARREGAMENTO DA GOOGLE MAPS ====================
 function loadGoogleMaps() {
   const mapEl = document.getElementById("map");
-  if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "COLE_SUA_CHAVE_AQUI") {
-    if (mapEl) mapEl.innerHTML = "Mapa operacional local. Preencha APP_CONFIG.GOOGLE_API_KEY para Google Maps real.";
+  if (!APP_CONFIG.GOOGLE_API_KEY || APP_CONFIG.GOOGLE_API_KEY === "AIzaSyCBovqGqMOw9wYYzZQCrZ2Wttv42vEG3ds") {
+    if (mapEl) mapEl.innerHTML = "⚠️ Configure uma chave válida da API do Google Maps em APP_CONFIG.GOOGLE_API_KEY.<br>As funcionalidades de geocodificação e rotas precisam dela.";
     return;
   }
-  if (window.google && window.google.maps) {
-    if (mapEl && !window.map) {
-      window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat: -23.55, lng: -46.63 }, zoom: 8 });
-      window.geocoder = new google.maps.Geocoder();
-      map = window.map;
-      geocoder = window.geocoder;
-    }
+
+  // Evita recarregar se já existe script
+  if (document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]')) {
+    // Aguarda a API carregar (já está em andamento)
+    const checkInterval = setInterval(() => {
+      if (window.google && google.maps) {
+        clearInterval(checkInterval);
+        initMap();
+      }
+    }, 500);
     return;
   }
+
   window.initMapCallback = function() {
-    if (mapEl && window.google && window.google.maps) {
-      window.map = new google.maps.Map(mapEl, { center: depotCoords || { lat: -23.55, lng: -46.63 }, zoom: 8 });
-      window.geocoder = new google.maps.Geocoder();
-      map = window.map;
-      geocoder = window.geocoder;
-      console.log("Google Maps carregado com sucesso");
-    }
+    initMap();
   };
+
   const script = document.createElement("script");
-  script.src = `https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places&callback=initMapCallback`;
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${APP_CONFIG.GOOGLE_API_KEY}&libraries=places,routes,geometry&callback=initMapCallback`;
   script.async = true;
   script.defer = true;
-  script.onerror = () => { if (mapEl) mapEl.innerHTML = "Erro ao carregar Google Maps. Verifique a chave e as APIs ativadas."; };
+  script.onerror = () => {
+    console.error("❌ Erro ao carregar script da API.");
+    if (mapEl) mapEl.innerHTML = "Erro ao carregar Google Maps. Verifique a chave e as APIs ativadas.";
+  };
   document.head.appendChild(script);
 }
-
 function initCSVImport() { 
   const input = document.getElementById("ordersCsvFile"); 
   if (!input) return; 
@@ -1511,7 +1623,6 @@ function initCSVImport() {
     }); 
   }); 
 }
-
 // ==================== CENTRAL DE PEDIDOS (IA de oportunidades) ====================
 function obterPedidosPendentes() {
   if(!ultimoResultado) return pedidos.filter(p => !operacaoLeve.some(op => op.os === p.os));
@@ -1532,27 +1643,27 @@ function renderCentral() {
   const tbody = document.getElementById("centralTableBody");
   if(!tbody) return;
   if(pendentes.length === 0) {
-    tbody.innerHTML = '3q<td colspan="15">Nenhum pedido pendente.</td>3u7';
+    tbody.innerHTML = ' <tr><td colspan="15">Nenhum pedido pendente.</td></tr>';
     return;
   }
   tbody.innerHTML = pendentes.map(p => `
-      <tr>
-        <td>${p.os || '-'}</td>
-        <td>${p.codDepositante || '-'}</td>
-        <td>${p.depositante || '-'}</td>
-        <td>${p.cnpj || '-'}</td>
-        <td>${p.destinatario || '-'}</td>
-        <td>${p.cep || '-'}</td>
-        <td>${p.logradouro || '-'}</td>
-        <td>${p.numero || '-'}</td>
-        <td>${p.bairro || '-'}</td>
-        <td>${p.cidade || '-'}</td>
-        <td>${p.uf || '-'}</td>
-        <td>${formatNumber(p.pesoTotal)} kg</td>
-        <td>${formatNumber(p.volumeTotal)} m³</td>
-        <td>${p.dataPrevisao || '-'}</td>
-        <td>${p.modalidade || '-'}</td>
-      </tr>
+        <tr>
+          <td>${p.os || '-'}</td>
+          <td>${p.codDepositante || '-'}</td>
+          <td>${p.depositante || '-'}</td>
+          <td>${p.cnpj || '-'}</td>
+          <td>${p.destinatario || '-'}</td>
+          <td>${p.cep || '-'}</td>
+          <td>${p.logradouro || '-'}</td>
+          <td>${p.numero || '-'}</td>
+          <td>${p.bairro || '-'}</td>
+          <td>${p.cidade || '-'}</td>
+          <td>${p.uf || '-'}</td>
+          <td>${formatNumber(p.pesoTotal)} kg</td>
+          <td>${formatNumber(p.volumeTotal)} m³</td>
+          <td>${p.dataPrevisao || '-'}</td>
+          <td>${p.modalidade || '-'}</td>
+        </tr>
   `).join('');
 }
 function atualizarCentral() { renderCentral(); exibirOportunidades(); }
@@ -1731,6 +1842,16 @@ function limparFavoritas() {
     renderFavoritas();
   }
 }
+function limparSimulador() {
+  document.getElementById("simCliente").value = "";
+  document.getElementById("simDestinatario").value = "";
+  document.getElementById("simEndereco").value = "";
+  document.getElementById("simPeso").value = "";
+  document.getElementById("simVolume").value = "";
+  document.getElementById("simCubagem").value = "";
+  document.getElementById("simulacaoResultado").style.display = "none";
+  document.getElementById("sugestoesInclusao").innerHTML = "";
+}
 
 document.addEventListener("DOMContentLoaded", () => { 
   carregarCorredoresDaUI();
@@ -1744,7 +1865,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initCSVImport(); 
   carregarFavoritas();
   iniciarTimerOportunidades();
-  if (vehicles.length === 0) adicionarVeiculoPadrao(); 
+  if (vehicles.length === 0) adicionarVeiculoPadrao();
 });
 </script>
 </body>
